@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-pub mod curve;
+pub mod easing;
 
 #[derive(Debug, Deserialize)]
 pub enum Animation {
