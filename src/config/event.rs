@@ -14,9 +14,7 @@ pub struct Event {
 #[derive(Debug)]
 pub enum EventEasing {
     Linear,
-    EaseIn,
-    EaseOut,
-    EaseInOut,
+    CubicBezier(f64, f64, f64, f64),
 }
 
 impl<'de> Deserialize<'de> for EventEasing {
@@ -27,9 +25,9 @@ impl<'de> Deserialize<'de> for EventEasing {
         let s: String = Deserialize::deserialize(deserializer)?;
         match s.as_str() {
             "linear" => Ok(EventEasing::Linear),
-            "ease-in" => Ok(EventEasing::EaseIn),
-            "ease-out" => Ok(EventEasing::EaseOut),
-            "ease-in-out" => Ok(EventEasing::EaseInOut),
+            "ease-in" => Ok(EventEasing::CubicBezier(0.42, 0.0, 1.0, 1.0)),
+            "ease-out" => Ok(EventEasing::CubicBezier(0.0, 0.0, 0.58, 1.0)),
+            "ease-in-out" => Ok(EventEasing::CubicBezier(0.42, 0.0, 0.58, 1.0)),
             _ => Err(serde::de::Error::custom(format!("Unknown easing type: {}", s))),
         }
     }
