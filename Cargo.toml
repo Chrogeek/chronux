@@ -8,7 +8,6 @@ edition = "2024"
 rayon = "1.10.0"
 resvg = "0.45.1"
 serde = { version = "1.0.219", features = ["derive"] }
-serde_json = "1.0.140"
 tiny-skia = "0.11.4"
 toml = "0.8.23"
 usvg = "0.45.1"
