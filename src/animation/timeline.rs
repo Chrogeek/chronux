@@ -1,4 +1,4 @@
-use crate::{animation::properties::Properties, config::event::Event};
+use crate::{animation::{properties::Properties, Animation}, config::event::Event};
 
 #[derive(Debug)]
 pub struct Timeline {
@@ -8,13 +8,26 @@ pub struct Timeline {
 }
 
 impl Timeline {
-    pub fn new(events: Vec<Event>) -> Self {
+    pub fn new(events: Vec<Event>, start: Properties) -> Self {
         let mut events = events;
         events.sort_by(|a, b| a.start.partial_cmp(&b.start).unwrap_or(std::cmp::Ordering::Equal));
 
+        let mut start = start;
+
+        for e in events.iter() {
+            match e.animation {
+                // If the event has a trim animation, we apply it to the start properties
+                Animation::TrimPath { .. } => {
+                    start.trim = (0.0, 1.0);
+                }
+                // Add other animation types here as needed
+                _ => {}
+            }
+        }
+
         Timeline {
             events,
-            start: Properties,
+            start,
         }
     }
 

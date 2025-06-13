@@ -11,6 +11,7 @@ pub enum ChronuxError {
         attribute: String,
     },
     ParseFloatError(std::num::ParseFloatError),
+    ColorParseError(String),
 }
 
 pub type ChronuxResult<T> = Result<T, ChronuxError>;
@@ -26,12 +27,19 @@ impl Display for ChronuxError {
             }
             ChronuxError::AttributeNotFound { node_id, attribute } => {
                 if let Some(node_id) = node_id {
-                    write!(f, "Attribute '{}' not found in node '{}'", attribute, node_id)
+                    write!(
+                        f,
+                        "Attribute '{}' not found in node '{}'",
+                        attribute, node_id
+                    )
                 } else {
                     write!(f, "Attribute '{}' not found in node", attribute)
                 }
             }
             ChronuxError::ParseFloatError(e) => write!(f, "Floating-point parse error: {}", e),
+            ChronuxError::ColorParseError(color) => {
+                write!(f, "Failed to parse color: '{}'", color)
+            }
         }
     }
 }

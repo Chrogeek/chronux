@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use serde::Deserialize;
 
 use crate::{
-    animation::timeline::Timeline,
+    animation::{properties::Properties, timeline::Timeline},
     config::event::Event,
     util::{ChronuxError, ChronuxResult},
 };
@@ -108,7 +108,7 @@ impl Config {
 
         let timeline = timeline
             .into_iter()
-            .map(|(object_id, events)| (object_id, Timeline::new(events)))
+            .map(|(object_id, events)| (object_id, Timeline::new(events, Properties::default())))
             .collect();
 
         Ok(timeline)
