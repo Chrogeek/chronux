@@ -5,7 +5,6 @@ pub struct Timeline {
     /// event-id => absolute time
     pub events: Vec<Event>,
     pub start: Properties,
-    pub end: Properties,
 }
 
 impl Timeline {
@@ -16,7 +15,6 @@ impl Timeline {
         Timeline {
             events,
             start: Properties,
-            end: Properties,
         }
     }
 

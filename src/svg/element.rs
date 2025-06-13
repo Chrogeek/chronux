@@ -6,7 +6,6 @@ use crate::{svg, util::ChronuxResult};
 pub struct Object {
     pub id: String,
     pub style: String,
-    pub zorder: u32,
     pub shape: Shape,
 }
 
@@ -23,7 +22,6 @@ impl Object {
         Ok(Object {
             id,
             style,
-            zorder: 0,
             shape: match node.tag_name().name() {
                 "path" => Shape::Path {
                     d: svg::attribute_str(node, "d")?,
