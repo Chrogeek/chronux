@@ -35,21 +35,23 @@ fn run() -> Result<(), ChronuxError> {
     let svg = Svg::from_file(&conf.input.svg)?;
     log::info!("Loaded SVG from file `{}`", conf.input.svg);
 
-    // 读取SVG中的路径、圆形和文本
-    // let svg_size = svg.size();
-    // log::info!("SVG size: {}x{}", svg_size.width(), svg_size.height());
-
+    // 3. 读取 SVG 中的路径、圆形和文本
     let objs = svg.search_labels(&ids)?;
-    log::info!("Found {} objects in SVG", objs.len());
+    log::info!("Extracted {} objects in SVG", objs.len());
 
-    // 3. 处理动画
+    // 4. 处理动画
     let total_frames = (conf.output.fps as f64 * conf.output.duration) as u32;
     log::info!("Total frames: {}", total_frames);
 
-    // 4. 渲染动画
+    // 5. 渲染动画
     // for f in 0..total_frames {
     //     // 这里可以添加对每一帧的处理逻辑
     //     let _t = f as f64 / conf.output.fps as f64;
+
+        for o in objs.iter() {
+            let tl = &timeline[&o.id];
+            println!("{}: {:?}", o.id, tl);
+        }
     // }
 
     Ok(())

@@ -3,14 +3,14 @@ use std::collections::HashSet;
 use roxmltree::{Document, Node};
 
 use crate::{
-    svg::element::Obj,
+    svg::element::Object,
     util::{ChronuxError, ChronuxResult},
 };
 
 pub mod element;
 
 pub struct Svg {
-    pub tree: Document<'static>,
+    tree: Document<'static>,
 }
 
 impl Svg {
@@ -22,23 +22,23 @@ impl Svg {
         Ok(Svg { tree: svg })
     }
 
-    pub fn search_labels(&self, labels: &HashSet<String>) -> ChronuxResult<Vec<Obj>> {
+    pub fn search_labels(&self, labels: &HashSet<String>) -> ChronuxResult<Vec<Object>> {
         fn search_labels_dfs(
             node: &Node,
             labels: &HashSet<String>,
             parent: &Option<String>,
-            results: &mut Vec<Obj>,
+            results: &mut Vec<Object>,
         ) -> ChronuxResult<()> {
             let this_label = attribute_label(node);
             if let Some(ref label) = this_label {
                 if labels.contains(label) {
-                    results.push(Obj::from_node(node, label.clone())?);
+                    results.push(Object::from_node(node, label.clone())?);
                 }
 
                 if let Some(parent_label) = parent {
                     let full_name = format!("{}/{}", parent_label, label);
                     if labels.contains(&full_name) {
-                        results.push(Obj::from_node(node, full_name)?);
+                        results.push(Object::from_node(node, full_name)?);
                     }
                 }
             }

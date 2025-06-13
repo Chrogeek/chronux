@@ -63,8 +63,10 @@ impl Config {
 
         for next in self.events[event_id].depends.iter() {
             let t = self.dfs(next, visited, stack)?;
-            start_time = start_time.max(t + self.events[next].offset + self.events[next].duration);
+            start_time = start_time.max(t + self.events[next].duration);
         }
+
+        start_time += self.events[event_id].offset;
 
         stack.remove(event_id);
 
