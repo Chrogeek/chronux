@@ -3,8 +3,7 @@ use std::collections::{HashMap, HashSet};
 use serde::Deserialize;
 
 use crate::{
-    config::event::Event,
-    util::{ChronuxError, ChronuxResult},
+    animation::timeline::Timeline, config::event::Event, util::{ChronuxError, ChronuxResult}
 };
 
 pub mod event;
@@ -30,9 +29,6 @@ pub struct OutputConfig {
     pub fps: u32,
     pub duration: f64,
 }
-
-/// event-id => absolute time
-pub type Timeline = HashMap<String, f64>;
 
 impl Config {
     pub fn load(filename: &str) -> ChronuxResult<Config> {
@@ -109,6 +105,10 @@ impl Config {
                 event.start,
             );
         }
+
+        let timeline = timeline.into_iter().map(|(object_id, events)| {
+            (object_id, Timeline::new(events))
+        }).collect();
 
         Ok(timeline)
     }
