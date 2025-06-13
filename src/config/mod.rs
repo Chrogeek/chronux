@@ -3,7 +3,9 @@ use std::collections::{HashMap, HashSet};
 use serde::Deserialize;
 
 use crate::{
-    animation::timeline::Timeline, config::event::Event, util::{ChronuxError, ChronuxResult}
+    animation::timeline::Timeline,
+    config::event::Event,
+    util::{ChronuxError, ChronuxResult},
 };
 
 pub mod event;
@@ -34,7 +36,8 @@ impl Config {
     pub fn load(filename: &str) -> ChronuxResult<Config> {
         let config_data =
             std::fs::read_to_string(filename).map_err(|e| ChronuxError::IoError(e))?;
-        let mut config: Config = toml::from_str(&config_data).map_err(|e| ChronuxError::ConfigError(e))?;
+        let mut config: Config =
+            toml::from_str(&config_data).map_err(|e| ChronuxError::ConfigError(e))?;
         config.calc_start_times()?;
         Ok(config)
     }
@@ -96,19 +99,17 @@ impl Config {
             let object_id = &self.events[event_id].object;
 
             if !timeline.contains_key(object_id) {
-                timeline.insert(object_id.clone(), HashMap::new());
+                timeline.insert(object_id.clone(), Vec::new());
             }
 
             let event = &self.events[event_id];
-            timeline.get_mut(object_id).unwrap().insert(
-                event_id.clone(),
-                event.start,
-            );
+            timeline.get_mut(object_id).unwrap().push(event.clone());
         }
 
-        let timeline = timeline.into_iter().map(|(object_id, events)| {
-            (object_id, Timeline::new(events))
-        }).collect();
+        let timeline = timeline
+            .into_iter()
+            .map(|(object_id, events)| (object_id, Timeline::new(events)))
+            .collect();
 
         Ok(timeline)
     }

@@ -1,8 +1,8 @@
 use serde::Deserialize;
 
-use crate::animation::easing::Easing;
+use crate::animation::{easing::Easing, Animation};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Event {
     pub id: String,
     #[serde(default = "Vec::new")]
@@ -13,6 +13,8 @@ pub struct Event {
     #[serde(default = "default_start")]
     pub start: f64,
     pub duration: f64,
+    #[serde(flatten)]
+    pub animation: Animation,
 }
 
 fn default_start() -> f64 {

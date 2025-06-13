@@ -6,7 +6,7 @@ fn cubic_bezier(t: f64, p1: f64, p2: f64, p3: f64, p4: f64) -> f64 {
     t1.powi(3) * p1 + 3.0 * t1.powi(2) * t * p2 + 3.0 * t1 * t.powi(2) * p3 + t.powi(3) * p4
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Easing {
     Linear,
     CubicBezier(f64, f64, f64, f64),

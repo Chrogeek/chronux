@@ -1,18 +1,18 @@
-use std::collections::HashMap;
+use crate::{animation::properties::Properties, config::event::Event};
 
 #[derive(Debug)]
 pub struct Timeline {
     /// event-id => absolute time
-    pub events: HashMap<String, f64>,
+    pub events: Vec<Event>,
     pub start: Properties,
     pub end: Properties,
 }
 
-#[derive(Debug)]
-pub struct Properties;
-
 impl Timeline {
-    pub fn new(events: HashMap<String, f64>) -> Self {
+    pub fn new(events: Vec<Event>) -> Self {
+        let mut events = events;
+        events.sort_by(|a, b| a.start.partial_cmp(&b.start).unwrap_or(std::cmp::Ordering::Equal));
+
         Timeline {
             events,
             start: Properties,
@@ -22,7 +22,21 @@ impl Timeline {
 
     pub fn interpolate(&self, time: f64) -> Properties {
         // This method would contain logic to interpolate properties based on the timeline
-        // For now, we return an empty Properties instance
-        Properties
+
+        let mut result = self.start.clone();
+
+        for event in &self.events {
+            if time > event.start + event.duration {
+                // Apply the properties of the event at this time
+                // This is a placeholder; actual implementation would depend on the event's properties
+                result = result.apply(&event.animation, 1.0);
+            } else if time > event.start {
+                // Interpolate between start and end of the event
+                let t = (time - event.start) / event.duration;
+                result = result.apply(&event.animation, t);
+            }
+        }
+
+        result
     }
 }
