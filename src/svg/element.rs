@@ -2,10 +2,7 @@ use roxmltree::Node;
 
 use crate::{
     animation::properties::Properties,
-    svg::{
-        self,
-        path::{Path, parse_path},
-    },
+    svg::{self, path::Curve},
     util::ChronuxResult,
 };
 
@@ -18,7 +15,7 @@ pub struct Object {
 
 #[derive(Debug)]
 pub enum Shape {
-    Path { d: Vec<Path> },
+    Path { d: Vec<Curve> },
     Circle { cx: f64, cy: f64, r: f64 },
     Text { x: f64, y: f64, content: String },
 }
@@ -31,7 +28,7 @@ impl Object {
             style,
             shape: match node.tag_name().name() {
                 "path" => Shape::Path {
-                    d: parse_path(&svg::attribute_str(node, "d")?)?,
+                    d: Curve::from_path(&svg::attribute_str(node, "d")?)?,
                 },
                 "circle" => Shape::Circle {
                     cx: svg::attribute_f64(node, "cx")?,
