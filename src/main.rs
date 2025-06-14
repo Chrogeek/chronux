@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use indicatif::ProgressIterator;
 use skia_safe::surfaces;
 
 use crate::{config::Config, svg::Svg, util::ChronuxError};
@@ -57,7 +58,7 @@ fn run() -> Result<(), ChronuxError> {
     log::info!("Total frames: {}", total_frames);
 
     // 5. 渲染动画
-    for f in 0..total_frames {
+    for f in (0..total_frames).progress() {
         let t = f as f64 / conf.output.fps as f64;
 
         let mut surface =
@@ -65,6 +66,8 @@ fn run() -> Result<(), ChronuxError> {
                 .ok_or(ChronuxError::SkiaError(
                     "failed to create Skia surface".into(),
                 ))?;
+
+        surface.canvas().clear(conf.output.background_color);
 
         for o in objs.iter() {
             let tl = &timeline[&o.id];
@@ -75,9 +78,9 @@ fn run() -> Result<(), ChronuxError> {
         let filename = format!("output/frame_{:04}.png", f);
         let mut file = std::fs::File::create(&filename).map_err(|e| ChronuxError::IoError(e))?;
 
-        let pixmap = skia_safe::Pixmap::default();
-
-        surface.read_pixels_to_pixmap(&pixmap, (0, 0));
+        let pixmap = surface.peek_pixels().ok_or(ChronuxError::SkiaError(
+            "failed to peek pixels from Skia surface".into(),
+        ))?;
 
         skia_safe::png_encoder::encode(&pixmap, &mut file, &skia_safe::png_encoder::Options::default());
     }

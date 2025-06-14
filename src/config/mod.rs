@@ -1,11 +1,12 @@
 use std::collections::{HashMap, HashSet};
 
 use serde::Deserialize;
+use skia_safe::Color;
 
 use crate::{
     animation::{properties::Properties, timeline::Timeline},
     config::event::Event,
-    util::{ChronuxError, ChronuxResult},
+    util::{ChronuxError, ChronuxResult, parse_css_color},
 };
 
 pub mod event;
@@ -29,6 +30,17 @@ pub struct OutputConfig {
     pub height: u32,
     pub fps: u32,
     pub duration: f64,
+    #[serde(deserialize_with = "deserialize_hex_color")]
+    #[serde(rename = "background-color")]
+    pub background_color: Color,
+}
+
+fn deserialize_hex_color<'de, D>(deserializer: D) -> Result<Color, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let hex_str: String = Deserialize::deserialize(deserializer)?;
+    parse_css_color(&hex_str, 1.0).map_err(serde::de::Error::custom)
 }
 
 impl Config {
