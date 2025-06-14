@@ -33,23 +33,6 @@ impl Dimension {
         let scale = self.width / vb_width; // Assuming uniform scaling for both dimensions
         length * scale
     }
-
-    pub fn to_viewbox_coords(&self, x: f64, y: f64) -> (f64, f64) {
-        let (vb_x, vb_y, vb_width, vb_height) = self.viewbox;
-        let scale_x = vb_width / self.width;
-        let scale_y = vb_height / self.height;
-
-        let svg_x = x * scale_x + vb_x;
-        let svg_y = y * scale_y + vb_y;
-
-        (svg_x, svg_y)
-    }
-
-    pub fn to_viewbox_length(&self, length: f64) -> f64 {
-        let (_, _, vb_width, _) = self.viewbox;
-        let scale = vb_width / self.width; // Assuming uniform scaling for both dimensions
-        length * scale
-    }
 }
 
 pub struct Svg {

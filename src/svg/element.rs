@@ -1,5 +1,5 @@
 use roxmltree::Node;
-use skia_safe::{Paint, Path};
+use skia_safe::Path;
 
 use crate::{
     animation::properties::Properties,
@@ -39,11 +39,7 @@ impl Object {
                     );
                     let (cx, cy) = dim.to_real_coords(cx, cy);
                     let r = dim.to_real_length(r);
-                    Shape::Circle {
-                        cx,
-                        cy,
-                        r,
-                    }
+                    Shape::Circle { cx, cy, r }
                 }
                 "text" => {
                     let (x, y) = (

@@ -64,7 +64,7 @@ fn run() -> Result<(), ChronuxError> {
         for o in objs.iter() {
             let tl = &timeline[&o.id];
             let properties = tl.interpolate(t);
-            render::draw(&surface.canvas(), &o.shape, &properties);
+            render::draw(&surface.canvas(), &o.shape, &properties)?;
         }
     }
 

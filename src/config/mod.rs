@@ -21,7 +21,6 @@ pub struct Config {
 #[derive(Debug, Deserialize)]
 pub struct InputConfig {
     pub svg: String,
-    pub map: String,
 }
 
 #[derive(Debug, Deserialize)]

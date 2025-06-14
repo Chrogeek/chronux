@@ -16,12 +16,9 @@ impl Timeline {
 
         for e in events.iter() {
             match e.animation {
-                // If the event has a trim animation, we apply it to the start properties
                 Animation::TrimPath { .. } => {
                     start.trim = (0.0, 1.0);
                 }
-                // Add other animation types here as needed
-                _ => {}
             }
         }
 
@@ -44,7 +41,7 @@ impl Timeline {
             } else if time > event.start {
                 // Interpolate between start and end of the event
                 let t = (time - event.start) / event.duration;
-                result = result.apply(&event.animation, t);
+                result = result.apply(&event.animation, event.easing.evaluate(t));
             }
         }
 

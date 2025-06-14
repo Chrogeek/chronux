@@ -3,6 +3,10 @@ use skia_safe::Canvas;
 use crate::{animation::properties::Properties, svg::element::Shape, util::ChronuxResult};
 
 pub fn draw(canvas: &Canvas, shape: &Shape, properties: &Properties) -> ChronuxResult<()> {
+    if !properties.visible {
+        return Ok(());
+    }
+
     let fill = properties.get_fill_paint();
     let stroke = properties.get_stroke_paint();
 
