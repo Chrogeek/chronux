@@ -26,7 +26,7 @@ fn run() -> Result<(), ChronuxError> {
     log::info!("Loaded config from file `{}`", input);
 
     // 提取所需的SVG元素及时间线
-    let timeline = conf.calc_timeline()?;
+    let mut timeline = conf.calc_timeline()?;
 
     let ids = timeline.keys().cloned().collect::<HashSet<_>>();
     log::trace!("Timeline IDs: {:?}", ids);
@@ -35,10 +35,17 @@ fn run() -> Result<(), ChronuxError> {
     let svg = Svg::from_file(&conf.input.svg)?;
     log::info!("Loaded SVG from file `{}`", conf.input.svg);
 
+    log::info!("SVG dimensions: {}x{}", svg.width, svg.height);
+    log::info!("SVG viewbox: {:?}", svg.viewbox);
+
 
     // 3. 读取 SVG 中的路径、圆形和文本
     let objs = svg.search_labels(&ids)?;
     log::info!("Extracted {} objects in SVG", objs.len());
+
+    for o in objs.iter() {
+        timeline.get_mut(&o.id).unwrap().start = o.style.clone();
+    }
 
     // 4. 处理动画
     let total_frames = (conf.output.fps as f64 * conf.output.duration) as u32;

@@ -12,5 +12,6 @@ rayon = "1.10.0"
 roxmltree = "0.20.0"
 serde = { version = "1.0.219", features = ["derive"] }
 simplecss = "0.2.2"
+svgtypes = "0.15.3"
 tiny-skia = "0.11.4"
 toml = "0.8.23"

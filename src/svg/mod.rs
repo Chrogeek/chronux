@@ -8,12 +8,13 @@ use crate::{
 };
 
 pub mod element;
+pub mod path;
 
 pub struct Svg {
     tree: Document<'static>,
-    width: f64,
-    height: f64,
-    viewbox: (f64, f64, f64, f64),
+    pub width: f64,
+    pub height: f64,
+    pub viewbox: (f64, f64, f64, f64),
 }
 
 impl Svg {
