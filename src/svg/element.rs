@@ -1,10 +1,10 @@
 use roxmltree::Node;
-use skia_safe::Path;
+use skia_safe::{path_measure, Path, PathMeasure, Point};
 
 use crate::{
     animation::properties::Properties,
     svg::{self, Dimension},
-    util::ChronuxResult,
+    util::{ChronuxError, ChronuxResult},
 };
 
 #[derive(Debug)]
@@ -56,5 +56,20 @@ impl Object {
                 _ => unreachable!("unexpected SVG element: {}", node.tag_name().name()),
             },
         })
+    }
+
+    pub fn get_position(&self) -> (f32, f32) {
+        match &self.shape {
+            Shape::Path { d } => {
+                log::warn!("position may not be accurate for complex paths");
+                let Point { x, y } = d.bounds().center();
+                (x, y)
+            }
+            Shape::Circle { cx, cy, .. } => (*cx, *cy),
+            Shape::Text { x, y, .. } => {
+                log::warn!("position may not be accurate for text elements");
+                 (*x, *y)
+            },
+        }
     }
 }

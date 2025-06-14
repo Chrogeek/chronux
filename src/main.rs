@@ -32,7 +32,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     let output_dir = args.output_dir;
 
     // 加载动画配置
-    let conf = Config::load(&input)?;
+    let mut conf = Config::load(&input)?;
     log::info!("Loaded config from file `{}`", input);
 
     // 提取所需的SVG元素及时间线
@@ -69,6 +69,8 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             }
         }
     }
+
+    conf.calc_start_times(&objs)?;
 
     // 渲染动画
     let frame_start = (conf.output.time_start * conf.output.fps as f32) as u32;

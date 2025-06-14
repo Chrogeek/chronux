@@ -4,9 +4,10 @@ use serde::Deserialize;
 use skia_safe::Color;
 
 use crate::{
-    animation::{properties::Properties, timeline::Timeline},
+    animation::{properties::Properties, timeline::Timeline, track},
     config::event::Event,
-    util::{ChronuxError, ChronuxResult, parse_css_color},
+    svg::element::Object,
+    util::{parse_css_color, ChronuxError, ChronuxResult},
 };
 
 pub mod event;
@@ -50,9 +51,8 @@ impl Config {
     pub fn load(filename: &str) -> ChronuxResult<Config> {
         let config_data =
             std::fs::read_to_string(filename).map_err(|e| ChronuxError::IoError(e))?;
-        let mut config: Config =
+        let config: Config =
             toml::from_str(&config_data).map_err(|e| ChronuxError::ConfigError(e))?;
-        config.calc_start_times()?;
         Ok(config)
     }
 
@@ -61,8 +61,12 @@ impl Config {
         event_id: &String,
         visited: &mut HashMap<String, f32>,
         stack: &mut HashSet<String>,
+        objs: &Vec<Object>,
+        objmap: &HashMap<String, usize>,
     ) -> ChronuxResult<f32> {
-        let mut start_time = 0.0f32;
+        let mut after_start_time = 0.0f32;
+        let mut with_start_time = 0.0f32;
+        let mut track_start_time = 0.0f32;
 
         if stack.contains(event_id) {
             return Err(ChronuxError::CircularDependency(event_id.clone()));
@@ -75,26 +79,38 @@ impl Config {
         stack.insert(event_id.clone());
 
         for next in self.events[event_id].depends.iter() {
-            let t = self.dfs(next, visited, stack)?;
-            start_time = start_time.max(t + self.events[next].duration);
+            let t = self.dfs(next, visited, stack, objs, objmap)?;
+            after_start_time = after_start_time.max(t + self.events[next].duration);
+            with_start_time = with_start_time.max(t);
+
+            if let event::Offset::Track { .. } = self.events[event_id].offset {
+                let nextobj = &objs[objmap[&self.events[next].object]];
+                let obj = &objs[objmap[&self.events[event_id].object]];
+                let (x, y) = obj.get_position();
+                track_start_time = track(nextobj, &self.events[next], x, y)?;
+            }
         }
 
-        start_time += self.events[event_id].offset;
+        let start_time = match self.events[event_id].offset {
+            event::Offset::WithPrevious { delay } => with_start_time + delay,
+            event::Offset::AfterPrevious { offset } => after_start_time + offset,
+            event::Offset::Track { offset } => track_start_time + offset,
+        };
 
         stack.remove(event_id);
-
         visited.insert(event_id.clone(), start_time);
-
         Ok(start_time)
     }
 
-    fn calc_start_times(&mut self) -> ChronuxResult<()> {
+    pub fn calc_start_times(&mut self, objs: &Vec<Object>) -> ChronuxResult<()> {
         let mut visited = HashMap::new();
         let mut stack = HashSet::new();
 
+        let objmap = objs.iter().enumerate().map(|(i, o)| (o.id.clone(), i)).collect::<HashMap<_, _>>();
+
         for event_id in self.events.keys() {
             if !visited.contains_key(event_id) {
-                self.dfs(event_id, &mut visited, &mut stack)?;
+                self.dfs(event_id, &mut visited, &mut stack, objs, &objmap)?;
             }
         }
 

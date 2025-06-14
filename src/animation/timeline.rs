@@ -1,4 +1,4 @@
-use crate::{animation::{properties::Properties, Animation}, config::event::Event};
+use crate::{animation::properties::Properties, config::event::Event};
 
 #[derive(Debug)]
 pub struct Timeline {
@@ -10,19 +10,16 @@ pub struct Timeline {
 impl Timeline {
     pub fn new(events: Vec<Event>, start: Properties) -> Self {
         let mut events = events;
-        events.sort_by(|a, b| a.start.partial_cmp(&b.start).unwrap_or(std::cmp::Ordering::Equal));
+        events.sort_by(|a, b| {
+            a.start
+                .partial_cmp(&b.start)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
-        let mut start = start;
-
-        Timeline {
-            events,
-            start,
-        }
+        Timeline { events, start }
     }
 
     pub fn interpolate(&self, time: f32) -> Properties {
-        // This method would contain logic to interpolate properties based on the timeline
-
         let mut result = self.start.clone();
 
         for event in &self.events {
