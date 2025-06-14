@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use tiny_skia::Color;
+use skia_safe::Color;
 
 #[derive(Debug)]
 pub enum ChronuxError {
@@ -52,18 +52,15 @@ pub fn parse_css_color(color: &str, opacity: f32) -> ChronuxResult<Color> {
     if color == "none" {
         return Ok(Color::TRANSPARENT);
     }
-    let c = csscolorparser::parse(color).map_err(|e| {
-        ChronuxError::ColorParseError(format!(
-            "cannot parse color literal '{}': {}",
-            color.to_string(),
-            e.to_string()
-        ))
-    })?;
-    Color::from_rgba(
-        c.r as f32 / 255.0,
-        c.g as f32 / 255.0,
-        c.b as f32 / 255.0,
-        opacity,
-    )
-    .ok_or(ChronuxError::ColorParseError(color.to_string()))
+    let [r, g, b, _] = csscolorparser::parse(color)
+        .map_err(|e| {
+            ChronuxError::ColorParseError(format!(
+                "cannot parse color literal '{}': {}",
+                color.to_string(),
+                e.to_string()
+            ))
+        })?
+        .to_rgba8();
+    let a = (opacity * 255.0).clamp(0.0, 255.0) as u8;
+    Ok(Color::from_argb(a, r, g, b))
 }

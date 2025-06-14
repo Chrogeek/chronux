@@ -1,4 +1,4 @@
-use tiny_skia::Color;
+use skia_safe::Color;
 
 use crate::{
     animation::Animation,

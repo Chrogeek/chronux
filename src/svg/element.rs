@@ -1,9 +1,8 @@
 use roxmltree::Node;
+use skia_safe::Path;
 
 use crate::{
-    animation::properties::Properties,
-    svg::{self, path::Curve},
-    util::ChronuxResult,
+    animation::properties::Properties, svg, util::ChronuxResult
 };
 
 #[derive(Debug)]
@@ -15,7 +14,7 @@ pub struct Object {
 
 #[derive(Debug)]
 pub enum Shape {
-    Path { d: Vec<Curve> },
+    Path { d: Path },
     Circle { cx: f64, cy: f64, r: f64 },
     Text { x: f64, y: f64, content: String },
 }
@@ -28,7 +27,7 @@ impl Object {
             style,
             shape: match node.tag_name().name() {
                 "path" => Shape::Path {
-                    d: Curve::from_path(&svg::attribute_str(node, "d")?)?,
+                    d: svg::path::svg_to_path(&svg::attribute_str(node, "d")?)?,
                 },
                 "circle" => Shape::Circle {
                     cx: svg::attribute_f64(node, "cx")?,
