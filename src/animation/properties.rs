@@ -1,4 +1,7 @@
-use skia_safe::Color;
+use skia_safe::{
+    Color, Font, FontStyle,
+    font_style::{Slant, Width},
+};
 
 use crate::{
     animation::Animation,
@@ -53,12 +56,10 @@ impl Properties {
                     ..self.clone()
                 }
             }
-            Animation::Typewriter => {
-                Properties {
-                    typewriter: (0.0, t),
-                    ..self.clone()
-                }
-            }
+            Animation::Typewriter => Properties {
+                typewriter: (0.0, t),
+                ..self.clone()
+            },
         }
     }
 
@@ -142,5 +143,32 @@ impl Properties {
         ));
 
         effects
+    }
+
+    pub fn get_font(&self) -> ChronuxResult<Font> {
+        // let mut ts = TextStyle::new();
+        // ts.set_font_families(&["Blue Sky Standard", "Source Han Sans SC"]);
+        // ts.set_font_size(self.font_size);
+        // ts.set_font_style(skia_safe::FontStyle::new(
+        //     (self.font_weight as i32).into(),
+        //     Width::NORMAL,
+        //     Slant::Upright,
+        // ));
+        // ts
+        let mgr = skia_safe::FontMgr::default();
+        let tf = mgr
+            .legacy_make_typeface(
+                "Source Han Sans SC",
+                FontStyle::new(
+                    (self.font_weight as i32).into(),
+                    Width::NORMAL,
+                    Slant::Upright,
+                ),
+            )
+            .ok_or(ChronuxError::SkiaError(
+                "failed to create typeface".to_string(),
+            ))?;
+        let font = Font::from_typeface(tf, self.font_size);
+        Ok(font)
     }
 }

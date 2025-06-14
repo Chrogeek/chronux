@@ -1,4 +1,4 @@
-use skia_safe::Canvas;
+use skia_safe::{utils::text_utils::{draw_text, Align}, Canvas};
 
 use crate::{animation::properties::Properties, svg::element::Shape, util::ChronuxResult};
 
@@ -28,15 +28,16 @@ pub fn draw(canvas: &Canvas, shape: &Shape, properties: &Properties) -> ChronuxR
             canvas.draw_circle(center, radius, &fill);
             canvas.draw_circle(center, radius, &stroke);
         }
-        Shape::Text {
-            x,
-            y,
-            content,
-        } => {
-            let (start, end) = properties.typewriter;
-            todo!()
-            // canvas.draw_text_align(content, (*x, *y), todo!(), &stroke, todo!());
-            // canvas.draw_text_align(content, (*x, *y), todo!(), &fill, todo!());
+        Shape::Text { x, y, content } => {
+            let (_start, end) = properties.typewriter;
+            let mut end = (end * content.len() as f32).round() as usize;
+            while end > 0 && !content.is_char_boundary(end) {
+                end -= 1;
+            }
+            let text = &content[0..end];
+            let font = properties.get_font()?;
+            draw_text(canvas, text, (*x, *y), &font, &stroke, Align::Left);
+            draw_text(canvas, text, (*x, *y), &font, &fill, Align::Left);
         }
     }
 

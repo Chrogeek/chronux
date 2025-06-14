@@ -16,6 +16,6 @@ roots = "0.0.8"
 roxmltree = "0.20.0"
 serde = { version = "1.0.219", features = ["derive"] }
 simplecss = "0.2.2"
-skia-safe = "0.86.1"
+skia-safe = { version = "0.86.1", features = ["default", "textlayout"] }
 svgtypes = "0.15.3"
 toml = "0.8.23"

@@ -18,6 +18,8 @@ pub enum Animation {
     TrimPath { reverse: bool },
     #[serde(rename = "typewriter")]
     Typewriter,
+    #[serde(rename = "sweep")]
+    Sweep,
 }
 
 pub fn track(obj: &Object, event: &Event, x: f32, y: f32) -> ChronuxResult<f32> {
