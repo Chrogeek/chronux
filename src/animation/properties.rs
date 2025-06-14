@@ -2,7 +2,7 @@ use tiny_skia::Color;
 
 use crate::{
     animation::Animation,
-    util::{ChronuxError, ChronuxResult},
+    util::{ChronuxError, ChronuxResult, parse_css_color},
 };
 
 #[derive(Debug, Clone)]
@@ -27,8 +27,8 @@ impl Default for Properties {
             visible: true,
             font_size: 16.0,
             font_weight: 400.0,
-            fill_color: Color::TRANSPARENT,   // black
-            stroke_color: Color::TRANSPARENT, // black
+            fill_color: Color::TRANSPARENT,   // transparent
+            stroke_color: Color::TRANSPARENT, // transparent
             stroke_width: 1.0,
             translate_x: 0.0,
             translate_y: 0.0,
@@ -63,29 +63,23 @@ impl Properties {
         let mut result = Properties::default();
 
         if let Some(color) = rules.get("fill") {
-            result.fill_color = Color::from_rgba(
-                u8::from_str_radix(&color[1..3], 16).unwrap_or(0) as f32 / 255.0,
-                u8::from_str_radix(&color[3..5], 16).unwrap_or(0) as f32 / 255.0,
-                u8::from_str_radix(&color[5..7], 16).unwrap_or(0) as f32 / 255.0,
+            result.fill_color = parse_css_color(
+                color,
                 rules
                     .get("fill-opacity")
                     .and_then(|v| v.parse::<f32>().ok())
                     .unwrap_or(1.0),
-            )
-            .ok_or(ChronuxError::ColorParseError(color.to_string()))?;
+            )?;
         }
 
         if let Some(color) = rules.get("stroke") {
-            result.fill_color = Color::from_rgba(
-                u8::from_str_radix(&color[1..3], 16).unwrap_or(0) as f32 / 255.0,
-                u8::from_str_radix(&color[3..5], 16).unwrap_or(0) as f32 / 255.0,
-                u8::from_str_radix(&color[5..7], 16).unwrap_or(0) as f32 / 255.0,
+            result.stroke_color = parse_css_color(
+                color,
                 rules
                     .get("stroke-opacity")
                     .and_then(|v| v.parse::<f32>().ok())
                     .unwrap_or(1.0),
-            )
-            .ok_or(ChronuxError::ColorParseError(color.to_string()))?;
+            )?;
         }
 
         if let Some(width) = rules.get("stroke-width") {
@@ -95,7 +89,8 @@ impl Properties {
         }
 
         if let Some(size) = rules.get("font-size") {
-            result.font_size = size.replace("px", "")
+            result.font_size = size
+                .replace("px", "")
                 .parse::<f64>()
                 .map_err(ChronuxError::ParseFloatError)?;
         }

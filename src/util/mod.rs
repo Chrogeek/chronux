@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use tiny_skia::Color;
+
 #[derive(Debug)]
 pub enum ChronuxError {
     IoError(std::io::Error),
@@ -44,4 +46,24 @@ impl Display for ChronuxError {
             ChronuxError::SvgError(msg) => write!(f, "SVG Error: {}", msg),
         }
     }
+}
+
+pub fn parse_css_color(color: &str, opacity: f32) -> ChronuxResult<Color> {
+    if color == "none" {
+        return Ok(Color::TRANSPARENT);
+    }
+    let c = csscolorparser::parse(color).map_err(|e| {
+        ChronuxError::ColorParseError(format!(
+            "cannot parse color literal '{}': {}",
+            color.to_string(),
+            e.to_string()
+        ))
+    })?;
+    Color::from_rgba(
+        c.r as f32 / 255.0,
+        c.g as f32 / 255.0,
+        c.b as f32 / 255.0,
+        opacity,
+    )
+    .ok_or(ChronuxError::ColorParseError(color.to_string()))
 }
