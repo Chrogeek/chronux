@@ -23,7 +23,7 @@ pub enum Shape {
 
 impl Object {
     pub fn from_node(node: &Node, id: String, dim: &Dimension) -> ChronuxResult<Object> {
-        let style = Properties::from_style(&svg::attribute_str(node, "style")?)?;
+        let style = Properties::from_style(&svg::attribute_str(node, "style")?, dim)?;
         Ok(Object {
             id,
             style,

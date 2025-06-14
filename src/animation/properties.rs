@@ -2,6 +2,7 @@ use skia_safe::Color;
 
 use crate::{
     animation::Animation,
+    svg::Dimension,
     util::{ChronuxError, ChronuxResult, parse_css_color},
 };
 
@@ -53,7 +54,7 @@ impl Properties {
         }
     }
 
-    pub fn from_style(style: &str) -> ChronuxResult<Properties> {
+    pub fn from_style(style: &str, dim: &Dimension) -> ChronuxResult<Properties> {
         let rules = style
             .split(';')
             .filter_map(|s| s.trim().split_once(':'))
@@ -83,9 +84,11 @@ impl Properties {
         }
 
         if let Some(width) = rules.get("stroke-width") {
-            result.stroke_width = width
-                .parse::<f64>()
-                .map_err(ChronuxError::ParseFloatError)?;
+            result.stroke_width = dim.to_real_length(
+                width
+                    .parse::<f64>()
+                    .map_err(ChronuxError::ParseFloatError)?,
+            );
         }
 
         if let Some(size) = rules.get("font-size") {
@@ -124,13 +127,11 @@ impl Properties {
     pub fn get_effects(&self) -> Vec<Option<skia_safe::PathEffect>> {
         let mut effects = Vec::new();
 
-        effects.push(
-            skia_safe::trim_path_effect::new(
-                self.trim.0 as f32,
-                self.trim.1 as f32,
-                skia_safe::trim_path_effect::Mode::Normal, // reverse
-            )
-        );
+        effects.push(skia_safe::trim_path_effect::new(
+            self.trim.0 as f32,
+            self.trim.1 as f32,
+            skia_safe::trim_path_effect::Mode::Normal, // reverse
+        ));
 
         effects
     }
