@@ -4,7 +4,9 @@ use clap::Parser;
 use indicatif::ProgressIterator;
 use skia_safe::surfaces;
 
-use crate::{args::Args, config::Config, svg::Svg, util::ChronuxError};
+use crate::{
+    animation::Animation, args::Args, config::Config, svg::Svg, util::{timecode, ChronuxError}
+};
 
 mod animation;
 mod args;
@@ -55,18 +57,35 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     log::info!("Extracted {} objects in SVG", objs.len());
 
     for o in objs.iter() {
-        timeline.get_mut(&o.id).unwrap().start = o.style.clone();
+        let tl = timeline.get_mut(&o.id).unwrap();
+
+        tl.start = o.style.clone();
+
+        for e in tl.events.iter() {
+            match e.animation {
+                Animation::TrimPath { .. } => {
+                    tl.start.trim = (0.0, 0.0);
+                }
+            }
+        }
     }
 
     // 渲染动画
-    let total_frames = (conf.output.fps as f32 * conf.output.duration) as u32;
-    log::info!("Total frames: {}", total_frames);
+    let frame_start = (conf.output.time_start * conf.output.fps as f32) as u32;
+    let frame_end = (conf.output.time_end * conf.output.fps as f32) as u32;
+    log::info!("Frames rendered: {} - {}", frame_start, frame_end);
 
     std::fs::create_dir_all(&output_dir).map_err(|e| ChronuxError::IoError(e))?;
     log::info!("Created output directory `{}`", output_dir);
 
     log::info!("Rendering animation...");
-    for f in (0..total_frames).progress() {
+    for f in (frame_start..frame_end).progress() {
+        log::trace!(
+            "Rendering frame {} (timecode {})",
+            f,
+            timecode(f, conf.output.fps)
+        );
+
         let t = f as f32 / conf.output.fps as f32;
 
         let mut surface =

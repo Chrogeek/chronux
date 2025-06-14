@@ -66,3 +66,19 @@ pub fn parse_css_color(color: &str, opacity: f32) -> ChronuxResult<Color> {
     let a = (opacity * 255.0).clamp(0.0, 255.0) as u8;
     Ok(Color::from_argb(a, r, g, b))
 }
+
+pub fn timecode(f: u32, fps: u32) -> String {
+    let total_seconds = f / fps;
+    let hours = total_seconds / 3600;
+    let minutes = (total_seconds % 3600) / 60;
+    let seconds = total_seconds % 60;
+    let frames = f % fps;
+
+    if hours > 0 {
+        format!("{:02}:{:02}:{:02}:{:02}", hours, minutes, seconds, frames)
+    } else if minutes > 0 {
+        format!("{:02}:{:02}:{:02}", minutes, seconds, frames)
+    } else {
+        format!("{:02}:{:02}", seconds, frames)
+    }
+}

@@ -29,7 +29,10 @@ pub struct OutputConfig {
     pub width: u32,
     pub height: u32,
     pub fps: u32,
-    pub duration: f32,
+    #[serde(rename = "time-start")]
+    pub time_start: f32,
+    #[serde(rename = "time-end")]
+    pub time_end: f32,
     #[serde(deserialize_with = "deserialize_hex_color")]
     #[serde(rename = "background-color")]
     pub background_color: Color,
@@ -61,12 +64,12 @@ impl Config {
     ) -> ChronuxResult<f32> {
         let mut start_time = 0.0f32;
 
-        if visited.contains_key(event_id) {
-            return Ok(visited[event_id]);
-        }
-
         if stack.contains(event_id) {
             return Err(ChronuxError::CircularDependency(event_id.clone()));
+        }
+
+        if visited.contains_key(event_id) {
+            return Ok(visited[event_id]);
         }
 
         stack.insert(event_id.clone());
@@ -98,6 +101,12 @@ impl Config {
         for (event_id, start_time) in visited.iter() {
             let event = self.events.get_mut(event_id).unwrap();
             event.start = *start_time;
+            log::trace!(
+                "Event {}: start time = {:.2}, duration = {:.2}",
+                event_id,
+                event.start,
+                event.duration
+            );
         }
 
         Ok(())

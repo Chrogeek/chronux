@@ -14,14 +14,6 @@ impl Timeline {
 
         let mut start = start;
 
-        for e in events.iter() {
-            match e.animation {
-                Animation::TrimPath { .. } => {
-                    start.trim = (0.0, 0.0);
-                }
-            }
-        }
-
         Timeline {
             events,
             start,

@@ -12,6 +12,7 @@ indicatif = "0.17.11"
 log = "0.4.27"
 # ffmpeg-next = "7.1.0"
 rayon = "1.10.0"
+roots = "0.0.8"
 roxmltree = "0.20.0"
 serde = { version = "1.0.219", features = ["derive"] }
 simplecss = "0.2.2"

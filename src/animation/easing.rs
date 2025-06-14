@@ -1,9 +1,48 @@
+use roots::Roots;
 use serde::Deserialize;
 
 /// 三阶贝塞尔曲线插值
-fn cubic_bezier(t: f32, p1: f32, p2: f32, p3: f32, p4: f32) -> f32 {
-    let t1 = 1.0 - t;
-    t1.powi(3) * p1 + 3.0 * t1.powi(2) * t * p2 + 3.0 * t1 * t.powi(2) * p3 + t.powi(3) * p4
+fn cubic_bezier(x: f32, p1: f32, p2: f32, p3: f32, p4: f32) -> f32 {
+    let t = roots::find_roots_cubic(
+        3.0 * p1 - 3.0 * p3 + 1.0,
+        -6.0 * p1 + 3.0 * p3,
+        3.0 * p1,
+        -x,
+    );
+    let t = match t {
+        Roots::One([t]) => t,
+        Roots::Two([t1, t2]) => {
+            if t1 >= 0.0 && t1 <= 1.0 {
+                t1
+            } else if t2 >= 0.0 && t2 <= 1.0 {
+                t2
+            } else {
+                unreachable!()
+            }
+        }
+        Roots::Three([t1, t2, t3]) => {
+            let mut valid_t = vec![];
+            if t1 >= 0.0 && t1 <= 1.0 {
+                valid_t.push(t1);
+            }
+            if t2 >= 0.0 && t2 <= 1.0 {
+                valid_t.push(t2);
+            }
+            if t3 >= 0.0 && t3 <= 1.0 {
+                valid_t.push(t3);
+            }
+            if valid_t.len() == 1 {
+                valid_t[0]
+            } else {
+                unreachable!()
+            }
+        }
+        _ => todo!(),
+    };
+
+    (3.0 * t - 6.0 * t.powi(2) + 3.0 * t.powi(3)) * p2
+        + (3.0 * t.powi(2) - 3.0 * t.powi(3)) * p4
+        + t.powi(3)
 }
 
 #[derive(Debug, Clone)]
@@ -34,9 +73,17 @@ impl<'de> Deserialize<'de> for Easing {
 impl Easing {
     pub fn evaluate(&self, t: f32) -> f32 {
         let t = t.clamp(0.0, 1.0); // Ensure t is within [0, 1]
-        match self {
+        let result = match self {
             Easing::Linear => t,
             Easing::CubicBezier(p1, p2, p3, p4) => cubic_bezier(t, *p1, *p2, *p3, *p4),
-        }
+        };
+
+        log::trace!(
+            "Evaluated easing at t={:.2} = {}, with easing = {:?}",
+            t,
+            result,
+            self
+        );
+        result
     }
 }
