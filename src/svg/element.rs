@@ -1,11 +1,11 @@
 use roxmltree::Node;
 
-use crate::{svg, util::ChronuxResult};
+use crate::{animation::properties::Properties, svg, util::ChronuxResult};
 
 #[derive(Debug)]
 pub struct Object {
     pub id: String,
-    pub style: String,
+    pub style: Properties,
     pub shape: Shape,
 }
 
@@ -18,7 +18,7 @@ pub enum Shape {
 
 impl Object {
     pub fn from_node(node: &Node, id: String) -> ChronuxResult<Object> {
-        let style = svg::attribute_str(node, "style")?;
+        let style = Properties::from_style(&svg::attribute_str(node, "style")?)?;
         Ok(Object {
             id,
             style,

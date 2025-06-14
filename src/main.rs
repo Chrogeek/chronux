@@ -35,6 +35,7 @@ fn run() -> Result<(), ChronuxError> {
     let svg = Svg::from_file(&conf.input.svg)?;
     log::info!("Loaded SVG from file `{}`", conf.input.svg);
 
+
     // 3. 读取 SVG 中的路径、圆形和文本
     let objs = svg.search_labels(&ids)?;
     log::info!("Extracted {} objects in SVG", objs.len());
