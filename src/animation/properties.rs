@@ -29,7 +29,7 @@ impl Default for Properties {
             font_weight: 400.0,
             fill_color: Color::TRANSPARENT,   // transparent
             stroke_color: Color::TRANSPARENT, // transparent
-            stroke_width: 1.0,
+            stroke_width: 0.0,
             translate_x: 0.0,
             translate_y: 0.0,
             scale_x: 1.0,
@@ -102,5 +102,36 @@ impl Properties {
         }
 
         Ok(result)
+    }
+
+    pub fn get_stroke_paint(&self) -> skia_safe::Paint {
+        let mut paint = skia_safe::Paint::default();
+        paint.set_anti_alias(true);
+        paint.set_style(skia_safe::paint::Style::Stroke);
+        paint.set_color(self.stroke_color);
+        paint.set_stroke_width(self.stroke_width as f32);
+        paint
+    }
+
+    pub fn get_fill_paint(&self) -> skia_safe::Paint {
+        let mut paint = skia_safe::Paint::default();
+        paint.set_anti_alias(true);
+        paint.set_style(skia_safe::paint::Style::Fill);
+        paint.set_color(self.fill_color);
+        paint
+    }
+
+    pub fn get_effects(&self) -> Vec<Option<skia_safe::PathEffect>> {
+        let mut effects = Vec::new();
+
+        effects.push(
+            skia_safe::trim_path_effect::new(
+                self.trim.0 as f32,
+                self.trim.1 as f32,
+                skia_safe::trim_path_effect::Mode::Normal, // reverse
+            )
+        );
+
+        effects
     }
 }

@@ -15,6 +15,7 @@ pub enum ChronuxError {
     ParseFloatError(std::num::ParseFloatError),
     ColorParseError(String),
     SvgError(String),
+    SkiaError(String),
 }
 
 pub type ChronuxResult<T> = Result<T, ChronuxError>;
@@ -44,6 +45,7 @@ impl Display for ChronuxError {
                 write!(f, "Failed to parse color: '{}'", color)
             }
             ChronuxError::SvgError(msg) => write!(f, "SVG Error: {}", msg),
+            ChronuxError::SkiaError(msg) => write!(f, "Skia Error: {}", msg),
         }
     }
 }

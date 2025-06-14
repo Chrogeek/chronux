@@ -1,5 +1,7 @@
 use std::collections::HashSet;
 
+use skia_safe::surfaces;
+
 use crate::{config::Config, svg::Svg, util::ChronuxError};
 
 mod animation;
@@ -52,15 +54,19 @@ fn run() -> Result<(), ChronuxError> {
     log::info!("Total frames: {}", total_frames);
 
     // 5. 渲染动画
-    // for f in 0..total_frames {
-    //     // 这里可以添加对每一帧的处理逻辑
-    //     let _t = f as f64 / conf.output.fps as f64;
+    for f in 0..total_frames {
+        let t = f as f64 / conf.output.fps as f64;
+
+        let mut surface = surfaces::raster_n32_premul(
+            (conf.output.width as i32, conf.output.height as i32),
+        ).ok_or(ChronuxError::SkiaError("failed to create Skia surface".into()))?;
 
         for o in objs.iter() {
             let tl = &timeline[&o.id];
-            println!("{}: {:?}", o.id, tl);
+            let properties = tl.interpolate(t);
+            render::draw(&surface.canvas(), &o.shape, &properties);
         }
-    // }
+    }
 
     Ok(())
 }

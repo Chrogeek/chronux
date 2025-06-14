@@ -1,49 +1,34 @@
-// use resvg::usvg;
+use skia_safe::Canvas;
 
-pub mod camera;
+use crate::{animation::properties::Properties, svg::element::Shape, util::ChronuxResult};
 
-// pub struct Renderer {
-//     svg_tree: usvg::Tree,
-//     current_viewport: [f64; 4],
-//     current_scale: f64,
-// }
+pub fn draw(canvas: &Canvas, shape: &Shape, properties: &Properties) -> ChronuxResult<()> {
+    let fill = properties.get_fill_paint();
+    let stroke = properties.get_stroke_paint();
 
-// impl Renderer {
-//     pub fn new(svg_data: &[u8]) -> Self {
-//         let opt = usvg::Options::default();
-//         let tree = usvg::Tree::from_data(svg_data, &opt).unwrap();
-//         Self {
-//             svg_tree: tree,
-//             current_viewport: [0.0, 0.0, 1920.0, 1080.0],
-//             current_scale: 1.0,
-//         }
-//     }
+    match shape {
+        Shape::Path { d } => {
+            let effects = properties.get_effects();
+            let (mut fill, mut stroke) = (fill, stroke);
+            for e in effects.into_iter() {
+                fill.set_path_effect(e.clone());
+                stroke.set_path_effect(e);
+            }
 
-//     pub fn apply_animation(&mut self, event: &ActiveEvent, t: f64) {
-//         let progress = (t - event.start_time) / event.duration;
-//         let value = animation::curve::evaluate_curve(&event.curve, progress);
+            canvas.draw_path(&d, &fill);
+            canvas.draw_path(&d, &stroke);
+        }
+        Shape::Circle { cx, cy, r } => {
+            let center = (*cx as f32, *cy as f32);
+            let radius = *r as f32;
+            canvas.draw_circle(center, radius, &fill);
+            canvas.draw_circle(center, radius, &stroke);
+        }
+        Shape::Text { x, y, content } => {
+            // canvas.draw_text_align(content, (*x as f32, *y as f32), todo!(), &stroke, todo!());
+            // canvas.draw_text_align(content, (*x as f32, *y as f32), todo!(), &fill, todo!());
+        }
+    }
 
-//         match event.event_type {
-//             EventType::Camera => {
-//                 let params = event.params.as_camera().unwrap();
-//                 self.current_viewport = lerp_array(params.viewport_start, params.viewport_end, value);
-//                 self.current_scale = lerp(params.scale_start, params.scale_end, value);
-//             },
-//             // 其他动画类型处理...
-//         }
-//     }
-
-//     pub fn render_frame(&self) -> tiny_skia::Pixmap {
-//         let mut pixmap = tiny_skia::Pixmap::new(self.output_width, self.output_height).unwrap();
-//         let transform = self.build_transform();
-
-//         let opt = resvg::Options {
-//             resources_dir: None,
-//             transform,
-//             ..Default::default()
-//         };
-
-//         resvg::render(&self.svg_tree, opt, &mut pixmap.as_mut());
-//         pixmap
-//     }
-// }
+    Ok(())
+}

@@ -1,5 +1,5 @@
 use roxmltree::Node;
-use skia_safe::Path;
+use skia_safe::{Paint, Path};
 
 use crate::{
     animation::properties::Properties,
