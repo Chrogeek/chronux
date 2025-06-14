@@ -37,9 +37,12 @@ fn run() -> Result<(), ChronuxError> {
     let svg = Svg::from_file(&conf.input.svg)?;
     log::info!("Loaded SVG from file `{}`", conf.input.svg);
 
-    log::info!("SVG dimensions: {}x{}", svg.dimensions.width, svg.dimensions.height);
+    log::info!(
+        "SVG dimensions: {}x{}",
+        svg.dimensions.width,
+        svg.dimensions.height
+    );
     log::info!("SVG viewbox: {:?}", svg.dimensions.viewbox);
-
 
     // 3. 读取 SVG 中的路径、圆形和文本
     let objs = svg.search_labels(&ids)?;
@@ -57,15 +60,26 @@ fn run() -> Result<(), ChronuxError> {
     for f in 0..total_frames {
         let t = f as f64 / conf.output.fps as f64;
 
-        let mut surface = surfaces::raster_n32_premul(
-            (conf.output.width as i32, conf.output.height as i32),
-        ).ok_or(ChronuxError::SkiaError("failed to create Skia surface".into()))?;
+        let mut surface =
+            surfaces::raster_n32_premul((conf.output.width as i32, conf.output.height as i32))
+                .ok_or(ChronuxError::SkiaError(
+                    "failed to create Skia surface".into(),
+                ))?;
 
         for o in objs.iter() {
             let tl = &timeline[&o.id];
             let properties = tl.interpolate(t);
             render::draw(&surface.canvas(), &o.shape, &properties)?;
         }
+
+        let filename = format!("output/frame_{:04}.png", f);
+        let mut file = std::fs::File::create(&filename).map_err(|e| ChronuxError::IoError(e))?;
+
+        let pixmap = skia_safe::Pixmap::default();
+
+        surface.read_pixels_to_pixmap(&pixmap, (0, 0));
+
+        skia_safe::png_encoder::encode(&pixmap, &mut file, &skia_safe::png_encoder::Options::default());
     }
 
     Ok(())
