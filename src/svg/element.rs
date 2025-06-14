@@ -17,8 +17,8 @@ pub struct Object {
 #[derive(Debug)]
 pub enum Shape {
     Path { d: Path },
-    Circle { cx: f64, cy: f64, r: f64 },
-    Text { x: f64, y: f64, content: String },
+    Circle { cx: f32, cy: f32, r: f32 },
+    Text { x: f32, y: f32, content: String },
 }
 
 impl Object {
@@ -33,9 +33,9 @@ impl Object {
                 },
                 "circle" => {
                     let (cx, cy, r) = (
-                        svg::attribute_f64(node, "cx")?,
-                        svg::attribute_f64(node, "cy")?,
-                        svg::attribute_f64(node, "r")?,
+                        svg::attribute_f32(node, "cx")?,
+                        svg::attribute_f32(node, "cy")?,
+                        svg::attribute_f32(node, "r")?,
                     );
                     let (cx, cy) = dim.to_real_coords(cx, cy);
                     let r = dim.to_real_length(r);
@@ -43,8 +43,8 @@ impl Object {
                 }
                 "text" => {
                     let (x, y) = (
-                        svg::attribute_f64(node, "x")?,
-                        svg::attribute_f64(node, "y")?,
+                        svg::attribute_f32(node, "x")?,
+                        svg::attribute_f32(node, "y")?,
                     );
                     let (x, y) = dim.to_real_coords(x, y);
                     Shape::Text {

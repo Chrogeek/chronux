@@ -23,8 +23,8 @@ pub fn draw(canvas: &Canvas, shape: &Shape, properties: &Properties) -> ChronuxR
             canvas.draw_path(&d, &stroke);
         }
         Shape::Circle { cx, cy, r } => {
-            let center = (*cx as f32, *cy as f32);
-            let radius = *r as f32;
+            let center = (*cx, *cy);
+            let radius = *r;
             canvas.draw_circle(center, radius, &fill);
             canvas.draw_circle(center, radius, &stroke);
         }
@@ -33,8 +33,8 @@ pub fn draw(canvas: &Canvas, shape: &Shape, properties: &Properties) -> ChronuxR
             y,
             content,
         } => {
-            // canvas.draw_text_align(content, (*x as f32, *y as f32), todo!(), &stroke, todo!());
-            // canvas.draw_text_align(content, (*x as f32, *y as f32), todo!(), &fill, todo!());
+            // canvas.draw_text_align(content, (*x, *y), todo!(), &stroke, todo!());
+            // canvas.draw_text_align(content, (*x, *y), todo!(), &fill, todo!());
             log::debug!(
                 "Drawing text at ({}, {}): {}",
                 x, y, content

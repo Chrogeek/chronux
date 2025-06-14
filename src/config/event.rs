@@ -9,14 +9,14 @@ pub struct Event {
     pub depends: Vec<String>,
     pub object: String,
     pub easing: Easing,
-    pub offset: f64,
+    pub offset: f32,
     #[serde(default = "default_start")]
-    pub start: f64,
-    pub duration: f64,
+    pub start: f32,
+    pub duration: f32,
     #[serde(flatten)]
     pub animation: Animation,
 }
 
-fn default_start() -> f64 {
+fn default_start() -> f32 {
     0.0
 }

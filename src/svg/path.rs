@@ -20,48 +20,48 @@ pub fn svg_to_path(d: &str, dim: &Dimension) -> ChronuxResult<Path> {
         match seg {
             PathSegment::MoveTo { abs, x, y } => {
                 if abs {
-                    let (x, y) = dim.to_real_coords(x, y);
                     let (x, y) = (x as f32, y as f32);
+                    let (x, y) = dim.to_real_coords(x, y);
                     p.move_to((x, y));
                     (cx, cy) = (x, y);
                 } else {
-                    let (x, y) = (dim.to_real_length(x), dim.to_real_length(y));
                     let (x, y) = (x as f32, y as f32);
+                    let (x, y) = (dim.to_real_length(x), dim.to_real_length(y));
                     p.r_move_to((x, y));
                     (cx, cy) = (cx + x, cy + y);
                 }
             }
             PathSegment::LineTo { abs, x, y } => {
                 if abs {
-                    let (x, y) = dim.to_real_coords(x, y);
                     let (x, y) = (x as f32, y as f32);
+                    let (x, y) = dim.to_real_coords(x, y);
                     p.line_to((x, y));
                     (cx, cy) = (x, y);
                 } else {
-                    let (x, y) = (dim.to_real_length(x), dim.to_real_length(y));
                     let (x, y) = (x as f32, y as f32);
+                    let (x, y) = (dim.to_real_length(x), dim.to_real_length(y));
                     p.r_line_to((x, y));
                     (cx, cy) = (cx + x, cy + y);
                 }
             }
             PathSegment::HorizontalLineTo { abs, x } => {
                 if abs {
-                    let x = dim.to_real_coords(x, 0.0).0 as f32;
+                    let x = dim.to_real_coords(x as f32, 0.0).0;
                     p.line_to((x, cy));
                     cx = x;
                 } else {
-                    let x = dim.to_real_length(x) as f32;
+                    let x = dim.to_real_length(x as f32);
                     p.r_line_to((x, 0.0));
                     cx += x;
                 }
             }
             PathSegment::VerticalLineTo { abs, y } => {
                 if abs {
-                    let y = dim.to_real_coords(0.0, y).1 as f32;
+                    let y = dim.to_real_coords(0.0, y as f32).1;
                     p.line_to((cx, y));
                     cy = y;
                 } else {
-                    let y = dim.to_real_length(y) as f32;
+                    let y = dim.to_real_length(y as f32);
                     p.r_line_to((0.0, y));
                     cy += y;
                 }
@@ -76,17 +76,20 @@ pub fn svg_to_path(d: &str, dim: &Dimension) -> ChronuxResult<Path> {
                 y,
             } => {
                 if abs {
+                    let (x1, y1, x2, y2, x, y) = (
+                        x1 as f32, y1 as f32, x2 as f32, y2 as f32, x as f32, y as f32,
+                    );
                     let ((x1, y1), (x2, y2), (x, y)) = (
                         dim.to_real_coords(x1, y1),
                         dim.to_real_coords(x2, y2),
                         dim.to_real_coords(x, y),
                     );
-                    let (x1, y1, x2, y2, x, y) = (
-                        x1 as f32, y1 as f32, x2 as f32, y2 as f32, x as f32, y as f32,
-                    );
                     p.cubic_to((x1, y1), (x2, y2), (x, y));
                     (cx, cy) = (x, y);
                 } else {
+                    let (x1, y1, x2, y2, x, y) = (
+                        x1 as f32, y1 as f32, x2 as f32, y2 as f32, x as f32, y as f32,
+                    );
                     let (x1, y1, x2, y2, x, y) = (
                         dim.to_real_length(x1),
                         dim.to_real_length(y1),
@@ -95,24 +98,21 @@ pub fn svg_to_path(d: &str, dim: &Dimension) -> ChronuxResult<Path> {
                         dim.to_real_length(x),
                         dim.to_real_length(y),
                     );
-                    let (x1, y1, x2, y2, x, y) = (
-                        x1 as f32, y1 as f32, x2 as f32, y2 as f32, x as f32, y as f32,
-                    );
                     p.r_cubic_to((x1, y1), (x2, y2), (x, y));
                     (cx, cy) = (cx + x, cy + y);
                 }
             }
             PathSegment::Quadratic { abs, x1, y1, x, y } => {
                 if abs {
+                    let (x1, y1, x, y) = (x1 as f32, y1 as f32, x as f32, y as f32);
                     let (x1, y1) = dim.to_real_coords(x1, y1);
                     let (x, y) = dim.to_real_coords(x, y);
-                    let (x1, y1, x, y) = (x1 as f32, y1 as f32, x as f32, y as f32);
                     p.quad_to((x1, y1), (x, y));
                     (cx, cy) = (x, y);
                 } else {
+                    let (x1, y1, x, y) = (x1 as f32, y1 as f32, x as f32, y as f32);
                     let (x1, y1) = (dim.to_real_length(x1), dim.to_real_length(y1));
                     let (x, y) = (dim.to_real_length(x), dim.to_real_length(y));
-                    let (x1, y1, x, y) = (x1 as f32, y1 as f32, x as f32, y as f32);
                     p.r_quad_to((x1, y1), (x, y));
                     (cx, cy) = (cx + x, cy + y);
                 }

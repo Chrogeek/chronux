@@ -28,7 +28,7 @@ impl Timeline {
         }
     }
 
-    pub fn interpolate(&self, time: f64) -> Properties {
+    pub fn interpolate(&self, time: f32) -> Properties {
         // This method would contain logic to interpolate properties based on the timeline
 
         let mut result = self.start.clone();

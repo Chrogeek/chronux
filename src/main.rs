@@ -29,7 +29,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     let input = args.config;
     let output_dir = args.output_dir;
 
-    // 1. 加载动画配置
+    // 加载动画配置
     let conf = Config::load(&input)?;
     log::info!("Loaded config from file `{}`", input);
 
@@ -39,7 +39,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     let ids = timeline.keys().cloned().collect::<HashSet<_>>();
     log::trace!("Timeline IDs: {:?}", ids);
 
-    // 2. 解析SVG
+    // 解析SVG
     let svg = Svg::from_file(&conf.input.svg)?;
     log::info!("Loaded SVG from file `{}`", conf.input.svg);
 
@@ -50,7 +50,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     );
     log::info!("SVG viewbox: {:?}", svg.dimensions.viewbox);
 
-    // 3. 读取 SVG 中的路径、圆形和文本
+    // 读取 SVG 中的路径、圆形和文本
     let objs = svg.search_labels(&ids)?;
     log::info!("Extracted {} objects in SVG", objs.len());
 
@@ -58,16 +58,16 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         timeline.get_mut(&o.id).unwrap().start = o.style.clone();
     }
 
-    // 4. 处理动画
-    let total_frames = (conf.output.fps as f64 * conf.output.duration) as u32;
+    // 渲染动画
+    let total_frames = (conf.output.fps as f32 * conf.output.duration) as u32;
     log::info!("Total frames: {}", total_frames);
 
-    log::info!("Output directory: {}", output_dir);
     std::fs::create_dir_all(&output_dir).map_err(|e| ChronuxError::IoError(e))?;
+    log::info!("Created output directory `{}`", output_dir);
 
-    // 5. 渲染动画
+    log::info!("Rendering animation...");
     for f in (0..total_frames).progress() {
-        let t = f as f64 / conf.output.fps as f64;
+        let t = f as f32 / conf.output.fps as f32;
 
         let mut surface =
             surfaces::raster_n32_premul((conf.output.width as i32, conf.output.height as i32))

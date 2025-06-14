@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
 /// 三阶贝塞尔曲线插值
-fn cubic_bezier(t: f64, p1: f64, p2: f64, p3: f64, p4: f64) -> f64 {
+fn cubic_bezier(t: f32, p1: f32, p2: f32, p3: f32, p4: f32) -> f32 {
     let t1 = 1.0 - t;
     t1.powi(3) * p1 + 3.0 * t1.powi(2) * t * p2 + 3.0 * t1 * t.powi(2) * p3 + t.powi(3) * p4
 }
@@ -9,7 +9,7 @@ fn cubic_bezier(t: f64, p1: f64, p2: f64, p3: f64, p4: f64) -> f64 {
 #[derive(Debug, Clone)]
 pub enum Easing {
     Linear,
-    CubicBezier(f64, f64, f64, f64),
+    CubicBezier(f32, f32, f32, f32),
 }
 
 impl<'de> Deserialize<'de> for Easing {
@@ -32,7 +32,7 @@ impl<'de> Deserialize<'de> for Easing {
 }
 
 impl Easing {
-    pub fn evaluate(&self, t: f64) -> f64 {
+    pub fn evaluate(&self, t: f32) -> f32 {
         let t = t.clamp(0.0, 1.0); // Ensure t is within [0, 1]
         match self {
             Easing::Linear => t,

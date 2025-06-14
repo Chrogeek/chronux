@@ -9,17 +9,17 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Properties {
     pub visible: bool,
-    pub font_size: f64,
-    pub font_weight: f64,
+    pub font_size: f32,
+    pub font_weight: f32,
     pub fill_color: Color,
     pub stroke_color: Color,
-    pub stroke_width: f64,
-    // pub translate_x: f64,
-    // pub translate_y: f64,
-    // pub scale_x: f64,
-    // pub scale_y: f64,
-    // pub rotate: f64,
-    pub trim: (f64, f64),
+    pub stroke_width: f32,
+    // pub translate_x: f32,
+    // pub translate_y: f32,
+    // pub scale_x: f32,
+    // pub scale_y: f32,
+    // pub rotate: f32,
+    pub trim: (f32, f32),
 }
 
 impl Default for Properties {
@@ -42,7 +42,7 @@ impl Default for Properties {
 }
 
 impl Properties {
-    pub fn apply(&self, event: &Animation, t: f64) -> Properties {
+    pub fn apply(&self, event: &Animation, t: f32) -> Properties {
         match event {
             Animation::TrimPath { reverse } => {
                 let (start, end) = if *reverse { (1.0 - t, 1.0) } else { (0.0, t) };
@@ -86,7 +86,7 @@ impl Properties {
         if let Some(width) = rules.get("stroke-width") {
             result.stroke_width = dim.to_real_length(
                 width
-                    .parse::<f64>()
+                    .parse::<f32>()
                     .map_err(ChronuxError::ParseFloatError)?,
             );
         }
@@ -94,13 +94,13 @@ impl Properties {
         if let Some(size) = rules.get("font-size") {
             result.font_size = size
                 .replace("px", "")
-                .parse::<f64>()
+                .parse::<f32>()
                 .map_err(ChronuxError::ParseFloatError)?;
         }
 
         if let Some(weight) = rules.get("font-weight") {
             result.font_weight = weight
-                .parse::<f64>()
+                .parse::<f32>()
                 .map_err(ChronuxError::ParseFloatError)?;
         }
 
@@ -112,7 +112,7 @@ impl Properties {
         paint.set_anti_alias(true);
         paint.set_style(skia_safe::paint::Style::Stroke);
         paint.set_color(self.stroke_color);
-        paint.set_stroke_width(self.stroke_width as f32);
+        paint.set_stroke_width(self.stroke_width);
         paint
     }
 
@@ -128,8 +128,8 @@ impl Properties {
         let mut effects = Vec::new();
 
         effects.push(skia_safe::trim_path_effect::new(
-            self.trim.0 as f32,
-            self.trim.1 as f32,
+            self.trim.0,
+            self.trim.1,
             skia_safe::trim_path_effect::Mode::Normal, // reverse
         ));
 

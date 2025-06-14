@@ -11,13 +11,13 @@ pub mod element;
 pub mod path;
 
 pub struct Dimension {
-    pub width: f64,
-    pub height: f64,
-    pub viewbox: (f64, f64, f64, f64),
+    pub width: f32,
+    pub height: f32,
+    pub viewbox: (f32, f32, f32, f32),
 }
 
 impl Dimension {
-    pub fn to_real_coords(&self, x: f64, y: f64) -> (f64, f64) {
+    pub fn to_real_coords(&self, x: f32, y: f32) -> (f32, f32) {
         let (vb_x, vb_y, vb_width, vb_height) = self.viewbox;
         let scale_x = self.width / vb_width;
         let scale_y = self.height / vb_height;
@@ -28,7 +28,7 @@ impl Dimension {
         (viewbox_x, viewbox_y)
     }
 
-    pub fn to_real_length(&self, length: f64) -> f64 {
+    pub fn to_real_length(&self, length: f32) -> f32 {
         let (_, _, vb_width, _) = self.viewbox;
         let scale = self.width / vb_width; // Assuming uniform scaling for both dimensions
         length * scale
@@ -53,12 +53,12 @@ impl Svg {
             .find(|n| n.has_tag_name("svg"))
             .ok_or(ChronuxError::SvgError("missing SVG root element".into()))?;
 
-        let width = attribute_f64(&root, "width")?;
-        let height = attribute_f64(&root, "height")?;
+        let width = attribute_f32(&root, "width")?;
+        let height = attribute_f32(&root, "height")?;
 
         let vb = attribute_str(&root, "viewBox")?
             .split_whitespace()
-            .map(|s| s.parse::<f64>())
+            .map(|s| s.parse::<f32>())
             .collect::<Result<Vec<_>, _>>()
             .map_err(ChronuxError::ParseFloatError)?;
         if vb.len() != 4 {
@@ -141,7 +141,7 @@ impl Svg {
     }
 }
 
-pub fn attribute_f64(node: &Node, attribute: &str) -> ChronuxResult<f64> {
+pub fn attribute_f32(node: &Node, attribute: &str) -> ChronuxResult<f32> {
     node.attribute(attribute)
         .ok_or(ChronuxError::AttributeNotFound {
             node_id: attribute_label(node),

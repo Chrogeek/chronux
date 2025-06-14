@@ -29,7 +29,7 @@ pub struct OutputConfig {
     pub width: u32,
     pub height: u32,
     pub fps: u32,
-    pub duration: f64,
+    pub duration: f32,
     #[serde(deserialize_with = "deserialize_hex_color")]
     #[serde(rename = "background-color")]
     pub background_color: Color,
@@ -56,10 +56,10 @@ impl Config {
     fn dfs(
         &self,
         event_id: &String,
-        visited: &mut HashMap<String, f64>,
+        visited: &mut HashMap<String, f32>,
         stack: &mut HashSet<String>,
-    ) -> ChronuxResult<f64> {
-        let mut start_time = 0.0f64;
+    ) -> ChronuxResult<f32> {
+        let mut start_time = 0.0f32;
 
         if visited.contains_key(event_id) {
             return Ok(visited[event_id]);
