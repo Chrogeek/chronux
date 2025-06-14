@@ -1,10 +1,10 @@
 use roxmltree::Node;
-use skia_safe::{path_measure, Path, PathMeasure, Point};
+use skia_safe::{Path, Point};
 
 use crate::{
     animation::properties::Properties,
     svg::{self, Dimension},
-    util::{ChronuxError, ChronuxResult},
+    util::ChronuxResult,
 };
 
 #[derive(Debug)]
@@ -68,8 +68,8 @@ impl Object {
             Shape::Circle { cx, cy, .. } => (*cx, *cy),
             Shape::Text { x, y, .. } => {
                 log::warn!("position may not be accurate for text elements");
-                 (*x, *y)
-            },
+                (*x, *y)
+            }
         }
     }
 }
