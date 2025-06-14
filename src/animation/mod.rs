@@ -16,6 +16,8 @@ pub mod timeline;
 pub enum Animation {
     #[serde(rename = "trim-path")]
     TrimPath { reverse: bool },
+    #[serde(rename = "typewriter")]
+    Typewriter,
 }
 
 pub fn track(obj: &Object, event: &Event, x: f32, y: f32) -> ChronuxResult<f32> {
@@ -68,5 +70,8 @@ pub fn track(obj: &Object, event: &Event, x: f32, y: f32) -> ChronuxResult<f32> 
                 ));
             };
         }
+        _ => Err(ChronuxError::ArgError(
+            format!("animation '{:?}' cannot be tracked", event.animation)
+        )),
     }
 }

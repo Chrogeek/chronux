@@ -33,12 +33,10 @@ pub fn draw(canvas: &Canvas, shape: &Shape, properties: &Properties) -> ChronuxR
             y,
             content,
         } => {
+            let (start, end) = properties.typewriter;
+            todo!()
             // canvas.draw_text_align(content, (*x, *y), todo!(), &stroke, todo!());
             // canvas.draw_text_align(content, (*x, *y), todo!(), &fill, todo!());
-            log::debug!(
-                "Drawing text at ({}, {}): {}",
-                x, y, content
-            );
         }
     }
 

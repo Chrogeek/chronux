@@ -61,7 +61,7 @@ impl Object {
     pub fn get_position(&self) -> (f32, f32) {
         match &self.shape {
             Shape::Path { d } => {
-                log::warn!("position may not be accurate for complex paths");
+                log::warn!("position may not be accurate for path elements");
                 let Point { x, y } = d.bounds().center();
                 (x, y)
             }

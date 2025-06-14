@@ -66,6 +66,9 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                 Animation::TrimPath { .. } => {
                     tl.start.trim = (0.0, 0.0);
                 }
+                Animation::Typewriter => {
+                    tl.start.typewriter = (0.0, 0.0);
+                }
             }
         }
     }

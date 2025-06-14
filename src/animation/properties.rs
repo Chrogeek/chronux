@@ -20,6 +20,7 @@ pub struct Properties {
     // pub scale_y: f32,
     // pub rotate: f32,
     pub trim: (f32, f32),
+    pub typewriter: (f32, f32),
 }
 
 impl Default for Properties {
@@ -37,6 +38,7 @@ impl Default for Properties {
             // scale_y: 1.0,
             // rotate: 0.0,
             trim: (0.0, 1.0),
+            typewriter: (0.0, 1.0),
         }
     }
 }
@@ -50,7 +52,13 @@ impl Properties {
                     trim: (start, end),
                     ..self.clone()
                 }
-            } // Add other animation types here as needed
+            }
+            Animation::Typewriter => {
+                Properties {
+                    typewriter: (0.0, t),
+                    ..self.clone()
+                }
+            }
         }
     }
 
