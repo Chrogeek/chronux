@@ -1,31 +1,36 @@
 use std::collections::HashSet;
 
+use clap::Parser;
 use indicatif::ProgressIterator;
 use skia_safe::surfaces;
 
-use crate::{config::Config, svg::Svg, util::ChronuxError};
+use crate::{args::Args, config::Config, svg::Svg, util::ChronuxError};
 
 mod animation;
+mod args;
 mod config;
 mod render;
 mod svg;
 mod util;
 
 fn main() -> Result<(), ChronuxError> {
+    let args = Args::parse();
+
     env_logger::init();
     log::info!("Welcome to Chronux!");
 
-    run().or_else(|e| {
+    run(args).or_else(|e| {
         log::error!("{:?}", e);
         Err(e)
     })
 }
 
-fn run() -> Result<(), ChronuxError> {
-    let input = "D:\\Animations\\03-哈尔滨\\harbin.toml";
+fn run(args: Args) -> Result<(), ChronuxError> {
+    let input = args.config;
+    let output_dir = args.output_dir;
 
     // 1. 加载动画配置
-    let conf = Config::load(input)?;
+    let conf = Config::load(&input)?;
     log::info!("Loaded config from file `{}`", input);
 
     // 提取所需的SVG元素及时间线
@@ -57,6 +62,9 @@ fn run() -> Result<(), ChronuxError> {
     let total_frames = (conf.output.fps as f64 * conf.output.duration) as u32;
     log::info!("Total frames: {}", total_frames);
 
+    log::info!("Output directory: {}", output_dir);
+    std::fs::create_dir_all(&output_dir).map_err(|e| ChronuxError::IoError(e))?;
+
     // 5. 渲染动画
     for f in (0..total_frames).progress() {
         let t = f as f64 / conf.output.fps as f64;
@@ -75,14 +83,18 @@ fn run() -> Result<(), ChronuxError> {
             render::draw(&surface.canvas(), &o.shape, &properties)?;
         }
 
-        let filename = format!("output/frame_{:04}.png", f);
-        let mut file = std::fs::File::create(&filename).map_err(|e| ChronuxError::IoError(e))?;
+        let output = std::path::Path::new(&output_dir).join(format!("frame_{:04}.png", f));
+        let mut file = std::fs::File::create(&output).map_err(|e| ChronuxError::IoError(e))?;
 
         let pixmap = surface.peek_pixels().ok_or(ChronuxError::SkiaError(
             "failed to peek pixels from Skia surface".into(),
         ))?;
 
-        skia_safe::png_encoder::encode(&pixmap, &mut file, &skia_safe::png_encoder::Options::default());
+        skia_safe::png_encoder::encode(
+            &pixmap,
+            &mut file,
+            &skia_safe::png_encoder::Options::default(),
+        );
     }
 
     Ok(())

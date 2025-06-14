@@ -17,7 +17,7 @@ impl Timeline {
         for e in events.iter() {
             match e.animation {
                 Animation::TrimPath { .. } => {
-                    start.trim = (0.0, 1.0);
+                    start.trim = (0.0, 0.0);
                 }
             }
         }

@@ -14,10 +14,10 @@ pub struct Properties {
     pub fill_color: Color,
     pub stroke_color: Color,
     pub stroke_width: f64,
-    pub translate_x: f64,
-    pub translate_y: f64,
-    pub scale_x: f64,
-    pub scale_y: f64,
+    // pub translate_x: f64,
+    // pub translate_y: f64,
+    // pub scale_x: f64,
+    // pub scale_y: f64,
     // pub rotate: f64,
     pub trim: (f64, f64),
 }
@@ -31,10 +31,10 @@ impl Default for Properties {
             fill_color: Color::TRANSPARENT,   // transparent
             stroke_color: Color::TRANSPARENT, // transparent
             stroke_width: 0.0,
-            translate_x: 0.0,
-            translate_y: 0.0,
-            scale_x: 1.0,
-            scale_y: 1.0,
+            // translate_x: 0.0,
+            // translate_y: 0.0,
+            // scale_x: 1.0,
+            // scale_y: 1.0,
             // rotate: 0.0,
             trim: (0.0, 1.0),
         }
