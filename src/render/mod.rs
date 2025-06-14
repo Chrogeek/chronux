@@ -23,12 +23,9 @@ pub fn draw(canvas: &Canvas, shape: &Shape, properties: &Properties) -> ChronuxR
             canvas.draw_path(&d, &stroke);
         }
         Shape::Circle { cx, cy, r } => {
-            let (cx, cy) = (*cx, *cy);
-            let r = *r;
-            // canvas.draw_circle(center, radius, &fill);
-            // canvas.draw_circle(center, radius, &stroke);
-            canvas.draw_arc(Rect::new(cx - r, cy - r, cx + r, cy + r), 90.0, properties.sweep * 360.0, false, &fill);
-            canvas.draw_arc(Rect::new(cx - r, cy - r, cx + r, cy + r), 90.0, properties.sweep * 360.0, false, &stroke);
+            let (cx, cy, r) = (*cx, *cy, *r);
+            canvas.draw_arc(Rect::new(cx - r, cy - r, cx + r, cy + r), -90.0, properties.sweep * 360.0, false, &fill);
+            canvas.draw_arc(Rect::new(cx - r, cy - r, cx + r, cy + r), -90.0, properties.sweep * 360.0, false, &stroke);
         }
         Shape::Text { x, y, content } => {
             let (_start, end) = properties.typewriter;

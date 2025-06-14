@@ -87,14 +87,14 @@ impl Config {
                 let nextobj = &objs[objmap[&self.events[next].object]];
                 let obj = &objs[objmap[&self.events[event_id].object]];
                 let (x, y) = obj.get_position();
-                track_start_time = track(nextobj, &self.events[next], x, y)?;
+                track_start_time = t + track(nextobj, &self.events[next], x, y)?;
             }
         }
 
         let start_time = match self.events[event_id].offset {
             event::Offset::WithPrevious { delay } => with_start_time + delay,
             event::Offset::AfterPrevious { offset } => after_start_time + offset,
-            event::Offset::Track { offset } => track_start_time + offset,
+            event::Offset::Track { track: offset } => track_start_time + offset,
         };
 
         stack.remove(event_id);
@@ -148,6 +148,20 @@ impl Config {
             .collect();
 
         Ok(timeline)
+    }
+
+    pub fn extract_objects(&self) -> ChronuxResult<HashSet<String>> {
+        let mut objects = HashSet::new();
+
+        for event_id in self.events.keys() {
+            let object_id = &self.events[event_id].object;
+
+            if !objects.contains(object_id) {
+                objects.insert(object_id.clone());
+            }
+        }
+
+        Ok(objects)
     }
 }
 

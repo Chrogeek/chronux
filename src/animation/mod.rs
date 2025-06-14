@@ -23,9 +23,16 @@ pub enum Animation {
 }
 
 pub fn track(obj: &Object, event: &Event, x: f32, y: f32) -> ChronuxResult<f32> {
-    match event.animation {
+    log::trace!(
+        "tracking object '{}' for event '{}', position ({}, {})",
+        obj.id,
+        event.id,
+        x,
+        y
+    );
+    let t = match event.animation {
         Animation::TrimPath { reverse } => {
-            const SEGMENTS: usize = 100;
+            const SEGMENTS: usize = 20;
 
             if let Shape::Path { d } = &obj.shape {
                 let mut pm = PathMeasure::new(&d, false, Some(2.0));
@@ -47,33 +54,39 @@ pub fn track(obj: &Object, event: &Event, x: f32, y: f32) -> ChronuxResult<f32> 
                 let mut tl = (closest.0 - 1).max(0) as f32 / SEGMENTS as f32;
                 let mut tr = (closest.0 + 1).min(SEGMENTS) as f32 / SEGMENTS as f32;
 
-                while tr - tl > 1e-4 {
-                    let ml = tl + (tr - tl) / 3.0;
-                    let mr = tr - (tr - tl) / 3.0;
-                    let ml = event.easing.evaluate(ml);
-                    let mr = event.easing.evaluate(mr);
+                for _ in 0..10 {
+                    let mml = tl + (tr - tl) / 3.0;
+                    let mmr = tr - (tr - tl) / 3.0;
+                    let ml = event.easing.evaluate(mml);
+                    let mr = event.easing.evaluate(mmr);
                     let dl = pm.pos_tan(ml * length).unwrap().0;
                     let dr = pm.pos_tan(mr * length).unwrap().0;
                     let d1 = (dl.x - x).powi(2) + (dl.y - y).powi(2);
                     let d2 = (dr.x - x).powi(2) + (dr.y - y).powi(2);
                     if d1 < d2 {
-                        tr = mr;
+                        tr = mmr;
                     } else {
-                        tl = ml;
+                        tl = mml;
                     }
                 }
 
                 let tm = (tl + tr) / 2.0;
 
-                return Ok(if reverse { 1.0 - tm } else { tm });
+                let tm = if reverse { 1.0 - tm } else { tm };
+
+                log::trace!("track result: tm = {}", tm);
+
+                Ok(tm)
             } else {
-                return Err(ChronuxError::ArgError(
+                Err(ChronuxError::ArgError(
                     "non-path shapes cannot be tracked".into(),
-                ));
-            };
+                ))
+            }
         }
-        _ => Err(ChronuxError::ArgError(
-            format!("animation '{:?}' cannot be tracked", event.animation)
-        )),
-    }
+        _ => Err(ChronuxError::ArgError(format!(
+            "animation '{:?}' cannot be tracked",
+            event.animation
+        ))),
+    }?;
+    Ok(t * event.duration)
 }

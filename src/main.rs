@@ -1,11 +1,13 @@
-use std::collections::HashSet;
-
 use clap::Parser;
-use indicatif::ProgressIterator;
+use indicatif::{ProgressBar, ProgressStyle};
 use skia_safe::surfaces;
 
 use crate::{
-    animation::Animation, args::Args, config::Config, svg::Svg, util::{timecode, ChronuxError}
+    animation::Animation,
+    args::Args,
+    config::Config,
+    svg::Svg,
+    util::{ChronuxError, timecode},
 };
 
 mod animation;
@@ -35,11 +37,9 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     let mut conf = Config::load(&input)?;
     log::info!("Loaded config from file `{}`", input);
 
-    // 提取所需的SVG元素及时间线
-    let mut timeline = conf.calc_timeline()?;
-
-    let ids = timeline.keys().cloned().collect::<HashSet<_>>();
-    log::trace!("Timeline IDs: {:?}", ids);
+    // 提取所需的SVG元素
+    let ids = conf.extract_objects()?;
+    log::trace!("IDs: {:?}", ids);
 
     // 解析SVG
     let svg = Svg::from_file(&conf.input.svg)?;
@@ -55,6 +55,11 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     // 读取 SVG 中的路径、圆形和文本
     let objs = svg.search_labels(&ids)?;
     log::info!("Extracted {} objects in SVG", objs.len());
+
+    conf.calc_start_times(&objs)?;
+    log::info!("Calculated start times for objects");
+
+    let mut timeline = conf.calc_timeline()?;
 
     for o in objs.iter() {
         let tl = timeline.get_mut(&o.id).unwrap();
@@ -75,8 +80,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             }
         }
     }
-
-    conf.calc_start_times(&objs)?;
+    log::info!("Calculated timeline for objects");
 
     // 渲染动画
     let frame_start = (conf.output.time_start * conf.output.fps as f32) as u32;
@@ -86,13 +90,15 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     std::fs::create_dir_all(&output_dir).map_err(|e| ChronuxError::IoError(e))?;
     log::info!("Created output directory `{}`", output_dir);
 
-    log::info!("Rendering animation...");
-    for f in (frame_start..frame_end).progress() {
-        log::trace!(
-            "Rendering frame {} (timecode {})",
-            f,
-            timecode(f, conf.output.fps)
-        );
+    log::info!("Start rendering frames...");
+
+    let progressbar = ProgressBar::new(frame_end as u64 - frame_start as u64).with_style(
+        ProgressStyle::with_template("{msg} {wide_bar} {pos}/{len} ({percent}%) [{elapsed}>{eta}]")
+            .unwrap(),
+    );
+
+    for f in frame_start..frame_end {
+        progressbar.set_message(timecode(f, conf.output.fps));
 
         let t = f as f32 / conf.output.fps as f32;
 
@@ -122,7 +128,10 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             &mut file,
             &skia_safe::png_encoder::Options::default(),
         );
+
+        progressbar.inc(1);
     }
+    progressbar.finish();
 
     Ok(())
 }

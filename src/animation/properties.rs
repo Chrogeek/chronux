@@ -65,7 +65,7 @@ impl Properties {
             Animation::Sweep => Properties {
                 sweep: t,
                 ..self.clone()
-            }
+            },
         }
     }
 
@@ -107,10 +107,11 @@ impl Properties {
         }
 
         if let Some(size) = rules.get("font-size") {
-            result.font_size = size
-                .replace("px", "")
-                .parse::<f32>()
-                .map_err(ChronuxError::ParseFloatError)?;
+            result.font_size = dim.to_real_length(
+                size.replace("px", "")
+                    .parse::<f32>()
+                    .map_err(ChronuxError::ParseFloatError)?,
+            );
         }
 
         if let Some(weight) = rules.get("font-weight") {

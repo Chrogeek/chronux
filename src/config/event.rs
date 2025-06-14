@@ -33,7 +33,7 @@ pub enum Offset {
     AfterPrevious { offset: f32 },
     /// 检测被依赖的动画进行到的位置，与对象中心点距离最近时触发，延迟 offset 秒开始
     #[serde(rename = "track")]
-    Track { offset: f32 },
+    Track { track: f32 },
 }
 
 impl Default for Offset {

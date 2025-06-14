@@ -73,17 +73,9 @@ impl<'de> Deserialize<'de> for Easing {
 impl Easing {
     pub fn evaluate(&self, t: f32) -> f32 {
         let t = t.clamp(0.0, 1.0); // Ensure t is within [0, 1]
-        let result = match self {
+        match self {
             Easing::Linear => t,
             Easing::CubicBezier(p1, p2, p3, p4) => cubic_bezier(t, *p1, *p2, *p3, *p4),
-        };
-
-        log::trace!(
-            "Evaluated easing at t={:.2} = {}, with easing = {:?}",
-            t,
-            result,
-            self
-        );
-        result
+        }
     }
 }
