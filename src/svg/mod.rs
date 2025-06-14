@@ -10,11 +10,51 @@ use crate::{
 pub mod element;
 pub mod path;
 
-pub struct Svg {
-    tree: Document<'static>,
+pub struct Dimension {
     pub width: f64,
     pub height: f64,
     pub viewbox: (f64, f64, f64, f64),
+}
+
+impl Dimension {
+    pub fn to_real_coords(&self, x: f64, y: f64) -> (f64, f64) {
+        let (vb_x, vb_y, vb_width, vb_height) = self.viewbox;
+        let scale_x = self.width / vb_width;
+        let scale_y = self.height / vb_height;
+
+        let viewbox_x = (x - vb_x) * scale_x;
+        let viewbox_y = (y - vb_y) * scale_y;
+
+        (viewbox_x, viewbox_y)
+    }
+
+    pub fn to_real_length(&self, length: f64) -> f64 {
+        let (_, _, vb_width, _) = self.viewbox;
+        let scale = self.width / vb_width; // Assuming uniform scaling for both dimensions
+        length * scale
+    }
+
+    pub fn to_viewbox_coords(&self, x: f64, y: f64) -> (f64, f64) {
+        let (vb_x, vb_y, vb_width, vb_height) = self.viewbox;
+        let scale_x = vb_width / self.width;
+        let scale_y = vb_height / self.height;
+
+        let svg_x = x * scale_x + vb_x;
+        let svg_y = y * scale_y + vb_y;
+
+        (svg_x, svg_y)
+    }
+
+    pub fn to_viewbox_length(&self, length: f64) -> f64 {
+        let (_, _, vb_width, _) = self.viewbox;
+        let scale = vb_width / self.width; // Assuming uniform scaling for both dimensions
+        length * scale
+    }
+}
+
+pub struct Svg {
+    tree: Document<'static>,
+    pub dimensions: Dimension,
 }
 
 impl Svg {
@@ -45,29 +85,40 @@ impl Svg {
         }
         let vb = (vb[0], vb[1], vb[2], vb[3]);
         if width <= 0.0 || height <= 0.0 {
-            return Err(ChronuxError::SvgError(format!("invalid SVG dimension: width = {}, height = {}", width, height )));
+            return Err(ChronuxError::SvgError(format!(
+                "invalid SVG dimension: width = {}, height = {}",
+                width, height
+            )));
         }
         if vb.2 <= 0.0 || vb.3 <= 0.0 {
-            return Err(ChronuxError::SvgError(format!("invalid SVG viewbox: width = {}, height = {}", vb.2, vb.3)));
+            return Err(ChronuxError::SvgError(format!(
+                "invalid SVG viewbox: width = {}, height = {}",
+                vb.2, vb.3
+            )));
         }
 
         if ((vb.2 / width) / (vb.3 / height) - 1.0).abs() > 1e-6 {
             log::warn!(
                 "SVG viewbox aspect ratio does not match width/height: viewBox = {:?}, width = {}, height = {}",
-                vb, width, height
+                vb,
+                width,
+                height
             );
         }
 
         Ok(Svg {
             tree: svg,
-            width,
-            height,
-            viewbox: vb,
+            dimensions: Dimension {
+                width,
+                height,
+                viewbox: vb,
+            },
         })
     }
 
     pub fn search_labels(&self, labels: &HashSet<String>) -> ChronuxResult<Vec<Object>> {
         fn search_labels_dfs(
+            dim: &Dimension,
             node: &Node,
             labels: &HashSet<String>,
             parent: &Option<String>,
@@ -76,62 +127,34 @@ impl Svg {
             let this_label = attribute_label(node);
             if let Some(ref label) = this_label {
                 if labels.contains(label) {
-                    results.push(Object::from_node(node, label.clone())?);
+                    results.push(Object::from_node(node, label.clone(), dim)?);
                 }
 
                 if let Some(parent_label) = parent {
                     let full_name = format!("{}/{}", parent_label, label);
                     if labels.contains(&full_name) {
-                        results.push(Object::from_node(node, full_name)?);
+                        results.push(Object::from_node(node, full_name, dim)?);
                     }
                 }
             }
 
             for child in node.children() {
-                search_labels_dfs(&child, labels, &this_label, results)?;
+                search_labels_dfs(dim, &child, labels, &this_label, results)?;
             }
 
             Ok(())
         }
 
         let mut results = Vec::new();
-        search_labels_dfs(&self.tree.root(), labels, &None, &mut results)?;
+        search_labels_dfs(
+            &self.dimensions,
+            &self.tree.root(),
+            labels,
+            &None,
+            &mut results,
+        )?;
 
         Ok(results)
-    }
-
-    pub fn to_viewbox_coords(&self, x: f64, y: f64) -> (f64, f64) {
-        let (vb_x, vb_y, vb_width, vb_height) = self.viewbox;
-        let scale_x = self.width / vb_width;
-        let scale_y = self.height / vb_height;
-
-        let viewbox_x = (x - vb_x) * scale_x;
-        let viewbox_y = (y - vb_y) * scale_y;
-
-        (viewbox_x, viewbox_y)
-    }
-
-    pub fn to_viewbox_length(&self, length: f64) -> f64 {
-        let (_, _, vb_width, vb_height) = self.viewbox;
-        let scale = self.width / vb_width; // Assuming uniform scaling for both dimensions
-        length * scale
-    }
-
-    pub fn from_viewbox_coords(&self, x: f64, y: f64) -> (f64, f64) {
-        let (vb_x, vb_y, vb_width, vb_height) = self.viewbox;
-        let scale_x = vb_width / self.width;
-        let scale_y = vb_height / self.height;
-
-        let svg_x = x * scale_x + vb_x;
-        let svg_y = y * scale_y + vb_y;
-
-        (svg_x, svg_y)
-    }
-
-    pub fn from_viewbox_length(&self, length: f64) -> f64 {
-        let (_, _, vb_width, vb_height) = self.viewbox;
-        let scale = vb_width / self.width; // Assuming uniform scaling for both dimensions
-        length * scale
     }
 }
 
