@@ -24,6 +24,7 @@ pub struct Properties {
     // pub rotate: f32,
     pub trim: (f32, f32),
     pub typewriter: (f32, f32),
+    pub sweep: f32,
 }
 
 impl Default for Properties {
@@ -42,6 +43,7 @@ impl Default for Properties {
             // rotate: 0.0,
             trim: (0.0, 1.0),
             typewriter: (0.0, 1.0),
+            sweep: 1.0,
         }
     }
 }
@@ -60,6 +62,10 @@ impl Properties {
                 typewriter: (0.0, t),
                 ..self.clone()
             },
+            Animation::Sweep => Properties {
+                sweep: t,
+                ..self.clone()
+            }
         }
     }
 

@@ -69,6 +69,9 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                 Animation::Typewriter => {
                     tl.start.typewriter = (0.0, 0.0);
                 }
+                Animation::Sweep => {
+                    tl.start.sweep = 0.0;
+                }
             }
         }
     }
