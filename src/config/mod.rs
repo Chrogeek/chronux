@@ -4,10 +4,7 @@ use serde::Deserialize;
 use skia_safe::Color;
 
 use crate::{
-    animation::{properties::Properties, timeline::Timeline, track},
-    config::event::Event,
-    svg::element::Object,
-    util::{parse_css_color, ChronuxError, ChronuxResult},
+    animation::{properties::Properties, timeline::Timeline, track}, config::event::Event, render::viewport::Viewport, svg::element::Object, util::{parse_css_color, ChronuxError, ChronuxResult}
 };
 
 pub mod event;
@@ -18,6 +15,7 @@ pub struct Config {
     pub output: OutputConfig,
     #[serde(deserialize_with = "deserialize_events")]
     pub events: HashMap<String, Event>,
+    pub viewports: Vec<Viewport>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -52,8 +50,13 @@ impl Config {
     pub fn load(filename: &str) -> ChronuxResult<Config> {
         let config_data =
             std::fs::read_to_string(filename).map_err(|e| ChronuxError::IoError(e))?;
-        let config: Config =
+        let mut config: Config =
             toml::from_str(&config_data).map_err(|e| ChronuxError::ConfigError(e))?;
+        for vp in config.viewports.iter_mut() {
+            if vp.height.is_nan() {
+                vp.height = vp.width * (config.output.height as f32 / config.output.width as f32);
+            }
+        }
         Ok(config)
     }
 

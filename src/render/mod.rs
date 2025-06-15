@@ -2,6 +2,8 @@ use skia_safe::{Canvas, Data, Handle, Image, Rect};
 
 use crate::{animation::properties::Properties, svg::element::Shape, util::{ChronuxError, ChronuxResult}};
 
+pub mod viewport;
+
 pub fn draw(canvas: &Canvas, shape: &Shape, properties: &Properties) -> ChronuxResult<()> {
     if !properties.visible {
         return Ok(());
