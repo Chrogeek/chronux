@@ -127,7 +127,7 @@ pub fn calc_viewport_keyframe_bezier(viewports: &mut Vec<Viewport>) {
                     let deriv =
                         (v2 - v1) / (t2 - t1) + (v2 - v3) / (t2 - t3) - (v1 - v3) / (t1 - t3);
 
-                    let mut l = Vec3(1.0, 1.0, 1.0) - 0.42 * deriv / (t2 - t1);
+                    let mut l = 0.42 * deriv / (t2 - t1);
                     let mut r = 0.42 * deriv / (t3 - t2);
 
                     if (v2.0 - v1.0).abs() < 1e-4 {
@@ -161,6 +161,8 @@ pub fn calc_viewport_keyframe_bezier(viewports: &mut Vec<Viewport>) {
                         r.2 /= v3.2 - v2.2;
                     }
 
+                    let l = Vec3(1.0, 1.0, 1.0) - l;
+
                     viewports[i].ctl = Vec6(0.58, l.0, 0.58, l.1, 0.58, l.2);
                     viewports[i].ctr = Vec6(0.42, r.0, 0.42, r.1, 0.42, r.2);
                 }
@@ -187,27 +189,27 @@ pub fn interpolate_viewport(viewports: &Vec<Viewport>, t: f32) -> Option<Vec3> {
     }
 
     for i in 0..len - 1 {
-        if t >= viewports[i].t && t <= viewports[i + 1].t {
-            if let ViewportSmooth::Freeze = viewports[i].smooth {
-                return Some(Vec3(viewports[i].x, viewports[i].y, viewports[i].width));
+        let v1 = &viewports[i];
+        let v2 = &viewports[i + 1];
+        let dt = v2.t - v1.t;
+
+        if t >= v1.t && t <= v2.t {
+            if let ViewportSmooth::Freeze = v1.smooth {
+                return Some(Vec3(v1.x, v1.y, v1.width));
             }
 
-            let v1 = &viewports[i];
-            let v2 = &viewports[i + 1];
-
-            let dt = v2.t - v1.t;
             if dt < 1e-4 {
-                return Some(Vec3(v1.x, v1.y, v1.width));
+                return Some(Vec3(v2.x, v2.y, v2.width));
             }
 
             let ratio = (t - v1.t) / dt;
 
-            let x = cubic_bezier(ratio, v1.ctr.0, v1.ctr.1, v2.ctl.0, v2.ctl.1);
-            let y = cubic_bezier(ratio, v1.ctr.2, v1.ctr.3, v2.ctl.2, v2.ctl.3);
-            let width = cubic_bezier(ratio, v1.ctr.4, v1.ctr.5, v2.ctl.4, v2.ctl.5);
+            let tx = cubic_bezier(ratio, v1.ctr.0, v1.ctr.1, v2.ctl.0, v2.ctl.1);
+            let ty = cubic_bezier(ratio, v1.ctr.2, v1.ctr.3, v2.ctl.2, v2.ctl.3);
+            let tw = cubic_bezier(ratio, v1.ctr.4, v1.ctr.5, v2.ctl.4, v2.ctl.5);
 
             return Some(
-                Vec3(x, y, width) * (Vec3(v2.x, v2.y, v2.width) - Vec3(v1.x, v1.y, v1.width))
+                Vec3(tx, ty, tw) * (Vec3(v2.x, v2.y, v2.width) - Vec3(v1.x, v1.y, v1.width))
                     + Vec3(v1.x, v1.y, v1.width),
             );
         }
