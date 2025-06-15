@@ -11,39 +11,20 @@ use crate::{
     },
 };
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
 pub struct Viewport {
     pub depends: String,
     pub offset: f32,
+    #[serde(skip)]
     pub t: f32,
     pub smooth: ViewportSmooth,
     pub x: f32,
     pub y: f32,
     pub width: f32,
+    #[serde(skip)]
     ctl: Vec6,
+    #[serde(skip)]
     ctr: Vec6,
-}
-
-impl<'de> Deserialize<'de> for Viewport {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let (x, y, width, depends, offset, smooth): (_, _, _, _, _, Option<_>) =
-            Deserialize::deserialize(deserializer)?;
-
-        Ok(Viewport {
-            x,
-            y,
-            width,
-            depends,
-            offset,
-            t: f32::NAN,
-            smooth: smooth.unwrap_or(ViewportSmooth::Linear),
-            ctl: Vec6(f32::NAN, f32::NAN, f32::NAN, f32::NAN, f32::NAN, f32::NAN),
-            ctr: Vec6(f32::NAN, f32::NAN, f32::NAN, f32::NAN, f32::NAN, f32::NAN),
-        })
-    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -61,7 +42,7 @@ pub enum ViewportSmooth {
     #[serde(rename = "ease-in-out")]
     EaseInOut,
     /// 自动贝塞尔曲线插值
-    #[serde(rename = "bezier")]
+    #[serde(rename = "auto")]
     AutoBezier,
     /// 在下一个关键帧到来之前保持不变
     #[serde(rename = "freeze")]
@@ -89,11 +70,16 @@ pub fn calc_viewport_times(
     Ok(())
 }
 
-pub fn calc_bezier(viewports: &mut Vec<Viewport>) {
+pub fn calc_viewport_keyframe_bezier(viewports: &mut Vec<Viewport>) {
     let len = viewports.len();
     for i in 0..len {
         if i > 0 {
-            assert!(viewports[i].t > viewports[i - 1].t, "viewport keyframes must be in ascending order (failed between index {} and {})", i - 1, i);
+            assert!(
+                viewports[i].t > viewports[i - 1].t,
+                "viewport keyframes must be in ascending order (failed between index {} and {})",
+                i - 1,
+                i
+            );
         }
         match viewports[i].smooth {
             ViewportSmooth::Linear | ViewportSmooth::Freeze => {
@@ -141,8 +127,39 @@ pub fn calc_bezier(viewports: &mut Vec<Viewport>) {
                     let deriv =
                         (v2 - v1) / (t2 - t1) + (v2 - v3) / (t2 - t3) - (v1 - v3) / (t1 - t3);
 
-                    let l = Vec3(1.0, 1.0, 1.0) - 0.42 * deriv * (t2 - t1);
-                    let r = 0.42 * deriv * (t3 - t2);
+                    let mut l = Vec3(1.0, 1.0, 1.0) - 0.42 * deriv / (t2 - t1);
+                    let mut r = 0.42 * deriv / (t3 - t2);
+
+                    if (v2.0 - v1.0).abs() < 1e-4 {
+                        l.0 = 1.0;
+                    } else {
+                        l.0 /= v2.0 - v1.0;
+                    }
+                    if (v2.1 - v1.1).abs() < 1e-4 {
+                        l.1 = 1.0;
+                    } else {
+                        l.1 /= v2.1 - v1.1;
+                    }
+                    if (v2.2 - v1.2).abs() < 1e-4 {
+                        l.2 = 1.0;
+                    } else {
+                        l.2 /= v2.2 - v1.2;
+                    }
+                    if (v3.0 - v2.0).abs() < 1e-4 {
+                        r.0 = 0.0;
+                    } else {
+                        r.0 /= v3.0 - v2.0;
+                    }
+                    if (v3.1 - v2.1).abs() < 1e-4 {
+                        r.1 = 0.0;
+                    } else {
+                        r.1 /= v3.1 - v2.1;
+                    }
+                    if (v3.2 - v2.2).abs() < 1e-4 {
+                        r.2 = 0.0;
+                    } else {
+                        r.2 /= v3.2 - v2.2;
+                    }
 
                     viewports[i].ctl = Vec6(0.58, l.0, 0.58, l.1, 0.58, l.2);
                     viewports[i].ctr = Vec6(0.42, r.0, 0.42, r.1, 0.42, r.2);
@@ -171,11 +188,15 @@ pub fn interpolate_viewport(viewports: &Vec<Viewport>, t: f32) -> Option<Vec3> {
 
     for i in 0..len - 1 {
         if t >= viewports[i].t && t <= viewports[i + 1].t {
+            if let ViewportSmooth::Freeze = viewports[i].smooth {
+                return Some(Vec3(viewports[i].x, viewports[i].y, viewports[i].width));
+            }
+
             let v1 = &viewports[i];
             let v2 = &viewports[i + 1];
 
             let dt = v2.t - v1.t;
-            if dt == 0.0 {
+            if dt < 1e-4 {
                 return Some(Vec3(v1.x, v1.y, v1.width));
             }
 

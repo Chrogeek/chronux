@@ -8,9 +8,11 @@ use crate::{
     animation::Animation,
     args::Args,
     config::Config,
-    render::viewport::{calc_bezier, calc_viewport_times, interpolate_viewport, sort_viewports},
+    render::viewport::{
+        calc_viewport_keyframe_bezier, calc_viewport_times, interpolate_viewport, sort_viewports,
+    },
     svg::Svg,
-    util::{timecode, vector::Vec3, ChronuxError},
+    util::{ChronuxError, timecode, vector::Vec3},
 };
 
 mod animation;
@@ -61,11 +63,13 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     )?;
     log::info!("Extracted {} objects in SVG", objs.len());
 
+    // 计算每个动画的起始时间
     conf.calc_start_times(&objs)?;
     log::info!("Calculated start times for objects");
 
     let mut timeline = conf.calc_timeline()?;
 
+    // 设置每个对象时间线的起始属性，如有出现(appear)动画则将起始状态置为默认值（未开始）
     for o in objs.iter() {
         if let Some(tl) = timeline.get_mut(&o.id) {
             tl.start = o.style.clone();
@@ -89,7 +93,8 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     // 处理镜头
     calc_viewport_times(&mut conf.viewports, &conf.events)?;
     sort_viewports(&mut conf.viewports);
-    calc_bezier(&mut conf.viewports);
+    calc_viewport_keyframe_bezier(&mut conf.viewports);
+    log::info!("Calculated viewport keyframes");
 
     // 渲染动画
     let frame_start = (conf.output.time_start * conf.output.fps as f32) as u32;
@@ -102,7 +107,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     log::info!("Start rendering frames...");
 
     let progressbar = ProgressBar::new(frame_end as u64 - frame_start as u64).with_style(
-        ProgressStyle::with_template("{msg} {wide_bar} {pos}/{len} ({percent}%) [{elapsed}>{eta}]")
+        ProgressStyle::with_template("{msg} {wide_bar} {pos}/{len} ({percent}%) [{elapsed}<{eta}]")
             .unwrap(),
     );
 
@@ -133,12 +138,16 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                 ))?;
         surface.canvas().clear(conf.output.background_color); // 设置背景颜色
 
-        // 应用镜头变换
-        surface.canvas().translate((-vx, -vy));
-        surface.canvas().scale((
+        let (sx, sy) = (
             conf.output.width as f32 / vw,
             conf.output.height as f32 / vh,
-        ));
+        );
+
+        // 应用镜头变换
+        surface
+            .canvas()
+            .scale((sx, sy))
+            .translate((-vx, -vy));
 
         // 绘制每个图形
         for o in objs.iter() {

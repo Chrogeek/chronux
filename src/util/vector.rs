@@ -1,6 +1,8 @@
 use std::ops::{Add, Div, Mul, Sub};
 
-#[derive(Debug, Clone, Copy)]
+use serde::Deserialize;
+
+#[derive(Debug, Clone, Copy, Deserialize, Default)]
 pub struct Vec6(pub f32, pub f32, pub f32, pub f32, pub f32, pub f32);
 
 impl Add for Vec6 {
@@ -126,5 +128,13 @@ impl Div<f32> for Vec3 {
 
     fn div(self, scalar: f32) -> Self::Output {
         Vec3(self.0 / scalar, self.1 / scalar, self.2 / scalar)
+    }
+}
+
+impl Div<Vec3> for Vec3 {
+    type Output = Vec3;
+
+    fn div(self, vp: Vec3) -> Self::Output {
+        Vec3(self.0 / vp.0, self.1 / vp.1, self.2 / vp.2)
     }
 }
