@@ -8,8 +8,9 @@ use crate::{
     animation::Animation,
     args::Args,
     config::Config,
+    render::viewport::{calc_bezier, calc_viewport_times, interpolate_viewport, sort_viewports},
     svg::Svg,
-    util::{ChronuxError, timecode},
+    util::{timecode, vector::Vec3, ChronuxError},
 };
 
 mod animation;
@@ -85,6 +86,11 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     }
     log::info!("Calculated timeline for objects");
 
+    // 处理镜头
+    calc_viewport_times(&mut conf.viewports, &conf.events)?;
+    sort_viewports(&mut conf.viewports);
+    calc_bezier(&mut conf.viewports);
+
     // 渲染动画
     let frame_start = (conf.output.time_start * conf.output.fps as f32) as u32;
     let frame_end = (conf.output.time_end * conf.output.fps as f32) as u32;
@@ -103,16 +109,38 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     for f in frame_start..frame_end {
         progressbar.set_message(timecode(f, conf.output.fps));
 
+        // 当前时间点（秒数）
         let t = f as f32 / conf.output.fps as f32;
 
+        // 计算当前镜头位置
+        let vb = interpolate_viewport(&conf.viewports, t).unwrap_or(Vec3(
+            0.0,
+            0.0,
+            conf.output.width as f32,
+        ));
+        let (vx, vy, vw, vh) = (
+            vb.0,
+            vb.1,
+            vb.2,
+            vb.2 * conf.output.height as f32 / conf.output.width as f32,
+        );
+
+        // 创建 Skia 画布
         let mut surface =
             surfaces::raster_n32_premul((conf.output.width as i32, conf.output.height as i32))
                 .ok_or(ChronuxError::SkiaError(
                     "failed to create Skia surface".into(),
                 ))?;
+        surface.canvas().clear(conf.output.background_color); // 设置背景颜色
 
-        surface.canvas().clear(conf.output.background_color);
+        // 应用镜头变换
+        surface.canvas().translate((-vx, -vy));
+        surface.canvas().scale((
+            conf.output.width as f32 / vw,
+            conf.output.height as f32 / vh,
+        ));
 
+        // 绘制每个图形
         for o in objs.iter() {
             let properties = match timeline.get(&o.id) {
                 Some(tl) => tl.interpolate(t),
@@ -121,6 +149,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             render::draw(&surface.canvas(), &o.shape, &properties)?;
         }
 
+        // 输出图片
         let output = std::path::Path::new(&output_dir).join(format!("frame_{:04}.png", f));
         let mut file = std::fs::File::create(&output).map_err(|e| ChronuxError::IoError(e))?;
 

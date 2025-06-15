@@ -4,7 +4,11 @@ use serde::Deserialize;
 use skia_safe::Color;
 
 use crate::{
-    animation::{properties::Properties, timeline::Timeline, track}, config::event::Event, render::viewport::Viewport, svg::element::Object, util::{parse_css_color, ChronuxError, ChronuxResult}
+    animation::{properties::Properties, timeline::Timeline, track},
+    config::event::Event,
+    render::viewport::Viewport,
+    svg::element::Object,
+    util::{ChronuxError, ChronuxResult, parse_css_color},
 };
 
 pub mod event;
@@ -50,13 +54,8 @@ impl Config {
     pub fn load(filename: &str) -> ChronuxResult<Config> {
         let config_data =
             std::fs::read_to_string(filename).map_err(|e| ChronuxError::IoError(e))?;
-        let mut config: Config =
+        let config: Config =
             toml::from_str(&config_data).map_err(|e| ChronuxError::ConfigError(e))?;
-        for vp in config.viewports.iter_mut() {
-            if vp.height.is_nan() {
-                vp.height = vp.width * (config.output.height as f32 / config.output.width as f32);
-            }
-        }
         Ok(config)
     }
 
@@ -110,7 +109,11 @@ impl Config {
         let mut visited = HashMap::new();
         let mut stack = HashSet::new();
 
-        let objmap = objs.iter().enumerate().map(|(i, o)| (o.id.clone(), i)).collect::<HashMap<_, _>>();
+        let objmap = objs
+            .iter()
+            .enumerate()
+            .map(|(i, o)| (o.id.clone(), i))
+            .collect::<HashMap<_, _>>();
 
         for event_id in self.events.keys() {
             if !visited.contains_key(event_id) {

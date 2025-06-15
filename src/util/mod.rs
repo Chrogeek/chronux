@@ -2,6 +2,8 @@ use std::fmt::Display;
 
 use skia_safe::Color;
 
+pub mod vector;
+
 #[derive(Debug)]
 pub enum ChronuxError {
     IoError(std::io::Error),
@@ -18,6 +20,7 @@ pub enum ChronuxError {
     SkiaError(String),
     ArgError(String),
     HrefError(String),
+    BrokenDependency(String),
 }
 
 pub type ChronuxResult<T> = Result<T, ChronuxError>;
@@ -50,6 +53,7 @@ impl Display for ChronuxError {
             ChronuxError::SkiaError(msg) => write!(f, "Skia Error: {}", msg),
             ChronuxError::ArgError(msg) => write!(f, "Argument Error: {}", msg),
             ChronuxError::HrefError(msg) => write!(f, "Href Error: {}", msg),
+            ChronuxError::BrokenDependency(id) => write!(f, "Broken dependency: {}", id),
         }
     }
 }

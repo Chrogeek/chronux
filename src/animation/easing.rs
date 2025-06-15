@@ -2,7 +2,7 @@ use roots::Roots;
 use serde::Deserialize;
 
 /// 三阶贝塞尔曲线插值
-fn cubic_bezier(x: f32, p1: f32, p2: f32, p3: f32, p4: f32) -> f32 {
+pub fn cubic_bezier(x: f32, p1: f32, p2: f32, p3: f32, p4: f32) -> f32 {
     let t = roots::find_roots_cubic(
         3.0 * p1 - 3.0 * p3 + 1.0,
         -6.0 * p1 + 3.0 * p3,

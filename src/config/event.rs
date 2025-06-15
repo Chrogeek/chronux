@@ -19,7 +19,7 @@ pub struct Event {
 }
 
 fn default_start() -> f32 {
-    0.0
+    f32::NAN
 }
 
 #[derive(Debug, Deserialize, Clone)]
