@@ -2,7 +2,7 @@ use std::{path::PathBuf, str::FromStr};
 
 use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
-use skia_safe::{Path, surfaces};
+use skia_safe::surfaces;
 
 use crate::{
     animation::Animation,
