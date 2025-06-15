@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use roxmltree::Node;
 use skia_safe::{Matrix, Path, Point, Vector, utils::text_utils::Align};
 
@@ -26,10 +28,17 @@ pub enum Shape {
         content: String,
         align: Align,
     },
+    Image {
+        href: String,
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+    },
 }
 
 impl Object {
-    pub fn from_node(node: &Node, id: String, mat: Matrix) -> ChronuxResult<Object> {
+    pub fn from_node(node: &Node, id: String, mat: Matrix, base: PathBuf) -> ChronuxResult<Object> {
         let style = Properties::from_style(&svg::attribute_str(node, "style")?, mat)?;
         Ok(Object {
             id,
@@ -56,19 +65,39 @@ impl Object {
                     let Point { x, y } = mat.map_point((x, y));
 
                     let child = node.children().nth(0).unwrap();
-                    let child_style = Properties::from_style(
-                        &child.attribute("style").unwrap_or(""),
-                        mat,
-                    )?;
+                    let child_style =
+                        Properties::from_style(&child.attribute("style").unwrap_or(""), mat)?;
 
                     let content = child.text().unwrap_or("");
                     let align = child_style.text_anchor;
-                    println!("text: {}, align: {:?}", content, align);
                     Shape::Text {
                         x,
                         y,
                         content: content.to_string(),
                         align,
+                    }
+                }
+                "image" => {
+                    let href = base.join(svg::attribute_namespace_str(node, "http://www.w3.org/1999/xlink", "href")?).to_string_lossy().into_owned();
+                    let (x, y) = (
+                        svg::attribute_f32(node, "x")?,
+                        svg::attribute_f32(node, "y")?,
+                    );
+                    let (width, height) = (
+                        svg::attribute_f32(node, "width")?,
+                        svg::attribute_f32(node, "height")?,
+                    );
+                    let Point { x, y } = mat.map_point((x, y));
+                    let Vector {
+                        x: width,
+                        y: height,
+                    } = mat.map_vector((width, height));
+                    Shape::Image {
+                        href,
+                        x,
+                        y,
+                        width,
+                        height,
                     }
                 }
                 _ => unreachable!("unexpected SVG element: {}", node.tag_name().name()),
@@ -86,6 +115,10 @@ impl Object {
             Shape::Circle { cx, cy, .. } => (*cx, *cy),
             Shape::Text { x, y, .. } => {
                 log::warn!("position may not be accurate for text elements");
+                (*x, *y)
+            }
+            Shape::Image { x, y, .. } => {
+                log::warn!("position may not be accurate for image elements");
                 (*x, *y)
             }
         }

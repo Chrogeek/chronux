@@ -23,6 +23,7 @@ pub struct Config {
 #[derive(Debug, Deserialize)]
 pub struct InputConfig {
     pub svg: String,
+    pub pinned: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]

@@ -17,6 +17,7 @@ pub enum ChronuxError {
     SvgError(String),
     SkiaError(String),
     ArgError(String),
+    HrefError(String),
 }
 
 pub type ChronuxResult<T> = Result<T, ChronuxError>;
@@ -48,6 +49,7 @@ impl Display for ChronuxError {
             ChronuxError::SvgError(msg) => write!(f, "SVG Error: {}", msg),
             ChronuxError::SkiaError(msg) => write!(f, "Skia Error: {}", msg),
             ChronuxError::ArgError(msg) => write!(f, "Argument Error: {}", msg),
+            ChronuxError::HrefError(msg) => write!(f, "Href Error: {}", msg),
         }
     }
 }

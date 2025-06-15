@@ -1,6 +1,6 @@
-use skia_safe::{Canvas, Rect};
+use skia_safe::{Canvas, Data, Handle, Image, Rect};
 
-use crate::{animation::properties::Properties, svg::element::Shape, util::ChronuxResult};
+use crate::{animation::properties::Properties, svg::element::Shape, util::{ChronuxError, ChronuxResult}};
 
 pub fn draw(canvas: &Canvas, shape: &Shape, properties: &Properties) -> ChronuxResult<()> {
     if !properties.visible {
@@ -52,6 +52,15 @@ pub fn draw(canvas: &Canvas, shape: &Shape, properties: &Properties) -> ChronuxR
             let font = properties.get_font()?;
             canvas.draw_text_align(text, (*x, *y), &font, &stroke, *align);
             canvas.draw_text_align(text, (*x, *y), &font, &fill, *align);
+        }
+        Shape::Image { href, x, y, width, height } => {
+            let data = Data::from_filename(href).ok_or(ChronuxError::HrefError(
+                format!("Failed to load image data from {}", href),
+            ))?;
+            let img = Image::from_encoded(data).ok_or(ChronuxError::HrefError(
+                format!("Failed to load image from {}", href),
+            ))?;
+            canvas.draw_image_rect(&img, None, Rect::new(*x, *y, x + width, y + height), &Handle::default());
         }
     }
 

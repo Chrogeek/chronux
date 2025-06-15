@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, path::PathBuf};
 
 use roxmltree::{Document, Node};
 use skia_safe::Matrix;
@@ -73,24 +73,25 @@ impl Svg {
         })
     }
 
-    pub fn search_labels(&self, labels: &HashSet<String>) -> ChronuxResult<Vec<Object>> {
+    pub fn search_labels(&self, labels: &HashSet<String>, base: PathBuf) -> ChronuxResult<Vec<Object>> {
         fn search_labels_dfs(
             node: &Node,
             labels: &HashSet<String>,
             parent: &Option<String>,
             results: &mut Vec<Object>,
             matrix: Matrix,
+            base: PathBuf,
         ) -> ChronuxResult<()> {
             let this_label = attribute_label(node);
             if let Some(ref label) = this_label {
                 if labels.contains(label) {
-                    results.push(Object::from_node(node, label.clone(), matrix)?);
+                    results.push(Object::from_node(node, label.clone(), matrix, base.clone())?);
                 }
 
                 if let Some(parent_label) = parent {
                     let full_name = format!("{}/{}", parent_label, label);
                     if labels.contains(&full_name) {
-                        results.push(Object::from_node(node, full_name, matrix)?);
+                        results.push(Object::from_node(node, full_name, matrix, base.clone())?);
                     }
                 }
             }
@@ -132,7 +133,7 @@ impl Svg {
                 .fold(Matrix::new_identity(), |acc, t| acc * t);
 
             for child in node.children() {
-                search_labels_dfs(&child, labels, &this_label, results, matrix * mat)?;
+                search_labels_dfs(&child, labels, &this_label, results, matrix * mat, base.clone())?;
             }
 
             Ok(())
@@ -145,6 +146,7 @@ impl Svg {
             &None,
             &mut results,
             self.transform,
+            base
         )?;
 
         Ok(results)
@@ -167,6 +169,20 @@ pub fn attribute_str(node: &Node, attribute: &str) -> ChronuxResult<String> {
         .ok_or(ChronuxError::AttributeNotFound {
             node_id: attribute_label(node),
             attribute: attribute.to_string(),
+        })?
+        .into())
+}
+
+pub fn attribute_namespace_str(
+    node: &Node,
+    namespace: &str,
+    attribute: &str,
+) -> ChronuxResult<String> {
+    Ok(node
+        .attribute((namespace, attribute))
+        .ok_or(ChronuxError::AttributeNotFound {
+            node_id: attribute_label(node),
+            attribute: format!("{}:{}", namespace, attribute),
         })?
         .into())
 }

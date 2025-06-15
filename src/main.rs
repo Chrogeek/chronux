@@ -1,6 +1,8 @@
+use std::{path::PathBuf, str::FromStr};
+
 use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
-use skia_safe::surfaces;
+use skia_safe::{Path, surfaces};
 
 use crate::{
     animation::Animation,
@@ -46,7 +48,16 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     log::info!("Loaded SVG from file `{}`", conf.input.svg);
 
     // 读取 SVG 中的路径、圆形和文本
-    let objs = svg.search_labels(&ids)?;
+    let mut ids = ids;
+    ids.extend(conf.input.pinned.iter().cloned());
+    let objs = svg.search_labels(
+        &ids,
+        PathBuf::from_str(&conf.input.svg.clone())
+            .unwrap()
+            .parent()
+            .ok_or(ChronuxError::HrefError("incorrect href".to_string()))?
+            .to_path_buf(),
+    )?;
     log::info!("Extracted {} objects in SVG", objs.len());
 
     conf.calc_start_times(&objs)?;
@@ -55,20 +66,19 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     let mut timeline = conf.calc_timeline()?;
 
     for o in objs.iter() {
-        let tl = timeline.get_mut(&o.id).unwrap();
-
-        tl.start = o.style.clone();
-
-        for e in tl.events.iter() {
-            match e.animation {
-                Animation::TrimPath { .. } => {
-                    tl.start.trim = (0.0, 0.0);
-                }
-                Animation::Typewriter => {
-                    tl.start.typewriter = (0.0, 0.0);
-                }
-                Animation::Sweep => {
-                    tl.start.sweep = 0.0;
+        if let Some(tl) = timeline.get_mut(&o.id) {
+            tl.start = o.style.clone();
+            for e in tl.events.iter() {
+                match e.animation {
+                    Animation::TrimPath { .. } => {
+                        tl.start.trim = (0.0, 0.0);
+                    }
+                    Animation::Typewriter => {
+                        tl.start.typewriter = (0.0, 0.0);
+                    }
+                    Animation::Sweep => {
+                        tl.start.sweep = 0.0;
+                    }
                 }
             }
         }
@@ -104,8 +114,10 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         surface.canvas().clear(conf.output.background_color);
 
         for o in objs.iter() {
-            let tl = &timeline[&o.id];
-            let properties = tl.interpolate(t);
+            let properties = match timeline.get(&o.id) {
+                Some(tl) => tl.interpolate(t),
+                None => o.style.clone(),
+            };
             render::draw(&surface.canvas(), &o.shape, &properties)?;
         }
 
