@@ -1,4 +1,4 @@
-use skia_safe::{utils::text_utils::{draw_text, Align}, Canvas, Rect};
+use skia_safe::{Canvas, Rect, utils::text_utils::Align};
 
 use crate::{animation::properties::Properties, svg::element::Shape, util::ChronuxResult};
 
@@ -24,19 +24,34 @@ pub fn draw(canvas: &Canvas, shape: &Shape, properties: &Properties) -> ChronuxR
         }
         Shape::Circle { cx, cy, r } => {
             let (cx, cy, r) = (*cx, *cy, *r);
-            canvas.draw_arc(Rect::new(cx - r, cy - r, cx + r, cy + r), -90.0, properties.sweep * 360.0, false, &fill);
-            canvas.draw_arc(Rect::new(cx - r, cy - r, cx + r, cy + r), -90.0, properties.sweep * 360.0, false, &stroke);
+            canvas.draw_arc(
+                Rect::new(cx - r, cy - r, cx + r, cy + r),
+                -90.0,
+                properties.sweep * 360.0,
+                false,
+                &fill,
+            );
+            canvas.draw_arc(
+                Rect::new(cx - r, cy - r, cx + r, cy + r),
+                -90.0,
+                properties.sweep * 360.0,
+                false,
+                &stroke,
+            );
         }
         Shape::Text { x, y, content } => {
             let (_start, end) = properties.typewriter;
-            let mut end = (end * content.len() as f32).round() as usize;
+            let mut end = (end * (content.len() as f32)).round() as usize;
             while end > 0 && !content.is_char_boundary(end) {
                 end -= 1;
             }
+            if end == 0 {
+                return Ok(()); // Nothing to draw
+            }
             let text = &content[0..end];
             let font = properties.get_font()?;
-            draw_text(canvas, text, (*x, *y), &font, &stroke, Align::Left);
-            draw_text(canvas, text, (*x, *y), &font, &fill, Align::Left);
+            canvas.draw_text_align(text, (*x, *y), &font, &stroke, Align::Left);
+            canvas.draw_text_align(text, (*x, *y), &font, &fill, Align::Left);
         }
     }
 

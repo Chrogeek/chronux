@@ -50,7 +50,7 @@ impl Object {
                     Shape::Text {
                         x,
                         y,
-                        content: node.text().unwrap_or_default().into(),
+                        content: node.children().map(|c| c.text().unwrap_or("")).collect::<Vec<_>>().join(""),
                     }
                 }
                 _ => unreachable!("unexpected SVG element: {}", node.tag_name().name()),

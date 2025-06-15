@@ -153,25 +153,14 @@ impl Properties {
     }
 
     pub fn get_font(&self) -> ChronuxResult<Font> {
-        // let mut ts = TextStyle::new();
-        // ts.set_font_families(&["Blue Sky Standard", "Source Han Sans SC"]);
-        // ts.set_font_size(self.font_size);
-        // ts.set_font_style(skia_safe::FontStyle::new(
-        //     (self.font_weight as i32).into(),
-        //     Width::NORMAL,
-        //     Slant::Upright,
-        // ));
-        // ts
         let mgr = skia_safe::FontMgr::default();
-        let tf = mgr
-            .legacy_make_typeface(
-                "Source Han Sans SC",
-                FontStyle::new(
-                    (self.font_weight as i32).into(),
-                    Width::NORMAL,
-                    Slant::Upright,
-                ),
-            )
+        let mut family = mgr.match_family("思源黑体");
+        let tf = family
+            .match_style(FontStyle::new(
+                (self.font_weight as i32).into(),
+                Width::NORMAL,
+                Slant::Upright,
+            ))
             .ok_or(ChronuxError::SkiaError(
                 "failed to create typeface".to_string(),
             ))?;
