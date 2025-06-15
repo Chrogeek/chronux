@@ -1,7 +1,5 @@
 use skia_safe::{
-    Color, Font, FontStyle, Matrix, Vector,
-    font_style::{Slant, Width},
-    utils::text_utils::Align,
+    font_style::{Slant, Width}, utils::text_utils::Align, Color, Font, FontStyle, Matrix, PaintCap, PaintJoin, Vector
 };
 
 use crate::{
@@ -18,6 +16,8 @@ pub struct Properties {
     pub fill_color: Color,
     pub stroke_color: Color,
     pub stroke_width: f32,
+    pub stroke_linecap: PaintCap,
+    pub stroke_linejoin: PaintJoin,
     // pub translate_x: f32,
     // pub translate_y: f32,
     // pub scale_x: f32,
@@ -38,6 +38,8 @@ impl Default for Properties {
             fill_color: Color::TRANSPARENT,   // transparent
             stroke_color: Color::TRANSPARENT, // transparent
             stroke_width: 0.0,
+            stroke_linecap: PaintCap::Round,   // default to butt cap
+            stroke_linejoin: PaintJoin::Round, // default to miter join
             // translate_x: 0.0,
             // translate_y: 0.0,
             // scale_x: 1.0,
@@ -121,7 +123,25 @@ impl Properties {
                 "start" => Align::Left,
                 "middle" => Align::Center,
                 "end" => Align::Right,
-                _ => Align::Left, // default to left alignment
+                _ => Align::Left,
+            };
+        }
+
+        if let Some(cap) = rules.get("stroke-linecap") {
+            result.stroke_linecap = match *cap {
+                "butt" => PaintCap::Butt,
+                "round" => PaintCap::Round,
+                "square" => PaintCap::Square,
+                _ => PaintCap::Round,
+            };
+        }
+
+        if let Some(join) = rules.get("stroke-linejoin") {
+            result.stroke_linejoin = match *join {
+                "miter" => PaintJoin::Miter,
+                "round" => PaintJoin::Round,
+                "bevel" => PaintJoin::Bevel,
+                _ => PaintJoin::Round,
             };
         }
 
@@ -134,6 +154,8 @@ impl Properties {
         paint.set_style(skia_safe::paint::Style::Stroke);
         paint.set_color(self.stroke_color);
         paint.set_stroke_width(self.stroke_width);
+        paint.set_stroke_cap(self.stroke_linecap);
+        paint.set_stroke_join(self.stroke_linejoin);
         paint
     }
 
