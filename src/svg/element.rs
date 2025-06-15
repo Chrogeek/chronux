@@ -28,15 +28,6 @@ pub enum Shape {
     },
 }
 
-pub fn str_to_align(s: &str) -> Option<Align> {
-    match s {
-        "start" => Some(Align::Left),
-        "center" => Some(Align::Center),
-        "end" => Some(Align::Right),
-        _ => None,
-    }
-}
-
 impl Object {
     pub fn from_node(node: &Node, id: String, mat: Matrix) -> ChronuxResult<Object> {
         let style = Properties::from_style(&svg::attribute_str(node, "style")?, mat)?;
