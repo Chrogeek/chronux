@@ -68,7 +68,8 @@ impl Svg {
 
         Ok(Svg {
             tree: svg,
-            transform: Matrix::scale((width / vb.2, height / vb.3)) * Matrix::translate((vb.0, vb.1))
+            transform: Matrix::scale((width / vb.2, height / vb.3))
+                * Matrix::translate((vb.0, vb.1)),
         })
     }
 
@@ -128,10 +129,10 @@ impl Svg {
                     })
                 })
                 .filter_map(|t| t)
-                .fold(Matrix::new_identity(), |acc, t| t * acc);
+                .fold(Matrix::new_identity(), |acc, t| acc * t);
 
             for child in node.children() {
-                search_labels_dfs(&child, labels, &this_label, results, mat * matrix)?;
+                search_labels_dfs(&child, labels, &this_label, results, matrix * mat)?;
             }
 
             Ok(())
