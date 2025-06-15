@@ -1,6 +1,8 @@
 use std::collections::HashSet;
 
 use roxmltree::{Document, Node};
+use skia_safe::Matrix;
+use svgtypes::{TransformListParser, TransformListToken};
 
 use crate::{
     svg::element::Object,
@@ -10,34 +12,9 @@ use crate::{
 pub mod element;
 pub mod path;
 
-pub struct Dimension {
-    pub width: f32,
-    pub height: f32,
-    pub viewbox: (f32, f32, f32, f32),
-}
-
-impl Dimension {
-    pub fn to_real_coords(&self, x: f32, y: f32) -> (f32, f32) {
-        let (vb_x, vb_y, vb_width, vb_height) = self.viewbox;
-        let scale_x = self.width / vb_width;
-        let scale_y = self.height / vb_height;
-
-        let viewbox_x = (x - vb_x) * scale_x;
-        let viewbox_y = (y - vb_y) * scale_y;
-
-        (viewbox_x, viewbox_y)
-    }
-
-    pub fn to_real_length(&self, length: f32) -> f32 {
-        let (_, _, vb_width, _) = self.viewbox;
-        let scale = self.width / vb_width; // Assuming uniform scaling for both dimensions
-        length * scale
-    }
-}
-
 pub struct Svg {
     tree: Document<'static>,
-    pub dimensions: Dimension,
+    pub transform: Matrix,
 }
 
 impl Svg {
@@ -91,38 +68,70 @@ impl Svg {
 
         Ok(Svg {
             tree: svg,
-            dimensions: Dimension {
-                width,
-                height,
-                viewbox: vb,
-            },
+            transform: Matrix::scale((width / vb.2, height / vb.3)) * Matrix::translate((vb.0, vb.1))
         })
     }
 
     pub fn search_labels(&self, labels: &HashSet<String>) -> ChronuxResult<Vec<Object>> {
         fn search_labels_dfs(
-            dim: &Dimension,
             node: &Node,
             labels: &HashSet<String>,
             parent: &Option<String>,
             results: &mut Vec<Object>,
+            matrix: Matrix,
         ) -> ChronuxResult<()> {
             let this_label = attribute_label(node);
             if let Some(ref label) = this_label {
                 if labels.contains(label) {
-                    results.push(Object::from_node(node, label.clone(), dim)?);
+                    results.push(Object::from_node(node, label.clone(), matrix)?);
                 }
 
                 if let Some(parent_label) = parent {
                     let full_name = format!("{}/{}", parent_label, label);
                     if labels.contains(&full_name) {
-                        results.push(Object::from_node(node, full_name, dim)?);
+                        results.push(Object::from_node(node, full_name, matrix)?);
                     }
                 }
             }
 
+            let mat = node
+                .attribute("transform")
+                .iter()
+                .flat_map(|s| {
+                    TransformListParser::from(*s).map(|t| {
+                        if let Ok(transform) = t {
+                            Some(match transform {
+                                TransformListToken::Translate { tx, ty } => {
+                                    Matrix::translate((tx as f32, ty as f32))
+                                }
+                                TransformListToken::Scale { sx, sy } => {
+                                    Matrix::scale((sx as f32, sy as f32))
+                                }
+                                TransformListToken::Rotate { angle } => {
+                                    Matrix::rotate_deg(angle as f32)
+                                }
+                                TransformListToken::SkewX { angle } => {
+                                    Matrix::skew((angle as f32, 0.0))
+                                }
+                                TransformListToken::SkewY { angle } => {
+                                    Matrix::skew((0.0, angle as f32))
+                                }
+                                TransformListToken::Matrix { a, b, c, d, e, f } => {
+                                    Matrix::from_affine(&[
+                                        a as f32, b as f32, c as f32, d as f32, e as f32, f as f32,
+                                    ])
+                                }
+                            })
+                        } else {
+                            None
+                        }
+                    })
+                })
+                .filter_map(|t| t)
+                .fold(Matrix::new_identity(), |acc, t| t * acc);
+
             for child in node.children() {
-                search_labels_dfs(dim, &child, labels, &this_label, results)?;
+                search_labels_dfs(&child, labels, &this_label, results, mat * matrix)?;
             }
 
             Ok(())
@@ -130,11 +139,11 @@ impl Svg {
 
         let mut results = Vec::new();
         search_labels_dfs(
-            &self.dimensions,
             &self.tree.root(),
             labels,
             &None,
             &mut results,
+            self.transform,
         )?;
 
         Ok(results)

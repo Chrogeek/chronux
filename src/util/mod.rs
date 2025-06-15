@@ -84,3 +84,19 @@ pub fn timecode(f: u32, fps: u32) -> String {
         format!("{:02}:{:02}", seconds, frames)
     }
 }
+
+pub fn parse_unit_value(v: &str) -> ChronuxResult<f32> {
+    if v.ends_with("px") {
+        v[..v.len() - 2]
+            .parse::<f32>()
+            .map_err(ChronuxError::ParseFloatError)
+    } else if v.ends_with("pt") {
+        v[..v.len() - 2]
+            .parse::<f32>()
+            .map(|v| v * 3.0 / 4.0)
+            .map_err(ChronuxError::ParseFloatError)
+    } else {
+        v.parse::<f32>()
+            .map_err(|e| ChronuxError::ArgError(format!("Unsupported value '{}': {}", v, e)))
+    }
+}

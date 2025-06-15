@@ -1,12 +1,11 @@
 use skia_safe::{
-    Color, Font, FontStyle,
+    Color, Font, FontStyle, Matrix, Vector,
     font_style::{Slant, Width},
 };
 
 use crate::{
     animation::Animation,
-    svg::Dimension,
-    util::{ChronuxError, ChronuxResult, parse_css_color},
+    util::{parse_css_color, parse_unit_value, ChronuxError, ChronuxResult},
 };
 
 #[derive(Debug, Clone)]
@@ -69,7 +68,7 @@ impl Properties {
         }
     }
 
-    pub fn from_style(style: &str, dim: &Dimension) -> ChronuxResult<Properties> {
+    pub fn from_style(style: &str, mat: Matrix) -> ChronuxResult<Properties> {
         let rules = style
             .split(';')
             .filter_map(|s| s.trim().split_once(':'))
@@ -99,19 +98,17 @@ impl Properties {
         }
 
         if let Some(width) = rules.get("stroke-width") {
-            result.stroke_width = dim.to_real_length(
-                width
-                    .parse::<f32>()
-                    .map_err(ChronuxError::ParseFloatError)?,
-            );
+            let w = width
+                .parse::<f32>()
+                .map_err(ChronuxError::ParseFloatError)?;
+            let Vector { x: w, y: _ } = mat.map_vector((w, 0.0));
+            result.stroke_width = w;
         }
 
         if let Some(size) = rules.get("font-size") {
-            result.font_size = dim.to_real_length(
-                size.replace("px", "")
-                    .parse::<f32>()
-                    .map_err(ChronuxError::ParseFloatError)?,
-            );
+            let s = parse_unit_value(*size)?;
+            let Vector { x: s, y: _ } = mat.map_vector((s, 0.0));
+            result.font_size = s;
         }
 
         if let Some(weight) = rules.get("font-weight") {

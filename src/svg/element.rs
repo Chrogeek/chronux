@@ -1,11 +1,7 @@
 use roxmltree::Node;
-use skia_safe::{Path, Point};
+use skia_safe::{Matrix, Path, Point, Vector};
 
-use crate::{
-    animation::properties::Properties,
-    svg::{self, Dimension},
-    util::ChronuxResult,
-};
+use crate::{animation::properties::Properties, svg, util::ChronuxResult};
 
 #[derive(Debug)]
 pub struct Object {
@@ -22,14 +18,14 @@ pub enum Shape {
 }
 
 impl Object {
-    pub fn from_node(node: &Node, id: String, dim: &Dimension) -> ChronuxResult<Object> {
-        let style = Properties::from_style(&svg::attribute_str(node, "style")?, dim)?;
+    pub fn from_node(node: &Node, id: String, mat: Matrix) -> ChronuxResult<Object> {
+        let style = Properties::from_style(&svg::attribute_str(node, "style")?, mat)?;
         Ok(Object {
             id,
             style,
             shape: match node.tag_name().name() {
                 "path" => Shape::Path {
-                    d: svg::path::svg_to_path(&svg::attribute_str(node, "d")?, dim)?,
+                    d: svg::path::svg_to_path(&svg::attribute_str(node, "d")?, mat)?,
                 },
                 "circle" => {
                     let (cx, cy, r) = (
@@ -37,8 +33,8 @@ impl Object {
                         svg::attribute_f32(node, "cy")?,
                         svg::attribute_f32(node, "r")?,
                     );
-                    let (cx, cy) = dim.to_real_coords(cx, cy);
-                    let r = dim.to_real_length(r);
+                    let Point { x: cx, y: cy } = mat.map_point((cx, cy));
+                    let Vector { x: r, y: _ } = mat.map_vector((r, 0.0));
                     Shape::Circle { cx, cy, r }
                 }
                 "text" => {
@@ -46,11 +42,15 @@ impl Object {
                         svg::attribute_f32(node, "x")?,
                         svg::attribute_f32(node, "y")?,
                     );
-                    let (x, y) = dim.to_real_coords(x, y);
+                    let Point { x, y } = mat.map_point((x, y));
                     Shape::Text {
                         x,
                         y,
-                        content: node.children().map(|c| c.text().unwrap_or("")).collect::<Vec<_>>().join(""),
+                        content: node
+                            .children()
+                            .map(|c| c.text().unwrap_or(""))
+                            .collect::<Vec<_>>()
+                            .join(""),
                     }
                 }
                 _ => unreachable!("unexpected SVG element: {}", node.tag_name().name()),
