@@ -1,11 +1,12 @@
 use skia_safe::{
     Color, Font, FontStyle, Matrix, Vector,
     font_style::{Slant, Width},
+    utils::text_utils::Align,
 };
 
 use crate::{
     animation::Animation,
-    util::{parse_css_color, parse_unit_value, ChronuxError, ChronuxResult},
+    util::{parse_css_color, parse_font_weight, parse_unit_value, ChronuxError, ChronuxResult},
 };
 
 #[derive(Debug, Clone)]
@@ -13,6 +14,7 @@ pub struct Properties {
     pub visible: bool,
     pub font_size: f32,
     pub font_weight: f32,
+    pub text_anchor: Align,
     pub fill_color: Color,
     pub stroke_color: Color,
     pub stroke_width: f32,
@@ -32,6 +34,7 @@ impl Default for Properties {
             visible: true,
             font_size: 16.0,
             font_weight: 400.0,
+            text_anchor: Align::Left,         // default to left alignment
             fill_color: Color::TRANSPARENT,   // transparent
             stroke_color: Color::TRANSPARENT, // transparent
             stroke_width: 0.0,
@@ -98,9 +101,7 @@ impl Properties {
         }
 
         if let Some(width) = rules.get("stroke-width") {
-            let w = width
-                .parse::<f32>()
-                .map_err(ChronuxError::ParseFloatError)?;
+            let w = parse_unit_value(width)?;
             let Vector { x: w, y: _ } = mat.map_vector((w, 0.0));
             result.stroke_width = w;
         }
@@ -112,9 +113,16 @@ impl Properties {
         }
 
         if let Some(weight) = rules.get("font-weight") {
-            result.font_weight = weight
-                .parse::<f32>()
-                .map_err(ChronuxError::ParseFloatError)?;
+            result.font_weight = parse_font_weight(*weight)?;
+        }
+
+        if let Some(anchor) = rules.get("text-anchor") {
+            result.text_anchor = match *anchor {
+                "start" => Align::Left,
+                "middle" => Align::Center,
+                "end" => Align::Right,
+                _ => Align::Left, // default to left alignment
+            };
         }
 
         Ok(result)

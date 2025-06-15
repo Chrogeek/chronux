@@ -100,3 +100,26 @@ pub fn parse_unit_value(v: &str) -> ChronuxResult<f32> {
             .map_err(|e| ChronuxError::ArgError(format!("Unsupported value '{}': {}", v, e)))
     }
 }
+
+pub fn parse_font_weight(weight: &str) -> ChronuxResult<f32> {
+    match weight {
+        "thin" => Ok(100.0),
+        "hairline" => Ok(100.0),
+        "extralight" => Ok(200.0),
+        "ultralight" => Ok(200.0),
+        "light" => Ok(300.0),
+        "lighter" => Ok(300.0),
+        "regular" => Ok(400.0),
+        "normal" => Ok(400.0),
+        "medium" => Ok(500.0),
+        "semibold" => Ok(600.0),
+        "demibold" => Ok(600.0),
+        "bold" => Ok(700.0),
+        "bolder" => Ok(800.0),
+        "extrabold" => Ok(800.0),
+        "ultrabold" => Ok(900.0),
+        "black" => Ok(900.0),
+        "heavy" => Ok(900.0),
+        _ => weight.parse::<f32>().map_err(ChronuxError::ParseFloatError),
+    }
+}

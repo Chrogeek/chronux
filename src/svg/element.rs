@@ -1,5 +1,5 @@
 use roxmltree::Node;
-use skia_safe::{Matrix, Path, Point, Vector};
+use skia_safe::{Matrix, Path, Point, Vector, utils::text_utils::Align};
 
 use crate::{animation::properties::Properties, svg, util::ChronuxResult};
 
@@ -12,9 +12,29 @@ pub struct Object {
 
 #[derive(Debug)]
 pub enum Shape {
-    Path { d: Path },
-    Circle { cx: f32, cy: f32, r: f32 },
-    Text { x: f32, y: f32, content: String },
+    Path {
+        d: Path,
+    },
+    Circle {
+        cx: f32,
+        cy: f32,
+        r: f32,
+    },
+    Text {
+        x: f32,
+        y: f32,
+        content: String,
+        align: Align,
+    },
+}
+
+pub fn str_to_align(s: &str) -> Option<Align> {
+    match s {
+        "start" => Some(Align::Left),
+        "center" => Some(Align::Center),
+        "end" => Some(Align::Right),
+        _ => None,
+    }
 }
 
 impl Object {
@@ -43,14 +63,21 @@ impl Object {
                         svg::attribute_f32(node, "y")?,
                     );
                     let Point { x, y } = mat.map_point((x, y));
+
+                    let child = node.children().nth(0).unwrap();
+                    let child_style = Properties::from_style(
+                        &child.attribute("style").unwrap_or(""),
+                        mat,
+                    )?;
+
+                    let content = child.text().unwrap_or("");
+                    let align = child_style.text_anchor;
+                    println!("text: {}, align: {:?}", content, align);
                     Shape::Text {
                         x,
                         y,
-                        content: node
-                            .children()
-                            .map(|c| c.text().unwrap_or(""))
-                            .collect::<Vec<_>>()
-                            .join(""),
+                        content: content.to_string(),
+                        align,
                     }
                 }
                 _ => unreachable!("unexpected SVG element: {}", node.tag_name().name()),
