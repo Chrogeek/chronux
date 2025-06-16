@@ -5,13 +5,14 @@ use skia_safe::Color;
 
 use crate::{
     animation::{properties::Properties, timeline::Timeline, track},
-    config::event::Event,
+    config::{event::Event, group::Group},
     render::viewport::Viewport,
     svg::element::Object,
     util::{ChronuxError, ChronuxResult, parse_css_color},
 };
 
 pub mod event;
+pub mod group;
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
@@ -19,6 +20,7 @@ pub struct Config {
     pub output: OutputConfig,
     #[serde(deserialize_with = "deserialize_events")]
     pub events: HashMap<String, Event>,
+    pub groups: Vec<Group>,
     pub viewports: Vec<Viewport>,
 }
 
@@ -169,6 +171,24 @@ impl Config {
         }
 
         Ok(objects)
+    }
+
+    pub fn flatten_groups(&mut self) -> ChronuxResult<()> {
+        // let mut new_events = HashMap::new();
+
+        for group in self.groups.drain(..) {
+            let events = group.to_events();
+            for event in events {
+                if self.events.contains_key(&event.id) {
+                    return Err(ChronuxError::ConfigError(serde::de::Error::custom(
+                        format!("Duplicate event ID: {}", event.id),
+                    )));
+                }
+                self.events.insert(event.id.clone(), event);
+            }
+        }
+
+        Ok(())
     }
 }
 

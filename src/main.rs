@@ -42,6 +42,9 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     let mut conf = Config::load(&input)?;
     log::info!("Loaded config from file `{}`", input);
 
+    // 拆分所有动画组
+    conf.flatten_groups()?;
+
     // 提取所需的SVG元素
     let ids = conf.extract_objects()?;
     log::trace!("IDs: {:?}", ids);
