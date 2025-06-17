@@ -11,20 +11,73 @@ use crate::{
     },
 };
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug)]
 pub struct Viewport {
     pub depends: String,
     pub offset: f32,
-    #[serde(skip)]
-    pub t: f32,
     pub smooth: ViewportSmooth,
     pub x: f32,
     pub y: f32,
     pub width: f32,
-    #[serde(skip)]
+    // 以下属性不从 TOML 中提取，而是计算得出，反序列化时被忽略
+    pub t: f32,
     ctl: Vec6,
-    #[serde(skip)]
     ctr: Vec6,
+}
+
+impl<'de> Deserialize<'de> for Viewport {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let map = toml::Table::deserialize(deserializer)?;
+
+        let viewport = Viewport {
+            depends: map
+                .get("depends")
+                .and_then(|v| v.as_str())
+                .ok_or(serde::de::Error::custom(
+                    "Missing or invalid 'depends' field in viewport",
+                ))?
+                .to_string(),
+            offset: map
+                .get("offset")
+                .and_then(|v| v.as_float().or_else(|| v.as_integer().map(|i| i as f64)))
+                .ok_or(serde::de::Error::custom(
+                    "Missing or invalid 'offset' field in viewport",
+                ))? as f32,
+            smooth: map
+                .get("smooth")
+                .and_then(|v| v.as_str())
+                .and_then(|s| ViewportSmooth::from_str(s))
+                .ok_or(serde::de::Error::custom(
+                    "Missing or invalid 'smooth' field in viewport",
+                ))?,
+            x: map
+                .get("x")
+                .and_then(|v| v.as_float().or_else(|| v.as_integer().map(|i| i as f64)))
+                .ok_or(serde::de::Error::custom(
+                    "Missing or invalid 'x' field in viewport",
+                ))? as f32,
+            y: map
+                .get("y")
+                .and_then(|v| v.as_float().or_else(|| v.as_integer().map(|i| i as f64)))
+                .ok_or(serde::de::Error::custom(
+                    "Missing or invalid 'y' field in viewport",
+                ))? as f32,
+            width: map
+                .get("width")
+                .and_then(|v| v.as_float().or_else(|| v.as_integer().map(|i| i as f64)))
+                .ok_or(serde::de::Error::custom(
+                    "Missing or invalid 'width' field in viewport",
+                ))? as f32,
+            // Skipped fields, not extracted from deserialized TOML table
+            t: f32::NAN, // Start time will be calculated later
+            ctl: Vec6(1.0, 1.0, 1.0, 1.0, 1.0, 1.0), // Default control points
+            ctr: Vec6(0.0, 0.0, 0.0, 0.0, 0.0, 0.0), // Default control points
+        };
+        Ok(viewport)
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -47,6 +100,20 @@ pub enum ViewportSmooth {
     /// 在下一个关键帧到来之前保持不变
     #[serde(rename = "freeze")]
     Freeze,
+}
+
+impl ViewportSmooth {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "linear" => Some(ViewportSmooth::Linear),
+            "ease-in" => Some(ViewportSmooth::EaseIn),
+            "ease-out" => Some(ViewportSmooth::EaseOut),
+            "ease-in-out" => Some(ViewportSmooth::EaseInOut),
+            "auto" => Some(ViewportSmooth::AutoBezier),
+            "freeze" => Some(ViewportSmooth::Freeze),
+            _ => None,
+        }
+    }
 }
 
 pub fn sort_viewports(viewports: &mut Vec<Viewport>) {

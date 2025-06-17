@@ -24,15 +24,32 @@ impl Group {
         self.animations
             .into_iter()
             .enumerate()
-            .map(|(i, (obj_id, animation))| Event {
-                id: format!("{}{}", self.id, if i == 0 { String::new() } else { i.to_string() }),
-                depends: self.depends.clone(),
-                object: obj_id.clone(),
-                easing: self.easing.clone(),
-                offset: self.offset.clone(),
-                start: f32::NAN, // Start time will be calculated later
-                duration: self.duration,
-                animation: animation.clone(),
+            .map(|(i, (obj_id, animation))| {
+                let track_follows = matches!(&self.offset, Offset::Track { .. }) && i != 0;
+                Event {
+                    id: format!(
+                        "{}{}",
+                        self.id,
+                        if i == 0 { String::new() } else { i.to_string() }
+                    ),
+                    depends: if track_follows {
+                        vec![self.id.clone()]
+                    } else {
+                        self.depends.clone()
+                    },
+                    object: obj_id.clone(),
+                    easing: self.easing.clone(),
+                    offset: {
+                        if track_follows {
+                            Offset::WithPrevious { delay: 0.0 }
+                        } else {
+                            self.offset.clone()
+                        }
+                    },
+                    start: f32::NAN, // Start time will be calculated later
+                    duration: self.duration,
+                    animation: animation.clone(),
+                }
             })
             .collect()
     }

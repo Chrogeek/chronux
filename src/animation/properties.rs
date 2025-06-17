@@ -66,10 +66,33 @@ impl Properties {
                 typewriter: (0.0, t),
                 ..self.clone()
             },
+            Animation::TypewriterOut => Properties {
+                typewriter: (1.0 - t, 1.0),
+                ..self.clone()
+            },
             Animation::Sweep => Properties {
                 sweep: t,
                 ..self.clone()
             },
+            Animation::Tween(tween) => {
+                let mut new_props = self.clone();
+                if let Some(size) = tween.font_size {
+                    new_props.font_size += t * (size - self.font_size);
+                }
+                if let Some(weight) = tween.font_weight {
+                    new_props.font_weight += t * (weight - self.font_weight);
+                }
+                if let Some(_color) = tween.fill_color {
+                    todo!();
+                }
+                if let Some(_color) = tween.stroke_color {
+                    todo!();
+                }
+                if let Some(width) = tween.stroke_width {
+                    new_props.stroke_width += t * (width - self.stroke_width);
+                }
+                new_props
+            }
         }
     }
 

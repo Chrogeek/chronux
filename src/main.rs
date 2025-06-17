@@ -87,6 +87,8 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                     Animation::Sweep => {
                         tl.start.sweep = 0.0;
                     }
+                    // 下面这些不是出现动画，什么都不用做
+                    Animation::TypewriterOut | Animation::Tween(_) => {}
                 }
             }
         }
@@ -147,10 +149,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         );
 
         // 应用镜头变换
-        surface
-            .canvas()
-            .scale((sx, sy))
-            .translate((-vx, -vy));
+        surface.canvas().scale((sx, sy)).translate((-vx, -vy));
 
         // 绘制每个图形
         for o in objs.iter() {

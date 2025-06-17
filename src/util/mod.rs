@@ -1,5 +1,6 @@
 use std::fmt::Display;
 
+use serde::Deserialize;
 use skia_safe::Color;
 
 pub mod vector;
@@ -128,4 +129,12 @@ pub fn parse_font_weight(weight: &str) -> ChronuxResult<f32> {
         "heavy" => Ok(900.0),
         _ => weight.parse::<f32>().map_err(ChronuxError::ParseFloatError),
     }
+}
+
+pub fn deserialize_hex_color<'de, D>(deserializer: D) -> Result<Color, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let hex_str: String = Deserialize::deserialize(deserializer)?;
+    parse_css_color(&hex_str, 1.0).map_err(serde::de::Error::custom)
 }

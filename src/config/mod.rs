@@ -8,7 +8,7 @@ use crate::{
     config::{event::Event, group::Group},
     render::viewport::Viewport,
     svg::element::Object,
-    util::{ChronuxError, ChronuxResult, parse_css_color},
+    util::{ChronuxError, ChronuxResult},
 };
 
 pub mod event;
@@ -39,17 +39,9 @@ pub struct OutputConfig {
     pub time_start: f32,
     #[serde(rename = "time-end")]
     pub time_end: f32,
-    #[serde(deserialize_with = "deserialize_hex_color")]
+    #[serde(deserialize_with = "crate::util::deserialize_hex_color")]
     #[serde(rename = "background-color")]
     pub background_color: Color,
-}
-
-fn deserialize_hex_color<'de, D>(deserializer: D) -> Result<Color, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let hex_str: String = Deserialize::deserialize(deserializer)?;
-    parse_css_color(&hex_str, 1.0).map_err(serde::de::Error::custom)
 }
 
 impl Config {

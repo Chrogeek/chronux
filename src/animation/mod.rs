@@ -2,24 +2,31 @@ use serde::Deserialize;
 use skia_safe::PathMeasure;
 
 use crate::{
-    config::event::Event,
-    svg::element::{Object, Shape},
-    util::{ChronuxError, ChronuxResult},
+    animation::tween::Tween, config::event::Event, svg::element::{Object, Shape}, util::{ChronuxError, ChronuxResult}
 };
 
 pub mod easing;
 pub mod properties;
 pub mod timeline;
+pub mod tween;
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(tag = "animation")]
 pub enum Animation {
     #[serde(rename = "trim-path")]
     TrimPath { reverse: bool },
+    // #[serde(rename = "trim-path-out")]
+    // TrimPathOut { reverse: bool },
     #[serde(rename = "typewriter")]
     Typewriter,
+    #[serde(rename = "typewriter-out")]
+    TypewriterOut,
     #[serde(rename = "sweep")]
     Sweep,
+    // #[serde(rename = "sweep-out")]
+    // SweepOut,
+    #[serde(rename = "tween")]
+    Tween(Tween)
 }
 
 pub fn track(obj: &Object, event: &Event, x: f32, y: f32) -> ChronuxResult<f32> {
