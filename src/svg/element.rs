@@ -68,17 +68,25 @@ impl Object {
                     let child_style =
                         Properties::from_style(&child.attribute("style").unwrap_or(""), mat)?;
 
-                    let content = child.text().unwrap_or("");
+                    let content = get_node_text(node);
+
                     let align = child_style.text_anchor;
                     Shape::Text {
                         x,
                         y,
-                        content: content.to_string(),
+                        content,
                         align,
                     }
                 }
                 "image" => {
-                    let href = base.join(svg::attribute_namespace_str(node, "http://www.w3.org/1999/xlink", "href")?).to_string_lossy().into_owned();
+                    let href = base
+                        .join(svg::attribute_namespace_str(
+                            node,
+                            "http://www.w3.org/1999/xlink",
+                            "href",
+                        )?)
+                        .to_string_lossy()
+                        .into_owned();
                     let (x, y) = (
                         svg::attribute_f32(node, "x")?,
                         svg::attribute_f32(node, "y")?,
@@ -123,4 +131,19 @@ impl Object {
             }
         }
     }
+}
+
+fn get_node_text(node: &Node) -> String {
+    node.descendants()
+        .map(|n| {
+            if n.is_text() {
+                n.text().unwrap_or("")
+            } else {
+                ""
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("")
+        .trim()
+        .to_string()
 }

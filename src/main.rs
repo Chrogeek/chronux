@@ -21,6 +21,7 @@ mod config;
 mod render;
 mod svg;
 mod util;
+mod widget;
 
 fn main() -> Result<(), ChronuxError> {
     let args = Args::parse();

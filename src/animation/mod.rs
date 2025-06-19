@@ -2,7 +2,10 @@ use serde::Deserialize;
 use skia_safe::PathMeasure;
 
 use crate::{
-    animation::tween::Tween, config::event::Event, svg::element::{Object, Shape}, util::{ChronuxError, ChronuxResult}
+    animation::tween::Tween,
+    config::event::Event,
+    svg::element::{Object, Shape},
+    util::{ChronuxError, ChronuxResult},
 };
 
 pub mod easing;
@@ -26,7 +29,7 @@ pub enum Animation {
     // #[serde(rename = "sweep-out")]
     // SweepOut,
     #[serde(rename = "tween")]
-    Tween(Tween)
+    Tween(Tween),
 }
 
 pub fn track(obj: &Object, event: &Event, x: f32, y: f32) -> ChronuxResult<f32> {
@@ -58,8 +61,19 @@ pub fn track(obj: &Object, event: &Event, x: f32, y: f32) -> ChronuxResult<f32> 
                     })
                     .unwrap();
 
-                let mut tl = (closest.0 - 1).max(0) as f32 / SEGMENTS as f32;
-                let mut tr = (closest.0 + 1).min(SEGMENTS) as f32 / SEGMENTS as f32;
+                let mut tl = if closest.0 > 0 {
+                    closest.0 - 1
+                } else {
+                    closest.0
+                } as f32
+                    / SEGMENTS as f32;
+
+                let mut tr = if closest.0 < SEGMENTS {
+                    closest.0 + 1
+                } else {
+                    closest.0
+                } as f32
+                    / SEGMENTS as f32;
 
                 for _ in 0..10 {
                     let mml = tl + (tr - tl) / 3.0;
