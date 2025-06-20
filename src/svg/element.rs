@@ -143,7 +143,7 @@ fn get_node_text(node: &Node) -> String {
             }
         })
         .collect::<Vec<_>>()
-        .join("")
+        .join("\n")
         .trim()
         .to_string()
 }

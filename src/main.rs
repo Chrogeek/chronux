@@ -22,6 +22,7 @@ mod render;
 mod svg;
 mod util;
 mod widget;
+mod encoder;
 
 fn main() -> Result<(), ChronuxError> {
     let args = Args::parse();
