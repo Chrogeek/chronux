@@ -22,6 +22,7 @@ pub enum ChronuxError {
     ArgError(String),
     HrefError(String),
     BrokenDependency(String),
+    FfmpegError(String),
 }
 
 pub type ChronuxResult<T> = Result<T, ChronuxError>;
@@ -55,6 +56,7 @@ impl Display for ChronuxError {
             ChronuxError::ArgError(msg) => write!(f, "Argument Error: {}", msg),
             ChronuxError::HrefError(msg) => write!(f, "Href Error: {}", msg),
             ChronuxError::BrokenDependency(id) => write!(f, "Broken dependency: {}", id),
+            ChronuxError::FfmpegError(msg) => write!(f, "FFmpeg Error: {}", msg),
         }
     }
 }

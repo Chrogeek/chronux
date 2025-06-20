@@ -1,8 +1,12 @@
-use std::{path::PathBuf, str::FromStr};
+use std::{
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 
 use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
 use skia_safe::surfaces;
+use video_rs::{Encoder, Time, encode::Settings};
 
 use crate::{
     animation::Animation,
@@ -18,17 +22,20 @@ use crate::{
 mod animation;
 mod args;
 mod config;
+mod encoder;
 mod render;
 mod svg;
 mod util;
 mod widget;
-mod encoder;
 
 fn main() -> Result<(), ChronuxError> {
     let args = Args::parse();
 
     env_logger::init();
     log::info!("Welcome to Chronux!");
+
+    video_rs::init().map_err(|e| ChronuxError::FfmpegError(e.to_string()))?;
+    log::info!("FFmpeg initialized successfully");
 
     run(args).or_else(|e| {
         log::error!("{:?}", e);
@@ -103,6 +110,19 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     calc_viewport_keyframe_bezier(&mut conf.viewports);
     log::info!("Calculated viewport keyframes");
 
+    // 创建编码器
+    let settings = Settings::preset_h264_yuv420p(
+        conf.output.width as usize,
+        conf.output.height as usize,
+        false,
+    );
+    let mut encoder = Encoder::new(Path::new(&args.output), settings)
+        .map_err(|e| ChronuxError::FfmpegError(e.to_string()))?;
+    log::info!("Created video encoder with output `{}`", args.output);
+
+    let duration = Time::from_nth_of_a_second(conf.output.fps as usize);
+    let mut position = Time::zero();
+
     // 渲染动画
     let frame_start = (conf.output.time_start * conf.output.fps as f32) as u32;
     let frame_end = (conf.output.time_end * conf.output.fps as f32) as u32;
@@ -163,21 +183,44 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         }
 
         // 输出图片
-        let output = std::path::Path::new(&output_dir).join(format!("frame_{:04}.png", f));
-        let mut file = std::fs::File::create(&output).map_err(|e| ChronuxError::IoError(e))?;
+        // let output = std::path::Path::new(&output_dir).join(format!("frame_{:04}.png", f));
+        // let mut file = std::fs::File::create(&output).map_err(|e| ChronuxError::IoError(e))?;
 
         let pixmap = surface.peek_pixels().ok_or(ChronuxError::SkiaError(
             "failed to peek pixels from Skia surface".into(),
         ))?;
 
-        skia_safe::png_encoder::encode(
-            &pixmap,
-            &mut file,
-            &skia_safe::png_encoder::Options::default(),
+        let raw = pixmap
+            .bytes()
+            .ok_or(ChronuxError::SkiaError(
+                "failed to get bytes from Skia pixmap".into(),
+            ))?
+            .to_vec();
+
+        let frame = ndarray::Array3::from_shape_fn(
+            (conf.output.height as usize, conf.output.width as usize, 3),
+            |(y, x, c)| raw[(y * conf.output.width as usize + x) * 4 + (2 - c)],
         );
+
+        encoder
+            .encode(&frame, position)
+            .map_err(|e| ChronuxError::FfmpegError(e.to_string()))?;
+
+        // skia_safe::png_encoder::encode(
+        //     &pixmap,
+        //     &mut file,
+        //     &skia_safe::png_encoder::Options::default(),
+        // );
+
+        position = position.aligned_with(duration).add();
 
         progressbar.inc(1);
     }
+
+    encoder
+        .finish()
+        .map_err(|e| ChronuxError::FfmpegError(e.to_string()))?;
+
     progressbar.finish();
 
     Ok(())

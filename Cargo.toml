@@ -19,3 +19,5 @@ simplecss = "0.2.2"
 skia-safe = { version = "0.86.1", features = ["default", "textlayout"] }
 svgtypes = "0.15.3"
 toml = "0.8.23"
+video-rs = { version = "0.10.3", features = ["ndarray"] }
+ndarray = "0.16.1"
