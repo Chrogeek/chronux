@@ -8,7 +8,7 @@ clap = "4.5.40"
 clap_derive = "4.5.40"
 csscolorparser = "0.7.2"
 env_logger = "0.11.8"
-indicatif = "0.17.11"
+indicatif = { version = "0.17.11", features = ["rayon"] }
 log = "0.4.27"
 rayon = "1.10.0"
 roots = "0.0.8"

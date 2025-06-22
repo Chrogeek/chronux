@@ -51,7 +51,7 @@ pub fn draw(canvas: &Canvas, shape: &Shape, properties: &Properties) -> ChronuxR
             while start < end && !content.is_char_boundary(end) {
                 end -= 1;
             }
-            if start <= end {
+            if start >= end {
                 return Ok(()); // Nothing to draw
             }
             let text = &content[start..end];

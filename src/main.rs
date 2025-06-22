@@ -1,7 +1,8 @@
 use std::{path::PathBuf, str::FromStr};
 
 use clap::Parser;
-use indicatif::{ProgressBar, ProgressStyle};
+use indicatif::{ParallelProgressIterator, ProgressStyle};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use skia_safe::surfaces;
 
 use crate::{
@@ -12,7 +13,7 @@ use crate::{
         calc_viewport_keyframe_bezier, calc_viewport_times, interpolate_viewport, sort_viewports,
     },
     svg::Svg,
-    util::{ChronuxError, timecode, vector::Vec3},
+    util::{ChronuxError, vector::Vec3},
 };
 
 mod animation;
@@ -136,74 +137,76 @@ fn run(args: Args) -> Result<(), ChronuxError> {
 
     log::info!("Start rendering frames...");
 
-    let progressbar = ProgressBar::new(frame_end as u64 - frame_start as u64).with_style(
-        ProgressStyle::with_template("{msg} {wide_bar} {pos}/{len} ({percent}%) [{elapsed}<{eta}]")
-            .unwrap(),
-    );
+    let progressbar =
+        ProgressStyle::with_template("{wide_bar} {pos}/{len} ({percent}%) [{elapsed}<{eta}]")
+            .unwrap();
 
-    for f in frame_start..frame_end {
-        progressbar.set_message(timecode(f, conf.output.fps));
+    (frame_start..frame_end)
+        .into_par_iter()
+        .progress_with_style(progressbar)
+        .for_each(|f| {
+            // 当前时间点（秒数）
+            let t = f as f32 / conf.output.fps as f32;
 
-        // 当前时间点（秒数）
-        let t = f as f32 / conf.output.fps as f32;
+            // 计算当前镜头位置
+            let vb = interpolate_viewport(&conf.viewports, t).unwrap_or(Vec3(
+                0.0,
+                0.0,
+                conf.output.width as f32,
+            ));
+            let (cx, cy, vw, vh) = (
+                vb.0,
+                vb.1,
+                vb.2,
+                vb.2 * conf.output.height as f32 / conf.output.width as f32,
+            );
+            let (vx, vy) = (cx - vw / 2.0, cy - vh / 2.0);
 
-        // 计算当前镜头位置
-        let vb = interpolate_viewport(&conf.viewports, t).unwrap_or(Vec3(
-            0.0,
-            0.0,
-            conf.output.width as f32,
-        ));
-        let (cx, cy, vw, vh) = (
-            vb.0,
-            vb.1,
-            vb.2,
-            vb.2 * conf.output.height as f32 / conf.output.width as f32,
-        );
-        let (vx, vy) = (cx - vw / 2.0, cy - vh / 2.0);
+            // 创建 Skia 画布
+            let mut surface =
+                surfaces::raster_n32_premul((conf.output.width as i32, conf.output.height as i32))
+                    .ok_or(ChronuxError::SkiaError(
+                        "failed to create Skia surface".into(),
+                    ))
+                    .unwrap();
+            surface.canvas().clear(conf.output.background_color); // 设置背景颜色
 
-        // 创建 Skia 画布
-        let mut surface =
-            surfaces::raster_n32_premul((conf.output.width as i32, conf.output.height as i32))
+            let (sx, sy) = (
+                conf.output.width as f32 / vw,
+                conf.output.height as f32 / vh,
+            );
+
+            // 应用镜头变换
+            surface.canvas().scale((sx, sy)).translate((-vx, -vy));
+
+            // 绘制每个图形
+            for o in objs.iter() {
+                let properties = match timeline.get(&o.id) {
+                    Some(tl) => tl.interpolate(t),
+                    None => o.style.clone(),
+                };
+                render::draw(&surface.canvas(), &o.shape, &properties).unwrap();
+            }
+
+            // 输出图片
+            let output = std::path::Path::new(&output_dir).join(format!("frame_{:04}.png", f));
+            let mut file = std::fs::File::create(&output)
+                .map_err(|e| ChronuxError::IoError(e))
+                .unwrap();
+
+            let pixmap = surface
+                .peek_pixels()
                 .ok_or(ChronuxError::SkiaError(
-                    "failed to create Skia surface".into(),
-                ))?;
-        surface.canvas().clear(conf.output.background_color); // 设置背景颜色
+                    "failed to peek pixels from Skia surface".into(),
+                ))
+                .unwrap();
 
-        let (sx, sy) = (
-            conf.output.width as f32 / vw,
-            conf.output.height as f32 / vh,
-        );
-
-        // 应用镜头变换
-        surface.canvas().scale((sx, sy)).translate((-vx, -vy));
-
-        // 绘制每个图形
-        for o in objs.iter() {
-            let properties = match timeline.get(&o.id) {
-                Some(tl) => tl.interpolate(t),
-                None => o.style.clone(),
-            };
-            render::draw(&surface.canvas(), &o.shape, &properties)?;
-        }
-
-        // 输出图片
-        let output = std::path::Path::new(&output_dir).join(format!("frame_{:04}.png", f));
-        let mut file = std::fs::File::create(&output).map_err(|e| ChronuxError::IoError(e))?;
-
-        let pixmap = surface.peek_pixels().ok_or(ChronuxError::SkiaError(
-            "failed to peek pixels from Skia surface".into(),
-        ))?;
-
-        skia_safe::png_encoder::encode(
-            &pixmap,
-            &mut file,
-            &skia_safe::png_encoder::Options::default(),
-        );
-
-        progressbar.inc(1);
-    }
-
-    progressbar.finish();
+            skia_safe::png_encoder::encode(
+                &pixmap,
+                &mut file,
+                &skia_safe::png_encoder::Options::default(),
+            );
+        });
 
     Ok(())
 }
