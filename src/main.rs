@@ -13,7 +13,7 @@ use crate::{
         calc_viewport_keyframe_bezier, calc_viewport_times, interpolate_viewport, sort_viewports,
     },
     svg::Svg,
-    util::{ChronuxError, vector::Vec3},
+    util::{ChronuxError, ChronuxResult, vector::Vec3},
 };
 
 mod animation;
@@ -141,10 +141,10 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         ProgressStyle::with_template("{wide_bar} {pos}/{len} ({percent}%) [{elapsed}<{eta}]")
             .unwrap();
 
-    (frame_start..frame_end)
+    let render_err = (frame_start..frame_end)
         .into_par_iter()
         .progress_with_style(progressbar)
-        .for_each(|f| {
+        .map(|f| -> ChronuxResult<()> {
             // 当前时间点（秒数）
             let t = f as f32 / conf.output.fps as f32;
 
@@ -167,8 +167,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                 surfaces::raster_n32_premul((conf.output.width as i32, conf.output.height as i32))
                     .ok_or(ChronuxError::SkiaError(
                         "failed to create Skia surface".into(),
-                    ))
-                    .unwrap();
+                    ))?;
             surface.canvas().clear(conf.output.background_color); // 设置背景颜色
 
             let (sx, sy) = (
@@ -185,28 +184,30 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                     Some(tl) => tl.interpolate(t),
                     None => o.style.clone(),
                 };
-                render::draw(&surface.canvas(), &o.shape, &properties).unwrap();
+                render::draw(&surface.canvas(), &o.shape, &properties)?;
             }
 
             // 输出图片
             let output = std::path::Path::new(&output_dir).join(format!("frame_{:04}.png", f));
-            let mut file = std::fs::File::create(&output)
-                .map_err(|e| ChronuxError::IoError(e))
-                .unwrap();
+            let mut file = std::fs::File::create(&output).map_err(|e| ChronuxError::IoError(e))?;
 
-            let pixmap = surface
-                .peek_pixels()
-                .ok_or(ChronuxError::SkiaError(
-                    "failed to peek pixels from Skia surface".into(),
-                ))
-                .unwrap();
+            let pixmap = surface.peek_pixels().ok_or(ChronuxError::SkiaError(
+                "failed to peek pixels from Skia surface".into(),
+            ))?;
 
             skia_safe::png_encoder::encode(
                 &pixmap,
                 &mut file,
                 &skia_safe::png_encoder::Options::default(),
             );
-        });
 
-    Ok(())
+            Ok(())
+        })
+        .find_any(ChronuxResult::is_err);
+
+    if let Some(ChronuxResult::Err(e)) = render_err {
+        Err(e)
+    } else {
+        Ok(())
+    }
 }

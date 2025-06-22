@@ -13,6 +13,7 @@ use crate::{
 pub struct Properties {
     pub visible: bool,
     pub opacity: f32,
+    pub font_family: String,
     pub font_size: f32,
     pub font_weight: f32,
     pub text_anchor: Align,
@@ -36,6 +37,7 @@ impl Default for Properties {
         Properties {
             visible: true,
             opacity: 1.0,
+            font_family: "Arial".to_string(),
             font_size: 16.0,
             font_weight: 400.0,
             text_anchor: Align::Left,         // default to left alignment
@@ -71,7 +73,7 @@ impl Properties {
                 ..self.clone()
             },
             Animation::TypewriterOut => Properties {
-                typewriter: (1.0 - t, 1.0),
+                typewriter: (t, 1.0),
                 ..self.clone()
             },
             Animation::Sweep => Properties {
@@ -183,6 +185,20 @@ impl Properties {
             };
         }
 
+        if let Some(font_family) = rules.get("font-family") {
+            let ff = font_family.to_string();
+            // dequote ff
+            let ff = if ff.starts_with('"') && ff.ends_with('"') {
+                ff[1..ff.len() - 1].to_string()
+            } else if ff.starts_with('\'') && ff.ends_with('\'') {
+                ff[1..ff.len() - 1].to_string()
+            } else {
+                ff
+            };
+            println!("Using font family: {}", ff);
+            result.font_family = ff;
+        }
+
         Ok(result)
     }
 
@@ -225,16 +241,17 @@ impl Properties {
 
     pub fn get_font(&self) -> ChronuxResult<Font> {
         let mgr = skia_safe::FontMgr::default();
-        let mut family = mgr.match_family("思源黑体");
+        let mut family = mgr.match_family(&self.font_family);
         let tf = family
             .match_style(FontStyle::new(
                 (self.font_weight as i32).into(),
                 Width::NORMAL,
                 Slant::Upright,
             ))
-            .ok_or(ChronuxError::SkiaError(
-                "failed to create typeface".to_string(),
-            ))?;
+            .ok_or(ChronuxError::SkiaError(format!(
+                "failed to create typeface '{}'",
+                self.font_family
+            )))?;
         let font = Font::from_typeface(tf, self.font_size);
         Ok(font)
     }

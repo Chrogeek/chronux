@@ -171,8 +171,6 @@ impl Config {
     }
 
     pub fn flatten_groups(&mut self) -> ChronuxResult<()> {
-        // let mut new_events = HashMap::new();
-
         for group in self.groups.drain(..) {
             let events = group.to_events();
             for event in events {

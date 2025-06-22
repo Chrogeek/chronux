@@ -25,7 +25,6 @@ impl Timeline {
         for event in &self.events {
             if time > event.start + event.duration {
                 // Apply the properties of the event at this time
-                // This is a placeholder; actual implementation would depend on the event's properties
                 result = result.apply(&event.animation, 1.0);
             } else if time > event.start {
                 // Interpolate between start and end of the event

@@ -1,6 +1,10 @@
 use skia_safe::{Canvas, Data, Image, Paint, Rect};
 
-use crate::{animation::properties::Properties, svg::element::Shape, util::{ChronuxError, ChronuxResult}};
+use crate::{
+    animation::properties::Properties,
+    svg::element::Shape,
+    util::{ChronuxError, ChronuxResult},
+};
 
 pub mod viewport;
 
@@ -30,7 +34,7 @@ pub fn draw(canvas: &Canvas, shape: &Shape, properties: &Properties) -> ChronuxR
                 Rect::new(cx - r, cy - r, cx + r, cy + r),
                 -90.0,
                 properties.sweep * 360.0,
-                false,
+                true,
                 &fill,
             );
             canvas.draw_arc(
@@ -41,31 +45,52 @@ pub fn draw(canvas: &Canvas, shape: &Shape, properties: &Properties) -> ChronuxR
                 &stroke,
             );
         }
-        Shape::Text { x, y, content, align } => {
+        Shape::Text {
+            x,
+            y,
+            content,
+            align,
+        } => {
             let (start, end) = properties.typewriter;
-            let mut start = (start * (content.len() as f32)).round() as usize;
-            let mut end = (end * (content.len() as f32)).round() as usize;
-            while start <= end && !content.is_char_boundary(start) {
-                start += 1;
-            }
-            while start < end && !content.is_char_boundary(end) {
-                end -= 1;
-            }
-            if start >= end {
-                return Ok(()); // Nothing to draw
-            }
-            let text = &content[start..end];
+            let total_len = content.iter().map(|s| s.len()).sum::<usize>();
+            let start = (start * total_len as f32).round() as usize;
+            let end = (end * total_len as f32).round() as usize;
+
             let font = properties.get_font()?;
-            canvas.draw_text_align(text, (*x, *y), &font, &stroke, *align);
-            canvas.draw_text_align(text, (*x, *y), &font, &fill, *align);
+
+            let mut i = 0;
+            for (rowid, c) in content.iter().enumerate() {
+                let (mut l, mut r) = (0.max(start - i), c.len().min(end - i));
+                if l < r {
+                    while l > 0 && !c.is_char_boundary(l) {
+                        l -= 1;
+                    }
+                    while r < c.len() && !c.is_char_boundary(r) {
+                        r += 1;
+                    }
+                    let text = &c[l..r];
+                    let (x, y) = (*x, *y + rowid as f32 * properties.font_size);
+                    canvas.draw_text_align(text, (x, y), &font, &stroke, *align);
+                    canvas.draw_text_align(text, (x, y), &font, &fill, *align);
+                }
+                i += c.len();
+            }
         }
-        Shape::Image { href, x, y, width, height } => {
-            let data = Data::from_filename(href).ok_or(ChronuxError::HrefError(
-                format!("Failed to load image data from {}", href),
-            ))?;
-            let img = Image::from_encoded(data).ok_or(ChronuxError::HrefError(
-                format!("Failed to load image from {}", href),
-            ))?;
+        Shape::Image {
+            href,
+            x,
+            y,
+            width,
+            height,
+        } => {
+            let data = Data::from_filename(href).ok_or(ChronuxError::HrefError(format!(
+                "Failed to load image data from {}",
+                href
+            )))?;
+            let img = Image::from_encoded(data).ok_or(ChronuxError::HrefError(format!(
+                "Failed to load image from {}",
+                href
+            )))?;
             let mut paint = Paint::default();
             paint.set_alpha((properties.opacity * 255.0) as u8);
             canvas.draw_image_rect(&img, None, Rect::new(*x, *y, x + width, y + height), &paint);
