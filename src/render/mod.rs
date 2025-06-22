@@ -60,15 +60,18 @@ pub fn draw(canvas: &Canvas, shape: &Shape, properties: &Properties) -> ChronuxR
 
             let mut i = 0;
             for (rowid, c) in content.iter().enumerate() {
-                let (mut l, mut r) = (0.max(start - i), c.len().min(end - i));
-                if l < r {
-                    while l > 0 && !c.is_char_boundary(l) {
+                let j = i + c.len();
+                let mut l = i.max(start);
+                let mut r = j.min(end);
+
+                if r > i {
+                    while l > i && !c.is_char_boundary(l - i) {
                         l -= 1;
                     }
-                    while r < c.len() && !c.is_char_boundary(r) {
+                    while r < j && !c.is_char_boundary(r - i) {
                         r += 1;
                     }
-                    let text = &c[l..r];
+                    let text = &c[l - i..r - i];
                     let (x, y) = (*x, *y + rowid as f32 * properties.font_size);
                     canvas.draw_text_align(text, (x, y), &font, &stroke, *align);
                     canvas.draw_text_align(text, (x, y), &font, &fill, *align);

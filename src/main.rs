@@ -22,7 +22,7 @@ mod config;
 mod render;
 mod svg;
 mod util;
-mod widget;
+// mod widget;
 
 fn main() {
     let args = Args::parse();
@@ -138,7 +138,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     log::info!("Start rendering frames...");
 
     let progressbar =
-        ProgressStyle::with_template("{wide_bar} {pos}/{len} ({percent}%) [{elapsed}<{eta}]")
+        ProgressStyle::with_template(&format!("{{percent:>3}}% {{wide_bar}} {{pos:>{}}}/{{len}} [{{elapsed_precise}}<{{eta_precise}}]", (frame_end - frame_start).to_string().len()))
             .unwrap();
 
     let render_err = (frame_start..frame_end)

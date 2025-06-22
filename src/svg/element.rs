@@ -61,17 +61,13 @@ impl Object {
                 );
                 let Point { x, y } = mat.map_point((x, y));
 
-                let child = node.children().nth(0).unwrap();
-                let child_style =
-                    Properties::from_style(&child.attribute("style").unwrap_or(""), mat)?;
-
                 if let Some(ff) = get_node_font_family(node) {
                     style.font_family = ff;
                 }
 
                 let content = get_node_text(node);
 
-                let align = child_style.text_anchor;
+                let align = get_node_align(node);
                 Shape::Text {
                     x,
                     y,
@@ -135,26 +131,42 @@ impl Object {
 }
 
 fn get_node_text(node: &Node) -> Vec<String> {
-    node.descendants()
+    let text = node
+        .descendants()
         .filter_map(|n| {
-            let s = if n.is_text() {
-                n.text()
-            } else {
-                None
-            };
+            let s = if n.is_text() { n.text() } else { None };
             s.map(str::trim).map(str::to_string)
         })
-        .collect::<Vec<_>>()
+        .collect::<Vec<_>>();
+    text
 }
 
 fn get_node_font_family(node: &Node) -> Option<String> {
     for n in node.descendants() {
-        if n.text().is_some() && !n.text().unwrap().trim().is_empty() {
-            if let Some(ff) = n.attribute("font-family") {
-                println!("Found font-family: {}", ff);
-                return Some(ff.to_string());
-            }
+        if n.tag_name().name() == "tspan"
+            && n.text().is_some()
+            && !n.text().unwrap().trim().is_empty()
+        {
+            let style =
+                Properties::from_style(&n.attribute("style").unwrap_or(""), Matrix::new_identity())
+                    .unwrap();
+            return Some(style.font_family);
         }
     }
     None
+}
+
+fn get_node_align(node: &Node) -> Align {
+    for n in node.descendants() {
+        if n.tag_name().name() == "tspan"
+            && n.text().is_some()
+            && !n.text().unwrap().trim().is_empty()
+        {
+            let style =
+                Properties::from_style(&n.attribute("style").unwrap_or(""), Matrix::new_identity())
+                    .unwrap();
+            return style.text_anchor;
+        }
+    }
+    Align::Left
 }

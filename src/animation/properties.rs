@@ -1,7 +1,5 @@
 use skia_safe::{
-    Color, Font, FontStyle, Matrix, PaintCap, PaintJoin, Vector,
-    font_style::{Slant, Width},
-    utils::text_utils::Align,
+    font::Edging, font_style::{Slant, Width}, utils::text_utils::Align, Color, Font, FontHinting, FontStyle, Matrix, PaintCap, PaintJoin, Vector
 };
 
 use crate::{
@@ -195,7 +193,6 @@ impl Properties {
             } else {
                 ff
             };
-            println!("Using font family: {}", ff);
             result.font_family = ff;
         }
 
@@ -252,7 +249,10 @@ impl Properties {
                 "failed to create typeface '{}'",
                 self.font_family
             )))?;
-        let font = Font::from_typeface(tf, self.font_size);
+        let mut font = Font::from_typeface(tf, self.font_size);
+        font.set_subpixel(true);
+        font.set_hinting(FontHinting::Slight);
+        font.set_edging(Edging::SubpixelAntiAlias);
         Ok(font)
     }
 }
