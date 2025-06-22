@@ -16,8 +16,8 @@ pub struct Viewport {
     pub depends: String,
     pub offset: f32,
     pub smooth: ViewportSmooth,
-    pub x: f32,
-    pub y: f32,
+    pub cx: f32,
+    pub cy: f32,
     pub width: f32,
     // 以下属性不从 TOML 中提取，而是计算得出，反序列化时被忽略
     pub t: f32,
@@ -53,17 +53,17 @@ impl<'de> Deserialize<'de> for Viewport {
                 .ok_or(serde::de::Error::custom(
                     "Missing or invalid 'smooth' field in viewport",
                 ))?,
-            x: map
-                .get("x")
+            cx: map
+                .get("cx")
                 .and_then(|v| v.as_float().or_else(|| v.as_integer().map(|i| i as f64)))
                 .ok_or(serde::de::Error::custom(
-                    "Missing or invalid 'x' field in viewport",
+                    "Missing or invalid 'cx' field in viewport",
                 ))? as f32,
-            y: map
-                .get("y")
+            cy: map
+                .get("cy")
                 .and_then(|v| v.as_float().or_else(|| v.as_integer().map(|i| i as f64)))
                 .ok_or(serde::de::Error::custom(
-                    "Missing or invalid 'y' field in viewport",
+                    "Missing or invalid 'cy' field in viewport",
                 ))? as f32,
             width: map
                 .get("width")
@@ -80,7 +80,7 @@ impl<'de> Deserialize<'de> for Viewport {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub enum ViewportSmooth {
     /// 线性插值
     #[serde(rename = "linear")]
@@ -177,14 +177,14 @@ pub fn calc_viewport_keyframe_bezier(viewports: &mut Vec<Viewport>) {
                     viewports[i].ctr = Vec6(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
                 } else {
                     let v1 = Vec3(
-                        viewports[i - 1].x,
-                        viewports[i - 1].y,
+                        viewports[i - 1].cx,
+                        viewports[i - 1].cy,
                         viewports[i - 1].width,
                     );
-                    let v2 = Vec3(viewports[i].x, viewports[i].y, viewports[i].width);
+                    let v2 = Vec3(viewports[i].cx, viewports[i].cy, viewports[i].width);
                     let v3 = Vec3(
-                        viewports[i + 1].x,
-                        viewports[i + 1].y,
+                        viewports[i + 1].cx,
+                        viewports[i + 1].cy,
                         viewports[i + 1].width,
                     );
                     let t1 = viewports[i - 1].t;
@@ -247,12 +247,12 @@ pub fn interpolate_viewport(viewports: &Vec<Viewport>, t: f32) -> Option<Vec3> {
 
     if len == 1 || t < viewports[0].t {
         let v = &viewports[0];
-        return Some(Vec3(v.x, v.y, v.width));
+        return Some(Vec3(v.cx, v.cy, v.width));
     }
 
     if t > viewports[len - 1].t {
         let v = &viewports[len - 1];
-        return Some(Vec3(v.x, v.y, v.width));
+        return Some(Vec3(v.cx, v.cy, v.width));
     }
 
     for i in 0..len - 1 {
@@ -262,11 +262,11 @@ pub fn interpolate_viewport(viewports: &Vec<Viewport>, t: f32) -> Option<Vec3> {
 
         if t >= v1.t && t <= v2.t {
             if let ViewportSmooth::Freeze = v1.smooth {
-                return Some(Vec3(v1.x, v1.y, v1.width));
+                return Some(Vec3(v1.cx, v1.cy, v1.width));
             }
 
             if dt < 1e-4 {
-                return Some(Vec3(v2.x, v2.y, v2.width));
+                return Some(Vec3(v2.cx, v2.cy, v2.width));
             }
 
             let ratio = (t - v1.t) / dt;
@@ -276,8 +276,8 @@ pub fn interpolate_viewport(viewports: &Vec<Viewport>, t: f32) -> Option<Vec3> {
             let tw = cubic_bezier(ratio, v1.ctr.4, v1.ctr.5, v2.ctl.4, v2.ctl.5);
 
             return Some(
-                Vec3(tx, ty, tw) * (Vec3(v2.x, v2.y, v2.width) - Vec3(v1.x, v1.y, v1.width))
-                    + Vec3(v1.x, v1.y, v1.width),
+                Vec3(tx, ty, tw) * (Vec3(v2.cx, v2.cy, v2.width) - Vec3(v1.cx, v1.cy, v1.width))
+                    + Vec3(v1.cx, v1.cy, v1.width),
             );
         }
     }

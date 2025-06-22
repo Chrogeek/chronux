@@ -23,16 +23,19 @@ mod svg;
 mod util;
 mod widget;
 
-fn main() -> Result<(), ChronuxError> {
+fn main() {
     let args = Args::parse();
 
     env_logger::init();
     log::info!("Welcome to Chronux!");
 
-    run(args).or_else(|e| {
-        log::error!("{:?}", e);
-        Err(e)
-    })
+    match run(args) {
+        Ok(_) => log::info!("Rendering completed successfully"),
+        Err(e) => {
+            log::error!("Rendering failed with error:");
+            log::error!("{}", e);
+        }
+    }
 }
 
 fn run(args: Args) -> Result<(), ChronuxError> {
@@ -71,6 +74,23 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     conf.calc_start_times(&objs)?;
     log::info!("Calculated start times for objects");
 
+    // 计算所有动画全部结束的时间
+    let time_end = conf
+        .events
+        .iter()
+        .fold(0.0, |acc: f32, (_, e)| acc.max(e.start + e.duration));
+
+    let animation_start = if conf.output.time_start.is_nan() {
+        0.0
+    } else {
+        conf.output.time_start
+    };
+    let animation_end = if conf.output.time_end.is_nan() {
+        time_end
+    } else {
+        conf.output.time_end
+    };
+
     let mut timeline = conf.calc_timeline()?;
 
     // 设置每个对象时间线的起始属性，如有出现(appear)动画则将起始状态置为默认值（未开始）
@@ -88,8 +108,11 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                     Animation::Sweep => {
                         tl.start.sweep = 0.0;
                     }
+                    Animation::FadeIn => {
+                        tl.start.opacity = 0.0;
+                    }
                     // 下面这些不是出现动画，什么都不用做
-                    Animation::TypewriterOut | Animation::Tween(_) => {}
+                    Animation::TypewriterOut | Animation::Tween(_) | Animation::FadeOut => {}
                 }
             }
         }
@@ -99,12 +122,13 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     // 处理镜头
     calc_viewport_times(&mut conf.viewports, &conf.events)?;
     sort_viewports(&mut conf.viewports);
+
     calc_viewport_keyframe_bezier(&mut conf.viewports);
     log::info!("Calculated viewport keyframes");
 
     // 渲染动画
-    let frame_start = (conf.output.time_start * conf.output.fps as f32) as u32;
-    let frame_end = (conf.output.time_end * conf.output.fps as f32) as u32;
+    let frame_start = (animation_start * conf.output.fps as f32) as u32;
+    let frame_end = (animation_end * conf.output.fps as f32) as u32;
     log::info!("Frames rendered: {} - {}", frame_start, frame_end);
 
     std::fs::create_dir_all(&output_dir).map_err(|e| ChronuxError::IoError(e))?;
@@ -129,12 +153,13 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             0.0,
             conf.output.width as f32,
         ));
-        let (vx, vy, vw, vh) = (
+        let (cx, cy, vw, vh) = (
             vb.0,
             vb.1,
             vb.2,
             vb.2 * conf.output.height as f32 / conf.output.width as f32,
         );
+        let (vx, vy) = (cx - vw / 2.0, cy - vh / 2.0);
 
         // 创建 Skia 画布
         let mut surface =

@@ -1,15 +1,18 @@
 use skia_safe::{
-    font_style::{Slant, Width}, utils::text_utils::Align, Color, Font, FontStyle, Matrix, PaintCap, PaintJoin, Vector
+    Color, Font, FontStyle, Matrix, PaintCap, PaintJoin, Vector,
+    font_style::{Slant, Width},
+    utils::text_utils::Align,
 };
 
 use crate::{
     animation::Animation,
-    util::{parse_css_color, parse_font_weight, parse_unit_value, ChronuxError, ChronuxResult},
+    util::{ChronuxError, ChronuxResult, parse_css_color, parse_font_weight, parse_unit_value},
 };
 
 #[derive(Debug, Clone)]
 pub struct Properties {
     pub visible: bool,
+    pub opacity: f32,
     pub font_size: f32,
     pub font_weight: f32,
     pub text_anchor: Align,
@@ -32,6 +35,7 @@ impl Default for Properties {
     fn default() -> Self {
         Properties {
             visible: true,
+            opacity: 1.0,
             font_size: 16.0,
             font_weight: 400.0,
             text_anchor: Align::Left,         // default to left alignment
@@ -82,17 +86,28 @@ impl Properties {
                 if let Some(weight) = tween.font_weight {
                     new_props.font_weight += t * (weight - self.font_weight);
                 }
-                if let Some(_color) = tween.fill_color {
-                    todo!();
+                if let Some(color) = tween.fill_color {
+                    new_props.fill_color = tween_color(self.fill_color, color, t);
                 }
-                if let Some(_color) = tween.stroke_color {
-                    todo!();
+                if let Some(color) = tween.stroke_color {
+                    new_props.stroke_color = tween_color(self.stroke_color, color, t);
                 }
                 if let Some(width) = tween.stroke_width {
                     new_props.stroke_width += t * (width - self.stroke_width);
                 }
+                if let Some(opacity) = tween.opacity {
+                    new_props.opacity += t * (opacity - self.opacity);
+                }
                 new_props
             }
+            Animation::FadeIn => Properties {
+                opacity: t,
+                ..self.clone()
+            },
+            Animation::FadeOut => Properties {
+                opacity: 1.0 - t,
+                ..self.clone()
+            },
         }
     }
 
@@ -175,7 +190,10 @@ impl Properties {
         let mut paint = skia_safe::Paint::default();
         paint.set_anti_alias(true);
         paint.set_style(skia_safe::paint::Style::Stroke);
-        paint.set_color(self.stroke_color);
+        let sc = self
+            .stroke_color
+            .with_a((self.stroke_color.a() as f32 * self.opacity) as u8);
+        paint.set_color(sc);
         paint.set_stroke_width(self.stroke_width);
         paint.set_stroke_cap(self.stroke_linecap);
         paint.set_stroke_join(self.stroke_linejoin);
@@ -186,7 +204,10 @@ impl Properties {
         let mut paint = skia_safe::Paint::default();
         paint.set_anti_alias(true);
         paint.set_style(skia_safe::paint::Style::Fill);
-        paint.set_color(self.fill_color);
+        let fc = self
+            .fill_color
+            .with_a((self.fill_color.a() as f32 * self.opacity) as u8);
+        paint.set_color(fc);
         paint
     }
 
@@ -217,4 +238,12 @@ impl Properties {
         let font = Font::from_typeface(tf, self.font_size);
         Ok(font)
     }
+}
+
+fn tween_color(start: Color, end: Color, t: f32) -> Color {
+    let a = (start.a() as f32 + t * (end.a() as f32 - start.a() as f32)) as u8;
+    let r = (start.r() as f32 + t * (end.r() as f32 - start.r() as f32)) as u8;
+    let g = (start.g() as f32 + t * (end.g() as f32 - start.g() as f32)) as u8;
+    let b = (start.b() as f32 + t * (end.b() as f32 - start.b() as f32)) as u8;
+    Color::from_argb(a, r, g, b)
 }

@@ -1,11 +1,11 @@
-use skia_safe::{Canvas, Data, Handle, Image, Rect};
+use skia_safe::{Canvas, Data, Image, Paint, Rect};
 
 use crate::{animation::properties::Properties, svg::element::Shape, util::{ChronuxError, ChronuxResult}};
 
 pub mod viewport;
 
 pub fn draw(canvas: &Canvas, shape: &Shape, properties: &Properties) -> ChronuxResult<()> {
-    if !properties.visible {
+    if !properties.visible || properties.opacity <= 1e-3 {
         return Ok(());
     }
 
@@ -42,15 +42,19 @@ pub fn draw(canvas: &Canvas, shape: &Shape, properties: &Properties) -> ChronuxR
             );
         }
         Shape::Text { x, y, content, align } => {
-            let (_start, end) = properties.typewriter;
+            let (start, end) = properties.typewriter;
+            let mut start = (start * (content.len() as f32)).round() as usize;
             let mut end = (end * (content.len() as f32)).round() as usize;
-            while end > 0 && !content.is_char_boundary(end) {
+            while start <= end && !content.is_char_boundary(start) {
+                start += 1;
+            }
+            while start < end && !content.is_char_boundary(end) {
                 end -= 1;
             }
-            if end == 0 {
+            if start <= end {
                 return Ok(()); // Nothing to draw
             }
-            let text = &content[0..end];
+            let text = &content[start..end];
             let font = properties.get_font()?;
             canvas.draw_text_align(text, (*x, *y), &font, &stroke, *align);
             canvas.draw_text_align(text, (*x, *y), &font, &fill, *align);
@@ -62,7 +66,9 @@ pub fn draw(canvas: &Canvas, shape: &Shape, properties: &Properties) -> ChronuxR
             let img = Image::from_encoded(data).ok_or(ChronuxError::HrefError(
                 format!("Failed to load image from {}", href),
             ))?;
-            canvas.draw_image_rect(&img, None, Rect::new(*x, *y, x + width, y + height), &Handle::default());
+            let mut paint = Paint::default();
+            paint.set_alpha((properties.opacity * 255.0) as u8);
+            canvas.draw_image_rect(&img, None, Rect::new(*x, *y, x + width, y + height), &paint);
         }
     }
 

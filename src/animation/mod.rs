@@ -30,6 +30,10 @@ pub enum Animation {
     // SweepOut,
     #[serde(rename = "tween")]
     Tween(Tween),
+    #[serde(rename = "fade-in")]
+    FadeIn,
+    #[serde(rename = "fade-out")]
+    FadeOut,
 }
 
 pub fn track(obj: &Object, event: &Event, x: f32, y: f32) -> ChronuxResult<f32> {

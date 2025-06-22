@@ -5,6 +5,7 @@ use crate::util::parse_css_color;
 
 #[derive(Debug, Clone)]
 pub struct Tween {
+    pub opacity: Option<f32>,
     pub font_size: Option<f32>,
     pub font_weight: Option<f32>,
     pub fill_color: Option<Color>,
@@ -23,6 +24,7 @@ impl<'de> Deserialize<'de> for Tween {
         D: serde::Deserializer<'de>,
     {
         let mut tween = Tween {
+            opacity: None,
             font_size: None,
             font_weight: None,
             fill_color: None,
@@ -54,6 +56,9 @@ impl<'de> Deserialize<'de> for Tween {
                     }
                 }
                 "stroke-width" => tween.stroke_width = value.as_float().map(|v| v as f32),
+                "opacity" => {
+                    tween.opacity = value.as_float().map(|v| v as f32);
+                }
                 _ => {}
             }
         }
