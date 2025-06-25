@@ -9,6 +9,10 @@ use crate::{
     animation::Animation,
     args::Args,
     config::Config,
+    encoder::{
+        Encoder,
+        png_list::{PngList, PngListArgs},
+    },
     render::viewport::{
         calc_viewport_keyframe_bezier, calc_viewport_times, interpolate_viewport, sort_viewports,
     },
@@ -23,6 +27,7 @@ mod render;
 mod svg;
 mod util;
 // mod widget;
+mod encoder;
 
 fn main() {
     let args = Args::parse();
@@ -137,9 +142,15 @@ fn run(args: Args) -> Result<(), ChronuxError> {
 
     log::info!("Start rendering frames...");
 
-    let progressbar =
-        ProgressStyle::with_template(&format!("{{percent:>3}}% {{wide_bar}} {{pos:>{}}}/{{len}} [{{elapsed_precise}}<{{eta_precise}}]", (frame_end - frame_start).to_string().len()))
-            .unwrap();
+    let progressbar = ProgressStyle::with_template(&format!(
+        "{{percent:>3}}% {{wide_bar}} {{pos:>{}}}/{{len}} [{{elapsed_precise}}<{{eta_precise}}]",
+        (frame_end - frame_start).to_string().len()
+    ))
+    .unwrap();
+
+    let encoder = PngList::init(PngListArgs {
+        output_dir: output_dir.clone(),
+    })?;
 
     let render_err = (frame_start..frame_end)
         .into_par_iter()
@@ -188,22 +199,13 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             }
 
             // 输出图片
-            let output = std::path::Path::new(&output_dir).join(format!("frame_{:04}.png", f));
-            let mut file = std::fs::File::create(&output).map_err(|e| ChronuxError::IoError(e))?;
-
-            let pixmap = surface.peek_pixels().ok_or(ChronuxError::SkiaError(
-                "failed to peek pixels from Skia surface".into(),
-            ))?;
-
-            skia_safe::png_encoder::encode(
-                &pixmap,
-                &mut file,
-                &skia_safe::png_encoder::Options::default(),
-            );
+            encoder.write_frame(f as usize, &mut surface)?;
 
             Ok(())
         })
         .find_any(ChronuxResult::is_err);
+
+    encoder.finish()?;
 
     if let Some(ChronuxResult::Err(e)) = render_err {
         Err(e)

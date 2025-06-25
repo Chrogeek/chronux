@@ -70,13 +70,25 @@ impl Tspan {
         Ok(result)
     }
 
-    pub fn draw_text(&self, canvas: &Canvas, tl: f32, tr: f32) -> ChronuxResult<()> {
+    pub fn draw_text(
+        &self,
+        canvas: &Canvas,
+        tl: f32,
+        tr: f32,
+        properties: Properties,
+    ) -> ChronuxResult<()> {
         let tl = tl.max(0.0);
         let tr = tr.min(self.length);
 
+        let color_style = if properties.tweening {
+            properties
+        } else {
+            self.style.clone()
+        };
+
         let font = self.style.get_font()?;
-        let fill = self.style.get_fill_paint();
-        let stroke = self.style.get_stroke_paint();
+        let fill = color_style.get_fill_paint();
+        let stroke = color_style.get_stroke_paint();
 
         let offset = match self.style.text_anchor {
             Align::Left => 0.0,
@@ -109,8 +121,8 @@ impl Tspan {
                     new_stroke.set_alpha((alpha * stroke.alpha() as f32) as u8);
                     new_fill.set_alpha((alpha * fill.alpha() as f32) as u8);
 
-                    canvas.draw_text_align(g, (x, y), &font, &new_stroke, self.style.text_anchor);
-                    canvas.draw_text_align(g, (x, y), &font, &new_fill, self.style.text_anchor);
+                    canvas.draw_text_align(g, (x, y), &font, &new_stroke, Align::Left);
+                    canvas.draw_text_align(g, (x, y), &font, &new_fill, Align::Left);
                 }
 
                 dlen += c;

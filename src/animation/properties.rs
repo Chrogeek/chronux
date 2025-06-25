@@ -31,6 +31,7 @@ pub struct Properties {
     pub trim: (f32, f32),
     pub typewriter: (f32, f32),
     pub sweep: f32,
+    pub tweening: bool,
 }
 
 impl Default for Properties {
@@ -55,6 +56,7 @@ impl Default for Properties {
             trim: (0.0, 1.0),
             typewriter: (0.0, 1.0),
             sweep: 1.0,
+            tweening: false,
         }
     }
 }
@@ -101,6 +103,7 @@ impl Properties {
                 if let Some(opacity) = tween.opacity {
                     new_props.opacity += t * (opacity - self.opacity);
                 }
+                new_props.tweening = true;
                 new_props
             }
             Animation::FadeIn => Properties {
@@ -114,7 +117,11 @@ impl Properties {
         }
     }
 
-    pub fn from_style(style: &str, mat: Matrix, base_style: Properties) -> ChronuxResult<Properties> {
+    pub fn from_style(
+        style: &str,
+        mat: Matrix,
+        base_style: Properties,
+    ) -> ChronuxResult<Properties> {
         let rules = style
             .split(';')
             .filter_map(|s| s.trim().split_once(':'))

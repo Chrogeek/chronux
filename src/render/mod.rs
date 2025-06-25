@@ -65,6 +65,7 @@ pub fn draw(canvas: &Canvas, shape: &Shape, properties: &Properties) -> ChronuxR
                         canvas,
                         l - drawn_length,
                         r - drawn_length,
+                        properties.clone(),
                     )?;
                 }
                 drawn_length += c.length;

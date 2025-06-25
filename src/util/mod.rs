@@ -30,7 +30,9 @@ impl Display for ChronuxError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ChronuxError::IoError(e) => write!(f, "IO Error: {}", e),
-            ChronuxError::ConfigError(e) => write!(f, "Config Error at span '{:?}': {}", e.span(), e.message()),
+            ChronuxError::ConfigError(e) => {
+                write!(f, "Config Error at span '{:?}': {}", e.span(), e.message())
+            }
             ChronuxError::XmlError(e) => write!(f, "SVG Parse Error: {}", e),
             ChronuxError::CircularDependency(id) => {
                 write!(f, "Circular dependency detected: {}", id)
