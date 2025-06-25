@@ -1,23 +1,23 @@
+use std::time::Duration;
 use std::{path::PathBuf, str::FromStr};
 
 use clap::Parser;
-use indicatif::{ParallelProgressIterator, ProgressStyle};
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use indicatif::ProgressBar;
+use indicatif::ProgressStyle;
+use pariter::IteratorExt;
 use skia_safe::surfaces;
 
+use crate::util::timecode;
 use crate::{
     animation::Animation,
     args::Args,
     config::Config,
-    encoder::{
-        Encoder,
-        png_list::{PngList, PngListArgs},
-    },
     render::viewport::{
         calc_viewport_keyframe_bezier, calc_viewport_times, interpolate_viewport, sort_viewports,
     },
     svg::Svg,
     util::{ChronuxError, ChronuxResult, vector::Vec3},
+    writer::Writer,
 };
 
 mod animation;
@@ -27,7 +27,7 @@ mod render;
 mod svg;
 mod util;
 // mod widget;
-mod encoder;
+mod writer;
 
 fn main() {
     let args = Args::parse();
@@ -137,25 +137,34 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     let frame_end = (animation_end * conf.output.fps as f32) as u32;
     log::info!("Frames rendered: {} - {}", frame_start, frame_end);
 
-    std::fs::create_dir_all(&output_dir).map_err(|e| ChronuxError::IoError(e))?;
-    log::info!("Created output directory `{}`", output_dir);
-
     log::info!("Start rendering frames...");
 
-    let progressbar = ProgressStyle::with_template(&format!(
-        "{{percent:>3}}% {{wide_bar}} {{pos:>{}}}/{{len}} [{{elapsed_precise}}<{{eta_precise}}]",
+    let pstyle = ProgressStyle::with_template(&format!(
+        "{{msg}} {{wide_bar}} {{pos:>{}}}/{{len}} {{percent:>3}}% [{{elapsed_precise}}<{{eta_precise}}]",
         (frame_end - frame_start).to_string().len()
     ))
     .unwrap();
 
-    let encoder = PngList::init(PngListArgs {
-        output_dir: output_dir.clone(),
-    })?;
+    let pbar = ProgressBar::new((frame_end - frame_start) as u64);
+    pbar.set_style(pstyle);
+    pbar.enable_steady_tick(Duration::from_millis(100));
+
+    let mut writer = match args.encoder {
+        args::OutputWriter::Ffmpeg => Writer::new_ffmpeg(
+            output_dir,
+            conf.output.width as usize,
+            conf.output.height as usize,
+            conf.output.fps as usize,
+        )?,
+        args::OutputWriter::PngSequence => Writer::new_png_sequence(
+            conf.output.width as usize,
+            conf.output.height as usize,
+            output_dir,
+        )?,
+    };
 
     let render_err = (frame_start..frame_end)
-        .into_par_iter()
-        .progress_with_style(progressbar)
-        .map(|f| -> ChronuxResult<()> {
+        .parallel_map(move |f| {
             // 当前时间点（秒数）
             let t = f as f32 / conf.output.fps as f32;
 
@@ -199,13 +208,36 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             }
 
             // 输出图片
-            encoder.write_frame(f as usize, &mut surface)?;
+            let pixmap = surface.peek_pixels().ok_or(ChronuxError::SkiaError(
+                "failed to peek pixels from Skia surface".into(),
+            ))?;
 
-            Ok(())
+            let raw = pixmap
+                .bytes()
+                .ok_or(ChronuxError::SkiaError(
+                    "failed to get bytes from Skia pixmap".into(),
+                ))?
+                .to_vec();
+
+            Ok(raw)
         })
-        .find_any(ChronuxResult::is_err);
+        .enumerate()
+        .map(|(f, raw)| {
+            let res = match raw {
+                Ok(mut raw) => {
+                    writer.write_frame(f, &mut raw)?;
+                    Ok(())
+                }
+                Err(e) => Err(e),
+            };
+            pbar.inc(1);
+            pbar.set_message(format!("{}", timecode(f as u32, conf.output.fps)));
+            res
+        })
+        .find(ChronuxResult::is_err);
 
-    encoder.finish()?;
+    pbar.finish();
+    writer.finish()?;
 
     if let Some(ChronuxResult::Err(e)) = render_err {
         Err(e)

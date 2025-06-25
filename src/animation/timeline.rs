@@ -1,6 +1,6 @@
 use crate::{animation::properties::Properties, config::event::Event};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Timeline {
     /// event-id => absolute time
     pub events: Vec<Event>,

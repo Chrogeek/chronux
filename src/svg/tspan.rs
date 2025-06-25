@@ -8,7 +8,7 @@ use crate::{
     util::ChronuxResult,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Tspan {
     pub x: f32,
     pub y: f32,

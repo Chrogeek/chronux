@@ -11,7 +11,7 @@ use crate::{
     },
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Viewport {
     pub depends: String,
     pub offset: f32,

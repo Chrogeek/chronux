@@ -9,14 +9,14 @@ use crate::{
     util::ChronuxResult,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Object {
     pub id: String,
     pub style: Properties,
     pub shape: Shape,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Shape {
     Path {
         d: Path,
