@@ -11,6 +11,7 @@ use crate::{
 
 pub mod element;
 pub mod path;
+pub mod tspan;
 
 pub struct Svg {
     tree: Document<'static>,
@@ -88,43 +89,7 @@ impl Svg {
         ) -> ChronuxResult<()> {
             let this_label = attribute_label(node);
 
-            let mat = node
-                .attribute("transform")
-                .iter()
-                .flat_map(|s| {
-                    TransformListParser::from(*s).map(|t| {
-                        if let Ok(transform) = t {
-                            Some(match transform {
-                                TransformListToken::Translate { tx, ty } => {
-                                    Matrix::translate((tx as f32, ty as f32))
-                                }
-                                TransformListToken::Scale { sx, sy } => {
-                                    Matrix::scale((sx as f32, sy as f32))
-                                }
-                                TransformListToken::Rotate { angle } => {
-                                    Matrix::rotate_deg(angle as f32)
-                                }
-                                TransformListToken::SkewX { angle } => {
-                                    Matrix::skew((angle as f32, 0.0))
-                                }
-                                TransformListToken::SkewY { angle } => {
-                                    Matrix::skew((0.0, angle as f32))
-                                }
-                                TransformListToken::Matrix { a, b, c, d, e, f } => {
-                                    Matrix::from_affine(&[
-                                        a as f32, b as f32, c as f32, d as f32, e as f32, f as f32,
-                                    ])
-                                }
-                            })
-                        } else {
-                            None
-                        }
-                    })
-                })
-                .filter_map(|t| t)
-                .fold(Matrix::new_identity(), |acc, t| acc * t);
-
-            let mat = matrix * mat;
+            let mat = matrix * attribute_transform(node);
 
             if let Some(ref label) = this_label {
                 if labels.contains(label) {
@@ -197,4 +162,33 @@ pub fn attribute_namespace_str(
 pub fn attribute_label(node: &Node) -> Option<String> {
     node.attribute(("http://www.inkscape.org/namespaces/inkscape", "label"))
         .map(|s| s.to_string())
+}
+
+pub fn attribute_transform(node: &Node) -> Matrix {
+    node.attribute("transform")
+        .iter()
+        .flat_map(|s| {
+            TransformListParser::from(*s).map(|t| {
+                if let Ok(transform) = t {
+                    Some(match transform {
+                        TransformListToken::Translate { tx, ty } => {
+                            Matrix::translate((tx as f32, ty as f32))
+                        }
+                        TransformListToken::Scale { sx, sy } => {
+                            Matrix::scale((sx as f32, sy as f32))
+                        }
+                        TransformListToken::Rotate { angle } => Matrix::rotate_deg(angle as f32),
+                        TransformListToken::SkewX { angle } => Matrix::skew((angle as f32, 0.0)),
+                        TransformListToken::SkewY { angle } => Matrix::skew((0.0, angle as f32)),
+                        TransformListToken::Matrix { a, b, c, d, e, f } => Matrix::from_affine(&[
+                            a as f32, b as f32, c as f32, d as f32, e as f32, f as f32,
+                        ]),
+                    })
+                } else {
+                    None
+                }
+            })
+        })
+        .filter_map(|t| t)
+        .fold(Matrix::new_identity(), |acc, t| acc * t)
 }

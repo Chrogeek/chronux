@@ -45,38 +45,29 @@ pub fn draw(canvas: &Canvas, shape: &Shape, properties: &Properties) -> ChronuxR
                 &stroke,
             );
         }
-        Shape::Text {
-            x,
-            y,
-            content,
-            align,
-        } => {
+        Shape::Text { children, .. } => {
             let (start, end) = properties.typewriter;
-            let total_len = content.iter().map(|s| s.len()).sum::<usize>();
-            let start = (start * total_len as f32).round() as usize;
-            let end = (end * total_len as f32).round() as usize;
+            let total_len = children.iter().map(|s| s.length).sum::<f32>();
 
-            let font = properties.get_font()?;
+            let start = start * total_len;
+            let end = end * total_len;
 
-            let mut i = 0;
-            for (rowid, c) in content.iter().enumerate() {
-                let j = i + c.len();
-                let mut l = i.max(start);
-                let mut r = j.min(end);
+            let mut drawn_length = 0.0;
 
-                if r > i {
-                    while l > i && !c.is_char_boundary(l - i) {
-                        l -= 1;
-                    }
-                    while r < j && !c.is_char_boundary(r - i) {
-                        r += 1;
-                    }
-                    let text = &c[l - i..r - i];
-                    let (x, y) = (*x, *y + rowid as f32 * properties.font_size);
-                    canvas.draw_text_align(text, (x, y), &font, &stroke, *align);
-                    canvas.draw_text_align(text, (x, y), &font, &fill, *align);
+            for c in children.iter() {
+                let l = start.max(drawn_length);
+                let r = end.min(drawn_length + c.length);
+                if l >= r {
+                    // 当前文本段不在范围内，跳过
+                } else {
+                    // 当前文本段在范围内，计算绘制比例
+                    c.draw_text(
+                        canvas,
+                        l - drawn_length,
+                        r - drawn_length,
+                    )?;
                 }
-                i += c.len();
+                drawn_length += c.length;
             }
         }
         Shape::Image {

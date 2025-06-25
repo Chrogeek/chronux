@@ -1,9 +1,13 @@
 use std::path::PathBuf;
 
 use roxmltree::Node;
-use skia_safe::{Matrix, Path, Point, Vector, utils::text_utils::Align};
+use skia_safe::{Matrix, Path, Point, Vector};
 
-use crate::{animation::properties::Properties, svg, util::ChronuxResult};
+use crate::{
+    animation::properties::Properties,
+    svg::{self, tspan::Tspan},
+    util::ChronuxResult,
+};
 
 #[derive(Debug)]
 pub struct Object {
@@ -25,8 +29,7 @@ pub enum Shape {
     Text {
         x: f32,
         y: f32,
-        content: Vec<String>,
-        align: Align,
+        children: Vec<Tspan>,
     },
     Image {
         href: String,
@@ -39,11 +42,8 @@ pub enum Shape {
 
 impl Object {
     pub fn from_node(node: &Node, id: String, mat: Matrix, base: PathBuf) -> ChronuxResult<Object> {
-        let mut style = Properties::from_style(&svg::attribute_str(node, "style")?, mat)?;
-        // if id == "depotn-taipingqiao" {
-        //     println!("style: {:?}", style);
-        //     println!("css: {}", svg::attribute_str(node, "style")?);
-        // }
+        let style =
+            Properties::from_style(&svg::attribute_str(node, "style")?, mat, Default::default())?;
         let shape = match node.tag_name().name() {
             "path" => Shape::Path {
                 d: svg::path::svg_to_path(&svg::attribute_str(node, "d")?, mat)?,
@@ -64,20 +64,8 @@ impl Object {
                     svg::attribute_f32(node, "y")?,
                 );
                 let Point { x, y } = mat.map_point((x, y));
-
-                if let Some(ff) = get_node_font_family(node) {
-                    style.font_family = ff;
-                }
-
-                let content = get_node_text(node);
-
-                let align = get_node_align(node);
-                Shape::Text {
-                    x,
-                    y,
-                    content,
-                    align,
-                }
+                let children = Tspan::from_subtree(&node, mat, x, y, style.clone())?;
+                Shape::Text { x, y, children }
             }
             "image" => {
                 let href = base
@@ -132,45 +120,4 @@ impl Object {
             }
         }
     }
-}
-
-fn get_node_text(node: &Node) -> Vec<String> {
-    let text = node
-        .descendants()
-        .filter_map(|n| {
-            let s = if n.is_text() { n.text() } else { None };
-            s.map(str::trim).map(str::to_string)
-        })
-        .collect::<Vec<_>>();
-    text
-}
-
-fn get_node_font_family(node: &Node) -> Option<String> {
-    for n in node.descendants() {
-        if n.tag_name().name() == "tspan"
-            && n.text().is_some()
-            && !n.text().unwrap().trim().is_empty()
-        {
-            let style =
-                Properties::from_style(&n.attribute("style").unwrap_or(""), Matrix::new_identity())
-                    .unwrap();
-            return Some(style.font_family);
-        }
-    }
-    None
-}
-
-fn get_node_align(node: &Node) -> Align {
-    for n in node.descendants() {
-        if n.tag_name().name() == "tspan"
-            && n.text().is_some()
-            && !n.text().unwrap().trim().is_empty()
-        {
-            let style =
-                Properties::from_style(&n.attribute("style").unwrap_or(""), Matrix::new_identity())
-                    .unwrap();
-            return style.text_anchor;
-        }
-    }
-    Align::Left
 }

@@ -18,3 +18,4 @@ simplecss = "0.2.2"
 skia-safe = { version = "0.86.1", features = ["default", "textlayout"] }
 svgtypes = "0.15.3"
 toml = "0.8.23"
+unicode-segmentation = "1.12.0"

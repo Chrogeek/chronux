@@ -1,5 +1,8 @@
 use skia_safe::{
-    font::Edging, font_style::{Slant, Width}, utils::text_utils::Align, Color, Font, FontHinting, FontStyle, Matrix, PaintCap, PaintJoin, Vector
+    Color, Font, FontHinting, FontStyle, Matrix, PaintCap, PaintJoin, Vector,
+    font::Edging,
+    font_style::{Slant, Width},
+    utils::text_utils::Align,
 };
 
 use crate::{
@@ -111,14 +114,14 @@ impl Properties {
         }
     }
 
-    pub fn from_style(style: &str, mat: Matrix) -> ChronuxResult<Properties> {
+    pub fn from_style(style: &str, mat: Matrix, base_style: Properties) -> ChronuxResult<Properties> {
         let rules = style
             .split(';')
             .filter_map(|s| s.trim().split_once(':'))
             .map(|(k, v)| (k.trim(), v.trim()))
             .collect::<std::collections::HashMap<_, _>>();
 
-        let mut result = Properties::default();
+        let mut result = base_style;
 
         if let Some(color) = rules.get("fill") {
             result.fill_color = parse_css_color(
@@ -254,6 +257,12 @@ impl Properties {
         font.set_hinting(FontHinting::Slight);
         font.set_edging(Edging::SubpixelAntiAlias);
         Ok(font)
+    }
+
+    pub fn measure_string(&self, text: &str) -> ChronuxResult<f32> {
+        let font = self.get_font()?;
+        let (width, _rect) = font.measure_str(text, None);
+        Ok(width)
     }
 }
 
