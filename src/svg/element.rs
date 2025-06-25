@@ -40,6 +40,10 @@ pub enum Shape {
 impl Object {
     pub fn from_node(node: &Node, id: String, mat: Matrix, base: PathBuf) -> ChronuxResult<Object> {
         let mut style = Properties::from_style(&svg::attribute_str(node, "style")?, mat)?;
+        // if id == "depotn-taipingqiao" {
+        //     println!("style: {:?}", style);
+        //     println!("css: {}", svg::attribute_str(node, "style")?);
+        // }
         let shape = match node.tag_name().name() {
             "path" => Shape::Path {
                 d: svg::path::svg_to_path(&svg::attribute_str(node, "d")?, mat)?,

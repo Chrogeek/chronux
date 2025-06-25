@@ -73,7 +73,11 @@ impl Svg {
         })
     }
 
-    pub fn search_labels(&self, labels: &HashSet<String>, base: PathBuf) -> ChronuxResult<Vec<Object>> {
+    pub fn search_labels(
+        &self,
+        labels: &HashSet<String>,
+        base: PathBuf,
+    ) -> ChronuxResult<Vec<Object>> {
         fn search_labels_dfs(
             node: &Node,
             labels: &HashSet<String>,
@@ -83,18 +87,6 @@ impl Svg {
             base: PathBuf,
         ) -> ChronuxResult<()> {
             let this_label = attribute_label(node);
-            if let Some(ref label) = this_label {
-                if labels.contains(label) {
-                    results.push(Object::from_node(node, label.clone(), matrix, base.clone())?);
-                }
-
-                if let Some(parent_label) = parent {
-                    let full_name = format!("{}/{}", parent_label, label);
-                    if labels.contains(&full_name) {
-                        results.push(Object::from_node(node, full_name, matrix, base.clone())?);
-                    }
-                }
-            }
 
             let mat = node
                 .attribute("transform")
@@ -132,8 +124,23 @@ impl Svg {
                 .filter_map(|t| t)
                 .fold(Matrix::new_identity(), |acc, t| acc * t);
 
+            let mat = matrix * mat;
+
+            if let Some(ref label) = this_label {
+                if labels.contains(label) {
+                    results.push(Object::from_node(node, label.clone(), mat, base.clone())?);
+                }
+
+                if let Some(parent_label) = parent {
+                    let full_name = format!("{}/{}", parent_label, label);
+                    if labels.contains(&full_name) {
+                        results.push(Object::from_node(node, full_name, mat, base.clone())?);
+                    }
+                }
+            }
+
             for child in node.children() {
-                search_labels_dfs(&child, labels, &this_label, results, matrix * mat, base.clone())?;
+                search_labels_dfs(&child, labels, &this_label, results, mat, base.clone())?;
             }
 
             Ok(())
@@ -146,7 +153,7 @@ impl Svg {
             &None,
             &mut results,
             self.transform,
-            base
+            base,
         )?;
 
         Ok(results)
