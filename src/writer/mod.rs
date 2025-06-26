@@ -191,9 +191,6 @@ impl Writer {
                         ChronuxError::FfmpegError(format!("Failed to flush encoder: {}", e))
                     })
                 })?;
-                // buf.write_all(&[0, 0, 1, 0xb7])
-                //     .and_then(|_| buf.flush())
-                //     .map_err(|e| ChronuxError::IoError(e))?;
                 log::info!("FFmpeg writer finished.");
             }
             Writer::PngSequence { .. } => {
