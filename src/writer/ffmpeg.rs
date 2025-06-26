@@ -1,26 +1,38 @@
-use std::{fs::File, io::{BufWriter, Write}};
-
 use rsmpeg::{
-    avcodec::AVCodecContext, avutil::AVFrame, error::RsmpegError,
+    avcodec::AVCodecContext,
+    avformat::AVFormatContextOutput,
+    avutil::{AVFrame, av_rescale_q},
+    error::RsmpegError,
+    ffi::AV_NOPTS_VALUE,
 };
 
 use crate::util::{ChronuxError, ChronuxResult};
 
 pub fn encode(
     ctx: &mut AVCodecContext,
-    frame: Option<&AVFrame>,
-    buf: &mut BufWriter<File>,
+    mut frame: Option<AVFrame>,
+    octx: &mut AVFormatContextOutput,
 ) -> ChronuxResult<()> {
-    ctx.send_frame(frame)
+    if let Some(f) = frame.as_mut() {
+        if f.pts != AV_NOPTS_VALUE {
+            f.set_pts(av_rescale_q(f.pts, f.time_base, ctx.time_base));
+        }
+    }
+
+    ctx.send_frame(frame.as_ref())
         .map_err(|e| ChronuxError::FfmpegError(e.to_string()))?;
+
     loop {
-        let packet = match ctx.receive_packet() {
+        let mut packet = match ctx.receive_packet() {
             Ok(packet) => packet,
             Err(RsmpegError::EncoderDrainError) | Err(RsmpegError::EncoderFlushedError) => break,
             Err(e) => return Err(ChronuxError::FfmpegError(e.to_string())),
         };
-        let data = unsafe { std::slice::from_raw_parts(packet.data, packet.size as usize) };
-        buf.write_all(data).map_err(|e| ChronuxError::IoError(e))?;
+
+        packet.set_stream_index(0);
+        packet.rescale_ts(ctx.time_base, octx.streams()[0].time_base);
+        octx.interleaved_write_frame(&mut packet)
+            .map_err(|e| ChronuxError::FfmpegError(format!("Failed to write frame: {}", e)))?;
     }
     Ok(())
 }

@@ -1,9 +1,10 @@
-use std::{fs::File, io::{BufWriter, Write}, slice::from_raw_parts_mut};
+use std::{ffi::CString, slice::from_raw_parts_mut};
 
 use rsmpeg::{
     avcodec::{AVCodec, AVCodecContext},
+    avformat::AVFormatContextOutput,
     avutil::{AVFrame, ra},
-    ffi::{AV_CODEC_ID_MPEG4, AV_PIX_FMT_YUV420P},
+    ffi::{AV_CODEC_FLAG_GLOBAL_HEADER, AV_CODEC_ID_MPEG4, AV_PIX_FMT_YUV420P, AVFMT_GLOBALHEADER},
 };
 use skia_safe::{ImageInfo, Pixmap};
 use yuv::{YuvPlanarImageMut, bgra_to_yuv420};
@@ -17,7 +18,7 @@ pub enum Writer {
         width: usize,
         height: usize,
         ctx: AVCodecContext,
-        buf: BufWriter<File>,
+        octx: AVFormatContextOutput,
     },
     PngSequence {
         width: usize,
@@ -33,6 +34,12 @@ impl Writer {
         height: usize,
         fps: usize,
     ) -> ChronuxResult<Writer> {
+        let output = CString::new(output).expect("Failed to create CString for output path");
+
+        let mut octx = AVFormatContextOutput::create(&output, None).map_err(|e| {
+            ChronuxError::FfmpegError(format!("Failed to create output context: {}", e))
+        })?;
+
         let encoder = AVCodec::find_encoder(AV_CODEC_ID_MPEG4)
             .ok_or(ChronuxError::FfmpegError("failed to find encoder".into()))?;
 
@@ -47,17 +54,30 @@ impl Writer {
         ctx.set_max_b_frames(1);
         ctx.set_pix_fmt(AV_PIX_FMT_YUV420P);
 
+        if octx.oformat().flags & AVFMT_GLOBALHEADER as i32 != 0 {
+            ctx.set_flags(ctx.flags | AV_CODEC_FLAG_GLOBAL_HEADER as i32);
+        }
+
         ctx.open(None)
             .map_err(|e| ChronuxError::FfmpegError(format!("Failed to open codec: {}", e)))?;
 
-        let file = File::create(output).map_err(|e| ChronuxError::IoError(e))?;
-        let buf = BufWriter::new(file);
+        {
+            let mut ost = octx.new_stream();
+            ost.set_codecpar(ctx.extract_codecpar());
+            ost.set_time_base(ctx.time_base);
+        }
+
+        octx.dump(0, &output).map_err(|e| {
+            ChronuxError::FfmpegError(format!("Failed to dump output context: {}", e))
+        })?;
+        octx.write_header(&mut None)
+            .map_err(|e| ChronuxError::FfmpegError(format!("Failed to write header: {}", e)))?;
 
         Ok(Writer::Ffmpeg {
             width,
             height,
             ctx,
-            buf,
+            octx,
         })
     }
 
@@ -82,7 +102,7 @@ impl Writer {
                 width,
                 height,
                 ctx,
-                buf,
+                octx,
             } => {
                 let mut frame = AVFrame::new();
                 frame.set_width(*width as i32);
@@ -129,8 +149,8 @@ impl Writer {
                     ChronuxError::FfmpegError(format!("Failed to convert ARGB to YUV: {}", e))
                 })?;
 
-                frame.set_pts(f as i64);
-                ffmpeg::encode(ctx, Some(&mut frame), buf).map_err(|e| {
+                frame.set_pts(frame.best_effort_timestamp);
+                ffmpeg::encode(ctx, Some(frame), octx).map_err(|e| {
                     ChronuxError::FfmpegError(format!("Failed to encode frame: {}", e))
                 })?;
             }
@@ -165,17 +185,15 @@ impl Writer {
 
     pub fn finish(&mut self) -> ChronuxResult<()> {
         match self {
-            Writer::Ffmpeg {
-                ctx,
-                buf,
-                ..
-            } => {
-                ffmpeg::encode(ctx, None, buf).map_err(|e| {
-                    ChronuxError::FfmpegError(format!("Failed to flush encoder: {}", e))
+            Writer::Ffmpeg { ctx, octx, .. } => {
+                ffmpeg::encode(ctx, None, octx).and_then(|_| {
+                    octx.write_trailer().map_err(|e| {
+                        ChronuxError::FfmpegError(format!("Failed to flush encoder: {}", e))
+                    })
                 })?;
-                buf.write_all(&[0, 0, 1, 0xb7])
-                    .and_then(|_| buf.flush())
-                    .map_err(|e| ChronuxError::IoError(e))?;
+                // buf.write_all(&[0, 0, 1, 0xb7])
+                //     .and_then(|_| buf.flush())
+                //     .map_err(|e| ChronuxError::IoError(e))?;
                 log::info!("FFmpeg writer finished.");
             }
             Writer::PngSequence { .. } => {
