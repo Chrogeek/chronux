@@ -3,8 +3,11 @@ use std::{ffi::CString, slice::from_raw_parts_mut};
 use rsmpeg::{
     avcodec::{AVCodec, AVCodecContext},
     avformat::AVFormatContextOutput,
-    avutil::{AVFrame, ra},
-    ffi::{AV_CODEC_FLAG_GLOBAL_HEADER, AV_CODEC_ID_MPEG4, AV_PIX_FMT_YUV420P, AVFMT_GLOBALHEADER},
+    avutil::{AVFrame, opt_set, ra},
+    ffi::{
+        AV_CODEC_FLAG_GLOBAL_HEADER, AV_CODEC_ID_H264, AV_CODEC_ID_MPEG4, AV_PICTURE_TYPE_I,
+        AV_PIX_FMT_YUV420P, AVFMT_GLOBALHEADER,
+    },
 };
 use skia_safe::{ImageInfo, Pixmap};
 use yuv::{YuvPlanarImageMut, bgra_to_yuv420};
@@ -19,6 +22,7 @@ pub enum Writer {
         height: usize,
         ctx: AVCodecContext,
         octx: AVFormatContextOutput,
+        frame: AVFrame,
     },
     PngSequence {
         width: usize,
@@ -40,7 +44,10 @@ impl Writer {
             ChronuxError::FfmpegError(format!("Failed to create output context: {}", e))
         })?;
 
-        let encoder = AVCodec::find_encoder(AV_CODEC_ID_MPEG4)
+        let pix_fmt = AV_PIX_FMT_YUV420P;
+        let encoder_id = AV_CODEC_ID_MPEG4;
+
+        let encoder = AVCodec::find_encoder(encoder_id)
             .ok_or(ChronuxError::FfmpegError("failed to find encoder".into()))?;
 
         let mut ctx = AVCodecContext::new(&encoder);
@@ -52,10 +59,16 @@ impl Writer {
         ctx.set_framerate(ra(fps as i32, 1));
         ctx.set_gop_size(10);
         ctx.set_max_b_frames(1);
-        ctx.set_pix_fmt(AV_PIX_FMT_YUV420P);
+        ctx.set_pix_fmt(pix_fmt);
 
         if octx.oformat().flags & AVFMT_GLOBALHEADER as i32 != 0 {
             ctx.set_flags(ctx.flags | AV_CODEC_FLAG_GLOBAL_HEADER as i32);
+        }
+
+        if encoder.id == AV_CODEC_ID_H264 {
+            unsafe { opt_set(ctx.priv_data, c"preset", c"slow", 0) }.map_err(|e| {
+                ChronuxError::FfmpegError(format!("Failed to set encoder options: {}", e))
+            })?;
         }
 
         ctx.open(None)
@@ -73,11 +86,24 @@ impl Writer {
         octx.write_header(&mut None)
             .map_err(|e| ChronuxError::FfmpegError(format!("Failed to write header: {}", e)))?;
 
+        let mut frame = AVFrame::new();
+        frame.set_width(width as i32);
+        frame.set_height(height as i32);
+        frame.set_format(pix_fmt);
+        frame.alloc_buffer().map_err(|e| {
+            ChronuxError::FfmpegError(format!("Failed to allocate frame buffer: {}", e))
+        })?;
+
+        frame
+            .make_writable()
+            .map_err(|e| ChronuxError::FfmpegError(format!("Failed to prepare frame: {}", e)))?;
+
         Ok(Writer::Ffmpeg {
             width,
             height,
             ctx,
             octx,
+            frame,
         })
     }
 
@@ -103,19 +129,8 @@ impl Writer {
                 height,
                 ctx,
                 octx,
+                frame,
             } => {
-                let mut frame = AVFrame::new();
-                frame.set_width(*width as i32);
-                frame.set_height(*height as i32);
-                frame.set_format(AV_PIX_FMT_YUV420P);
-                frame.alloc_buffer().map_err(|e| {
-                    ChronuxError::FfmpegError(format!("Failed to allocate frame buffer: {}", e))
-                })?;
-
-                frame.make_writable().map_err(|e| {
-                    ChronuxError::FfmpegError(format!("Failed to prepare frame: {}", e))
-                })?;
-
                 let data = frame.data;
                 let linesize = frame.linesize;
                 let linesize_y = linesize[0] as usize;
@@ -142,15 +157,16 @@ impl Writer {
                     &raw,
                     *width as u32 * 4,
                     yuv::YuvRange::Full,
-                    yuv::YuvStandardMatrix::Bt601,
+                    yuv::YuvStandardMatrix::Bt709,
                     yuv::YuvConversionMode::Balanced,
                 )
                 .map_err(|e| {
                     ChronuxError::FfmpegError(format!("Failed to convert ARGB to YUV: {}", e))
                 })?;
 
+                frame.set_pict_type(AV_PICTURE_TYPE_I);
                 frame.set_pts(frame.best_effort_timestamp);
-                ffmpeg::encode(ctx, Some(frame), octx).map_err(|e| {
+                ffmpeg::encode(ctx, Some(frame.clone()), octx).map_err(|e| {
                     ChronuxError::FfmpegError(format!("Failed to encode frame: {}", e))
                 })?;
             }
