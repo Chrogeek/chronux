@@ -47,18 +47,11 @@ impl Writer {
         ctx.set_max_b_frames(1);
         ctx.set_pix_fmt(AV_PIX_FMT_YUV420P);
 
-        // if encoder.id == AV_CODEC_ID_H264 {
-        //     unsafe { opt_set(ctx.priv_data, c"preset", c"slow", 0) }.map_err(|e| {
-        //         ChronuxError::FfmpegError(format!("Failed to set encoder options: {}", e))
-        //     })?;
-        // }
-
         ctx.open(None)
             .map_err(|e| ChronuxError::FfmpegError(format!("Failed to open codec: {}", e)))?;
 
         let file = File::create(output).map_err(|e| ChronuxError::IoError(e))?;
         let buf = BufWriter::new(file);
-
 
         Ok(Writer::Ffmpeg {
             width,
@@ -69,17 +62,17 @@ impl Writer {
     }
 
     pub fn new_png_sequence(
+        output_dir: &str,
         width: usize,
         height: usize,
-        output_dir: String,
     ) -> ChronuxResult<Writer> {
-        std::fs::create_dir_all(&output_dir).map_err(|e| ChronuxError::IoError(e))?;
+        std::fs::create_dir_all(output_dir).map_err(|e| ChronuxError::IoError(e))?;
         log::info!("Created output directory `{}`", output_dir);
 
         Ok(Writer::PngSequence {
             width,
             height,
-            path: output_dir,
+            path: output_dir.to_string(),
         })
     }
 
@@ -129,11 +122,11 @@ impl Writer {
                     &raw,
                     *width as u32 * 4,
                     yuv::YuvRange::Full,
-                    yuv::YuvStandardMatrix::Bt709,
+                    yuv::YuvStandardMatrix::Bt601,
                     yuv::YuvConversionMode::Balanced,
                 )
                 .map_err(|e| {
-                    ChronuxError::FfmpegError(format!("Failed to convert RGBA to YUV: {}", e))
+                    ChronuxError::FfmpegError(format!("Failed to convert ARGB to YUV: {}", e))
                 })?;
 
                 frame.set_pts(f as i64);
@@ -146,9 +139,9 @@ impl Writer {
                 height,
                 path,
             } => {
-                let output = std::path::Path::new(&path).join(format!("frame_{:04}.png", f));
+                let output = std::path::Path::new(path).join(format!("frame_{:04}.png", f));
                 let mut file =
-                    std::fs::File::create(&output).map_err(|e| ChronuxError::IoError(e))?;
+                    std::fs::File::create(output).map_err(|e| ChronuxError::IoError(e))?;
 
                 let mut raw = raw;
                 let pixmap = Pixmap::new(
