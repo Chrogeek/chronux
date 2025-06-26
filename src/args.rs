@@ -14,6 +14,6 @@ pub struct Args {
 pub enum OutputWriter {
     #[clap(name = "ffmpeg")]
     Ffmpeg,
-    #[clap(name = "png-sequence")]
+    #[clap(name = "pngseq")]
     PngSequence,
 }

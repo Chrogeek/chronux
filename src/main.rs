@@ -1,3 +1,4 @@
+use std::process::ExitCode;
 use std::time::Duration;
 use std::{path::PathBuf, str::FromStr};
 
@@ -29,17 +30,21 @@ mod util;
 // mod widget;
 mod writer;
 
-fn main() {
+fn main() -> ExitCode {
     let args = Args::parse();
 
     env_logger::init();
     log::info!("Welcome to Chronux!");
 
     match run(args) {
-        Ok(_) => log::info!("Rendering completed successfully"),
+        Ok(_) => {
+            log::info!("Rendering completed successfully");
+            ExitCode::SUCCESS
+        }
         Err(e) => {
             log::error!("Rendering failed with error:");
             log::error!("{}", e);
+            ExitCode::FAILURE
         }
     }
 }
@@ -139,19 +144,9 @@ fn run(args: Args) -> Result<(), ChronuxError> {
 
     log::info!("Start rendering frames...");
 
-    let pstyle = ProgressStyle::with_template(&format!(
-        "{{msg}} {{wide_bar}} {{pos:>{}}}/{{len}} {{percent:>3}}% [{{elapsed_precise}}<{{eta_precise}}]",
-        (frame_end - frame_start).to_string().len()
-    ))
-    .unwrap();
-
-    let pbar = ProgressBar::new((frame_end - frame_start) as u64);
-    pbar.set_style(pstyle);
-    pbar.enable_steady_tick(Duration::from_millis(100));
-
     let mut writer = match args.encoder {
         args::OutputWriter::Ffmpeg => Writer::new_ffmpeg(
-            output_dir,
+            &output_dir,
             conf.output.width as usize,
             conf.output.height as usize,
             conf.output.fps as usize,
@@ -162,6 +157,16 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             output_dir,
         )?,
     };
+
+    let pstyle = ProgressStyle::with_template(&format!(
+        "{{msg}} {{wide_bar}} {{pos:>{}}}/{{len}} {{percent:>3}}% [{{elapsed_precise}}<{{eta_precise}}]",
+        (frame_end - frame_start).to_string().len()
+    ))
+    .unwrap();
+
+    let pbar = ProgressBar::new((frame_end - frame_start) as u64);
+    pbar.set_style(pstyle);
+    pbar.enable_steady_tick(Duration::from_millis(100));
 
     let render_err = (frame_start..frame_end)
         .parallel_map(move |f| {
@@ -224,8 +229,8 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         .enumerate()
         .map(|(f, raw)| {
             let res = match raw {
-                Ok(mut raw) => {
-                    writer.write_frame(f, &mut raw)?;
+                Ok(raw) => {
+                    writer.write_frame(f, raw)?;
                     Ok(())
                 }
                 Err(e) => Err(e),
