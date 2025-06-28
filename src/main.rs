@@ -1,14 +1,12 @@
 use std::process::ExitCode;
-use std::time::Duration;
 use std::{path::PathBuf, str::FromStr};
 
 use clap::Parser;
-use indicatif::ProgressBar;
-use indicatif::ProgressStyle;
+use indicatif::{ParallelProgressIterator, ProgressIterator, ProgressStyle};
 use pariter::IteratorExt;
+use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use skia_safe::surfaces;
 
-use crate::util::timecode;
 use crate::{
     animation::Animation,
     args::Args,
@@ -138,18 +136,19 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     log::info!("Calculated viewport keyframes");
 
     // 渲染动画
-    let frame_start = (animation_start * conf.output.fps as f32) as u32;
-    let frame_end = (animation_end * conf.output.fps as f32) as u32;
+    let frame_start = (animation_start * conf.output.fps as f32) as usize;
+    let frame_end = (animation_end * conf.output.fps as f32) as usize;
     log::info!("Frames rendered: {} - {}", frame_start, frame_end);
 
     log::info!("Start rendering frames...");
 
-    let mut writer = match args.encoder {
+    let writer = match args.encoder {
         args::OutputWriter::Ffmpeg => Writer::new_ffmpeg(
             &output_dir,
             conf.output.width as usize,
             conf.output.height as usize,
             conf.output.fps as usize,
+            frame_start,
         )?,
         args::OutputWriter::PngSequence => Writer::new_png_sequence(
             &output_dir,
@@ -159,89 +158,96 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     };
 
     let pstyle = ProgressStyle::with_template(&format!(
-        "{{msg}} {{wide_bar}} {{pos:>{}}}/{{len}} {{percent:>3}}% [{{elapsed_precise}}<{{eta_precise}}]",
+        "{{percent:>3}}% {{wide_bar}} {{pos:>{}}}/{{len}} [{{elapsed_precise}}<{{eta_precise}}]",
         (frame_end - frame_start).to_string().len()
     ))
     .unwrap();
 
-    let pbar = ProgressBar::new((frame_end - frame_start) as u64);
-    pbar.set_style(pstyle);
-    pbar.enable_steady_tick(Duration::from_millis(100));
+    let render_routine = move |f| {
+        // 当前时间点（秒数）
+        let t = f as f32 / conf.output.fps as f32;
 
-    let render_err = (frame_start..frame_end)
-        .parallel_map(move |f| {
-            // 当前时间点（秒数）
-            let t = f as f32 / conf.output.fps as f32;
+        // 计算当前镜头位置
+        let vb = interpolate_viewport(&conf.viewports, t).unwrap_or(Vec3(
+            0.0,
+            0.0,
+            conf.output.width as f32,
+        ));
+        let (cx, cy, vw, vh) = (
+            vb.0,
+            vb.1,
+            vb.2,
+            vb.2 * conf.output.height as f32 / conf.output.width as f32,
+        );
+        let (vx, vy) = (cx - vw / 2.0, cy - vh / 2.0);
 
-            // 计算当前镜头位置
-            let vb = interpolate_viewport(&conf.viewports, t).unwrap_or(Vec3(
-                0.0,
-                0.0,
-                conf.output.width as f32,
-            ));
-            let (cx, cy, vw, vh) = (
-                vb.0,
-                vb.1,
-                vb.2,
-                vb.2 * conf.output.height as f32 / conf.output.width as f32,
-            );
-            let (vx, vy) = (cx - vw / 2.0, cy - vh / 2.0);
-
-            // 创建 Skia 画布
-            let mut surface =
-                surfaces::raster_n32_premul((conf.output.width as i32, conf.output.height as i32))
-                    .ok_or(ChronuxError::SkiaError(
-                        "failed to create Skia surface".into(),
-                    ))?;
-            surface.canvas().clear(conf.output.background_color); // 设置背景颜色
-
-            let (sx, sy) = (
-                conf.output.width as f32 / vw,
-                conf.output.height as f32 / vh,
-            );
-
-            // 应用镜头变换
-            surface.canvas().scale((sx, sy)).translate((-vx, -vy));
-
-            // 绘制每个图形
-            for o in objs.iter() {
-                let properties = match timeline.get(&o.id) {
-                    Some(tl) => tl.interpolate(t),
-                    None => o.style.clone(),
-                };
-                render::draw(&surface.canvas(), &o.shape, &properties)?;
-            }
-
-            // 输出图片
-            let pixmap = surface.peek_pixels().ok_or(ChronuxError::SkiaError(
-                "failed to peek pixels from Skia surface".into(),
-            ))?;
-
-            let raw = pixmap
-                .bytes()
+        // 创建 Skia 画布
+        let mut surface =
+            surfaces::raster_n32_premul((conf.output.width as i32, conf.output.height as i32))
                 .ok_or(ChronuxError::SkiaError(
-                    "failed to get bytes from Skia pixmap".into(),
-                ))?
-                .to_vec();
+                    "failed to create Skia surface".into(),
+                ))?;
+        surface.canvas().clear(conf.output.background_color); // 设置背景颜色
 
-            Ok(raw)
-        })
-        .enumerate()
-        .map(|(f, raw)| {
-            let res = match raw {
-                Ok(raw) => {
-                    writer.write_frame(f, raw)?;
-                    Ok(())
-                }
-                Err(e) => Err(e),
+        let (sx, sy) = (
+            conf.output.width as f32 / vw,
+            conf.output.height as f32 / vh,
+        );
+
+        // 应用镜头变换
+        surface.canvas().scale((sx, sy)).translate((-vx, -vy));
+
+        // 绘制每个图形
+        for o in objs.iter() {
+            let properties = match timeline.get(&o.id) {
+                Some(tl) => tl.interpolate(t),
+                None => o.style.clone(),
             };
-            pbar.inc(1);
-            pbar.set_message(format!("{}", timecode(f as u32, conf.output.fps)));
-            res
-        })
-        .find(ChronuxResult::is_err);
+            render::draw(&surface.canvas(), &o.shape, &properties)?;
+        }
 
-    pbar.finish();
+        // 输出图片
+        let pixmap = surface.peek_pixels().ok_or(ChronuxError::SkiaError(
+            "failed to peek pixels from Skia surface".into(),
+        ))?;
+
+        let raw = pixmap
+            .bytes()
+            .ok_or(ChronuxError::SkiaError(
+                "failed to get bytes from Skia pixmap".into(),
+            ))?
+            .to_vec();
+
+        Ok(raw)
+    };
+
+    let write_routine = |(f, raw)| {
+        let res = match raw {
+            Ok(raw) => {
+                writer.write_frame(f, raw)?;
+                Ok(())
+            }
+            Err(e) => Err(e),
+        };
+        res
+    };
+
+    let render_err = match writer {
+        Writer::PngSequence { .. } => (frame_start..frame_end)
+            .into_par_iter()
+            .progress_with_style(pstyle)
+            .map(render_routine)
+            .enumerate()
+            .map(write_routine)
+            .find_any(ChronuxResult::is_err),
+        Writer::Ffmpeg { .. } => (frame_start..frame_end)
+            .progress_with_style(pstyle)
+            .parallel_map(render_routine)
+            .enumerate()
+            .map(write_routine)
+            .find(ChronuxResult::is_err),
+    };
+
     writer.finish()?;
 
     if let Some(ChronuxResult::Err(e)) = render_err {

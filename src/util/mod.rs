@@ -23,6 +23,7 @@ pub enum ChronuxError {
     HrefError(String),
     BrokenDependency(String),
     FfmpegError(String),
+    ConcurrencyError(String),
 }
 
 pub type ChronuxResult<T> = Result<T, ChronuxError>;
@@ -59,6 +60,7 @@ impl Display for ChronuxError {
             ChronuxError::HrefError(msg) => write!(f, "Href Error: {}", msg),
             ChronuxError::BrokenDependency(id) => write!(f, "Broken dependency: {}", id),
             ChronuxError::FfmpegError(msg) => write!(f, "FFmpeg Error: {}", msg),
+            ChronuxError::ConcurrencyError(e) => write!(f, "MPSC Error: {}", e),
         }
     }
 }
@@ -80,21 +82,21 @@ pub fn parse_css_color(color: &str, opacity: f32) -> ChronuxResult<Color> {
     Ok(Color::from_argb(a, r, g, b))
 }
 
-pub fn timecode(f: u32, fps: u32) -> String {
-    let total_seconds = f / fps;
-    let hours = total_seconds / 3600;
-    let minutes = (total_seconds % 3600) / 60;
-    let seconds = total_seconds % 60;
-    let frames = f % fps;
+// pub fn timecode(f: u32, fps: u32) -> String {
+//     let total_seconds = f / fps;
+//     let hours = total_seconds / 3600;
+//     let minutes = (total_seconds % 3600) / 60;
+//     let seconds = total_seconds % 60;
+//     let frames = f % fps;
 
-    if hours > 0 {
-        format!("{:02}:{:02}:{:02}:{:02}", hours, minutes, seconds, frames)
-    } else if minutes > 0 {
-        format!("{:02}:{:02}:{:02}", minutes, seconds, frames)
-    } else {
-        format!("{:02}:{:02}", seconds, frames)
-    }
-}
+//     if hours > 0 {
+//         format!("{:02}:{:02}:{:02}:{:02}", hours, minutes, seconds, frames)
+//     } else if minutes > 0 {
+//         format!("{:02}:{:02}:{:02}", minutes, seconds, frames)
+//     } else {
+//         format!("{:02}:{:02}", seconds, frames)
+//     }
+// }
 
 pub fn parse_unit_value(v: &str) -> ChronuxResult<f32> {
     if v.ends_with("px") {
