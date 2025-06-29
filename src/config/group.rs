@@ -17,6 +17,9 @@ pub struct Group {
     pub offset: Offset,
     pub easing: Easing,
     pub duration: f32,
+    #[serde(default)]
+    #[serde(rename = "marked")]
+    pub timeline_marked: bool,
 }
 
 impl Group {
@@ -49,6 +52,7 @@ impl Group {
                     start: f32::NAN, // Start time will be calculated later
                     duration: self.duration,
                     animation: animation.clone(),
+                    timeline_marked: self.timeline_marked && i == 0, // Only the first animation is marked
                 }
             })
             .collect()

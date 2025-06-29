@@ -1,3 +1,5 @@
+use std::fs::File;
+use std::io::Write;
 use std::process::ExitCode;
 use std::{path::PathBuf, str::FromStr};
 
@@ -7,6 +9,7 @@ use pariter::IteratorExt;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use skia_safe::surfaces;
 
+use crate::util::timecode_rt;
 use crate::{
     animation::Animation,
     args::Args,
@@ -49,7 +52,7 @@ fn main() -> ExitCode {
 
 fn run(args: Args) -> Result<(), ChronuxError> {
     let input = args.config;
-    let output_dir = args.output_dir;
+    let output = args.output;
 
     // 加载动画配置
     let mut conf = Config::load(&input)?;
@@ -100,6 +103,37 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         conf.output.time_end
     };
 
+    if args.timeline_only {
+        // 只需要计算时间线而不渲染帧
+        let mut filtered_events = conf
+            .events
+            .values()
+            .into_iter()
+            .filter(|e| e.timeline_marked)
+            .collect::<Vec<_>>();
+        filtered_events.sort_by(|a, b| {
+            a.start
+                .partial_cmp(&b.start)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        let mut file = File::create(&output).map_err(|e| ChronuxError::IoError(e))?;
+        writeln!(file, "| ID | Start Time | End Time | Duration |")
+            .map_err(|e| ChronuxError::IoError(e))?;
+        writeln!(file, "| :-- | --: | --: | --: |").map_err(|e| ChronuxError::IoError(e))?;
+        for e in filtered_events {
+            writeln!(
+                file,
+                "| {} | {} | {} | {} |",
+                e.id,
+                timecode_rt(e.start, conf.output.fps),
+                timecode_rt(e.start + e.duration, conf.output.fps),
+                timecode_rt(e.duration, conf.output.fps)
+            )
+            .map_err(|e| ChronuxError::IoError(e))?;
+        }
+        return Ok(());
+    }
+
     let mut timeline = conf.calc_timeline()?;
 
     // 设置每个对象时间线的起始属性，如有出现(appear)动画则将起始状态置为默认值（未开始）
@@ -144,14 +178,14 @@ fn run(args: Args) -> Result<(), ChronuxError> {
 
     let writer = match args.encoder {
         args::OutputWriter::Ffmpeg => Writer::new_ffmpeg(
-            &output_dir,
+            &output,
             conf.output.width as usize,
             conf.output.height as usize,
             conf.output.fps as usize,
             frame_start,
         )?,
         args::OutputWriter::PngSequence => Writer::new_png_sequence(
-            &output_dir,
+            &output,
             conf.output.width as usize,
             conf.output.height as usize,
         )?,

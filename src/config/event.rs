@@ -16,6 +16,9 @@ pub struct Event {
     pub duration: f32,
     #[serde(flatten)]
     pub animation: Animation,
+    #[serde(default)]
+    #[serde(rename = "marked")]
+    pub timeline_marked: bool,
 }
 
 fn default_start() -> f32 {
