@@ -20,10 +20,3 @@ skia-safe = { version = "0.86.1", features = ["default", "textlayout"] }
 svgtypes = "0.15.3"
 toml = "0.8.23"
 unicode-segmentation = "1.12.0"
-
-[package.metadata.vcpkg]
-git = "https://github.com/microsoft/vcpkg.git"
-# Change the triplet according to your build target
-dependencies = ["ffmpeg:x64-windows-static-md"]
-# Use vcpkg's master branch
-branch = "master"
