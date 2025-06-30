@@ -182,7 +182,6 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             conf.output.width as usize,
             conf.output.height as usize,
             conf.output.fps as usize,
-            frame_start,
         )?,
         args::OutputWriter::PngSequence => Writer::new_png_sequence(
             &output,

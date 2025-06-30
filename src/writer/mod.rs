@@ -1,36 +1,15 @@
 use std::{
-    collections::HashMap,
-    ffi::CString,
-    slice::from_raw_parts_mut,
-    sync::mpsc,
-    thread::{self, JoinHandle, sleep},
-    time::Duration,
+    io::Write,
+    process::{Command, Stdio},
 };
 
-use rayon::max_num_threads;
-use rsmpeg::{
-    avcodec::{AVCodec, AVCodecContext},
-    avformat::AVFormatContextOutput,
-    avutil::{AVFrame, opt_set, ra},
-    ffi::{
-        AV_CODEC_FLAG_GLOBAL_HEADER, AV_CODEC_ID_H264, AV_CODEC_ID_MPEG4, AV_PICTURE_TYPE_I,
-        AV_PIX_FMT_YUV420P, AVFMT_GLOBALHEADER,
-    },
-};
 use skia_safe::{ImageInfo, Pixmap};
-use yuv::{YuvPlanarImageMut, bgra_to_yuv420};
 
-use crate::{
-    util::{ChronuxError, ChronuxResult},
-    writer::ffmpeg::FfmpegWriter,
-};
-
-pub mod ffmpeg;
+use crate::util::{ChronuxError, ChronuxResult};
 
 pub enum Writer {
     Ffmpeg {
-        tx: mpsc::SyncSender<Option<(usize, Vec<u8>)>>,
-        recv: JoinHandle<ChronuxResult<()>>,
+        process: std::process::Child,
     },
     PngSequence {
         width: usize,
@@ -45,155 +24,35 @@ impl Writer {
         width: usize,
         height: usize,
         fps: usize,
-        start_frame: usize,
     ) -> ChronuxResult<Writer> {
-        let output = CString::new(output).expect("Failed to create CString for output path");
+        let process = Command::new("ffmpeg")
+            .arg("-y")
+            .arg("-f")
+            .arg("rawvideo")
+            .arg("-pix_fmt")
+            .arg("bgra")
+            .arg("-s")
+            .arg(format!("{}x{}", width, height))
+            .arg("-r")
+            .arg(fps.to_string())
+            .arg("-i")
+            .arg("pipe:0")
+            .arg("-c:v")
+            .arg("libx264")
+            .arg("-pix_fmt")
+            .arg("yuv420p")
+            .arg("-preset")
+            .arg("veryslow")
+            .arg("-vf")
+            .arg("format=yuv420p,colorchannelmixer=aa=1")
+            .arg(output)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .map_err(|e| ChronuxError::FfmpegError(format!("Failed to start ffmpeg: {}", e)))?;
 
-        let mut octx = AVFormatContextOutput::create(&output, None).map_err(|e| {
-            ChronuxError::FfmpegError(format!("Failed to create output context: {}", e))
-        })?;
-
-        let pix_fmt = AV_PIX_FMT_YUV420P;
-        let encoder_id = AV_CODEC_ID_MPEG4;
-
-        let encoder = AVCodec::find_encoder(encoder_id)
-            .ok_or(ChronuxError::FfmpegError("failed to find encoder".into()))?;
-
-        let mut ctx = AVCodecContext::new(&encoder);
-
-        ctx.set_bit_rate(1 << 24); // 16 Mbps
-        ctx.set_width(width as i32);
-        ctx.set_height(height as i32);
-        ctx.set_time_base(ra(1, fps as i32));
-        ctx.set_framerate(ra(fps as i32, 1));
-        ctx.set_gop_size(10);
-        ctx.set_max_b_frames(1);
-        ctx.set_pix_fmt(pix_fmt);
-
-        if octx.oformat().flags & AVFMT_GLOBALHEADER as i32 != 0 {
-            ctx.set_flags(ctx.flags | AV_CODEC_FLAG_GLOBAL_HEADER as i32);
-        }
-
-        if encoder.id == AV_CODEC_ID_H264 {
-            unsafe { opt_set(ctx.priv_data, c"preset", c"slow", 0) }.map_err(|e| {
-                ChronuxError::FfmpegError(format!("Failed to set encoder options: {}", e))
-            })?;
-        }
-
-        ctx.open(None)
-            .map_err(|e| ChronuxError::FfmpegError(format!("Failed to open codec: {}", e)))?;
-
-        {
-            let mut ost = octx.new_stream();
-            ost.set_codecpar(ctx.extract_codecpar());
-            ost.set_time_base(ctx.time_base);
-        }
-
-        octx.dump(0, &output).map_err(|e| {
-            ChronuxError::FfmpegError(format!("Failed to dump output context: {}", e))
-        })?;
-        octx.write_header(&mut None)
-            .map_err(|e| ChronuxError::FfmpegError(format!("Failed to write header: {}", e)))?;
-
-        let mut frame = AVFrame::new();
-        frame.set_width(width as i32);
-        frame.set_height(height as i32);
-        frame.set_format(pix_fmt);
-        frame.alloc_buffer().map_err(|e| {
-            ChronuxError::FfmpegError(format!("Failed to allocate frame buffer: {}", e))
-        })?;
-        frame.set_time_base(ctx.time_base);
-
-        frame
-            .make_writable()
-            .map_err(|e| ChronuxError::FfmpegError(format!("Failed to prepare frame: {}", e)))?;
-
-        let mut ffmpeg_writer = FfmpegWriter { ctx, octx };
-
-        let (tx, rx) = mpsc::sync_channel::<Option<(usize, Vec<_>)>>(max_num_threads() * 2);
-
-        let recv = move || -> ChronuxResult<()> {
-            let mut next_frame = start_frame;
-            let mut buffered_frames = HashMap::new();
-            let mut eof = false;
-
-            loop {
-                sleep(Duration::from_millis(100));
-                match rx.try_recv() {
-                    Ok(raw) => {
-                        if let Some((f, raw)) = raw {
-                            buffered_frames.insert(f, raw);
-                        } else {
-                            eof = true;
-                        }
-                    }
-                    Err(mpsc::TryRecvError::Disconnected) => {
-                        break Err(ChronuxError::ConcurrencyError(
-                            "Receiver channel disconnected".into(),
-                        ));
-                    }
-                    _ => {}
-                }
-                if buffered_frames.is_empty() && eof {
-                    ffmpeg_writer.encode(None).map_err(|e| {
-                        ChronuxError::FfmpegError(format!("Failed to flush encoder: {}", e))
-                    })?;
-                    ffmpeg_writer.octx.write_trailer().map_err(|e| {
-                        ChronuxError::FfmpegError(format!("Failed to write trailer: {}", e))
-                    })?;
-                    log::info!("FFmpeg writer finished.");
-                    break Ok(());
-                } else if !buffered_frames.is_empty() && buffered_frames.contains_key(&next_frame) {
-                    let raw = buffered_frames.remove(&next_frame).unwrap();
-
-                    let data = frame.data;
-                    let linesize = frame.linesize;
-                    let linesize_y = linesize[0] as usize;
-                    let linesize_u = linesize[1] as usize;
-                    let linesize_v = linesize[2] as usize;
-
-                    let y_data = unsafe { from_raw_parts_mut(data[0], height * linesize_y) };
-                    let u_data = unsafe { from_raw_parts_mut(data[1], (height / 2) * linesize_u) };
-                    let v_data = unsafe { from_raw_parts_mut(data[2], (height / 2) * linesize_v) };
-
-                    let mut planar = YuvPlanarImageMut {
-                        y_plane: yuv::BufferStoreMut::Borrowed(y_data),
-                        y_stride: linesize_y as u32,
-                        u_plane: yuv::BufferStoreMut::Borrowed(u_data),
-                        u_stride: linesize_u as u32,
-                        v_plane: yuv::BufferStoreMut::Borrowed(v_data),
-                        v_stride: linesize_v as u32,
-                        width: width as u32,
-                        height: height as u32,
-                    };
-
-                    bgra_to_yuv420(
-                        &mut planar,
-                        &raw,
-                        width as u32 * 4,
-                        yuv::YuvRange::Full,
-                        yuv::YuvStandardMatrix::Bt709,
-                        yuv::YuvConversionMode::Balanced,
-                    )
-                    .map_err(|e| {
-                        ChronuxError::FfmpegError(format!("Failed to convert ARGB to YUV: {}", e))
-                    })?;
-
-                    frame.set_pict_type(AV_PICTURE_TYPE_I);
-                    frame.set_pts((next_frame - start_frame) as i64);
-
-                    ffmpeg_writer.encode(Some(&mut frame)).map_err(|e| {
-                        ChronuxError::FfmpegError(format!("Failed to encode frame: {}", e))
-                    })?;
-
-                    next_frame += 1;
-                }
-            }
-        };
-
-        let recv = thread::spawn(recv);
-
-        Ok(Writer::Ffmpeg { tx, recv })
+        Ok(Writer::Ffmpeg { process })
     }
 
     pub fn new_png_sequence(
@@ -213,8 +72,13 @@ impl Writer {
 
     pub fn write_frame(&self, f: usize, raw: Vec<u8>) -> ChronuxResult<()> {
         match self {
-            Writer::Ffmpeg { tx, .. } => {
-                tx.send(Some((f, raw))).unwrap();
+            Writer::Ffmpeg { process, .. } => {
+                process
+                    .stdin
+                    .as_ref()
+                    .unwrap()
+                    .write_all(&raw)
+                    .map_err(|e| ChronuxError::IoError(e))?;
             }
             Writer::PngSequence {
                 width,
@@ -247,12 +111,13 @@ impl Writer {
 
     pub fn finish(self) -> ChronuxResult<()> {
         match self {
-            Writer::Ffmpeg { tx, recv, .. } => {
-                tx.send(None)
-                    .map_err(|e| ChronuxError::ConcurrencyError(e.to_string()))?;
-                recv.join().map_err(|_| {
-                    ChronuxError::ConcurrencyError("Failed to join encoder thread".into())
-                })??;
+            Writer::Ffmpeg { process, .. } => {
+                process
+                    .stdin
+                    .as_ref()
+                    .unwrap()
+                    .flush()
+                    .map_err(|e| ChronuxError::IoError(e))?;
                 log::info!("FFmpeg writer finished.");
             }
             Writer::PngSequence { .. } => {
