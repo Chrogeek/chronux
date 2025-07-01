@@ -42,7 +42,7 @@ impl Writer {
             .arg("-pix_fmt")
             .arg("yuv420p")
             .arg("-preset")
-            .arg("veryslow")
+            .arg("medium")
             .arg("-vf")
             .arg("format=yuv420p,colorchannelmixer=aa=1")
             .arg(output)

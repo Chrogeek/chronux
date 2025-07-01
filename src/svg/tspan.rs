@@ -5,7 +5,7 @@ use unicode_segmentation::UnicodeSegmentation;
 use crate::{
     animation::properties::Properties,
     svg::{attribute_f32, attribute_str, attribute_transform},
-    util::ChronuxResult,
+    util::{ChronuxResult, sort_paints},
 };
 
 #[derive(Debug, Clone)]
@@ -90,6 +90,8 @@ impl Tspan {
         let fill = color_style.get_fill_paint();
         let stroke = color_style.get_stroke_paint();
 
+        let paints = sort_paints(color_style.paint_order, stroke, fill);
+
         let offset = match self.style.text_anchor {
             Align::Left => 0.0,
             Align::Center => self.length / 2.0,
@@ -100,8 +102,20 @@ impl Tspan {
             // Avoid drawing if the text length is too small
         } else if tl < 1e-3 && tr > self.length - 1e-3 {
             let (x, y) = (self.x, self.y);
-            canvas.draw_text_align(&self.text, (x, y), &font, &stroke, self.style.text_anchor);
-            canvas.draw_text_align(&self.text, (x, y), &font, &fill, self.style.text_anchor);
+            canvas.draw_text_align(
+                &self.text,
+                (x, y),
+                &font,
+                &paints[0],
+                self.style.text_anchor,
+            );
+            canvas.draw_text_align(
+                &self.text,
+                (x, y),
+                &font,
+                &paints[1],
+                self.style.text_anchor,
+            );
         } else {
             let mut dlen = 0.0;
             for g in self.text.graphemes(true) {
@@ -115,14 +129,13 @@ impl Tspan {
                     let alpha = (tr - tl) / c;
                     let (x, y) = (self.x + dlen - offset, self.y);
 
-                    let mut new_stroke = stroke.clone();
-                    let mut new_fill = fill.clone();
+                    let mut new_paints = paints.clone();
 
-                    new_stroke.set_alpha((alpha * stroke.alpha() as f32) as u8);
-                    new_fill.set_alpha((alpha * fill.alpha() as f32) as u8);
-
-                    canvas.draw_text_align(g, (x, y), &font, &new_stroke, Align::Left);
-                    canvas.draw_text_align(g, (x, y), &font, &new_fill, Align::Left);
+                    for paint in new_paints.iter_mut() {
+                        // paint.set_path_effect(self.style.get_path_effect());
+                        paint.set_alpha((alpha * paint.alpha() as f32) as u8);
+                        canvas.draw_text_align(g, (x, y), &font, &paint, Align::Left);
+                    }
                 }
 
                 dlen += c;

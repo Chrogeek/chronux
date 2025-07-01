@@ -1,7 +1,8 @@
 use std::fmt::Display;
 
 use serde::Deserialize;
-use skia_safe::Color;
+use skia_safe::{Color, Paint};
+use svgtypes::PaintOrder;
 
 pub mod vector;
 
@@ -145,4 +146,16 @@ where
 {
     let hex_str: String = Deserialize::deserialize(deserializer)?;
     parse_css_color(&hex_str, 1.0).map_err(serde::de::Error::custom)
+}
+
+pub fn sort_paints(paint_order: PaintOrder, stroke: Paint, fill: Paint) -> [Paint; 2] {
+    match paint_order.order {
+        [svgtypes::PaintOrderKind::Fill, svgtypes::PaintOrderKind::Stroke, svgtypes::PaintOrderKind::Markers] => [fill, stroke],
+        [svgtypes::PaintOrderKind::Fill, svgtypes::PaintOrderKind::Markers, svgtypes::PaintOrderKind::Stroke] => [fill, stroke],
+        [svgtypes::PaintOrderKind::Stroke, svgtypes::PaintOrderKind::Fill, svgtypes::PaintOrderKind::Markers] => [stroke, fill],
+        [svgtypes::PaintOrderKind::Stroke, svgtypes::PaintOrderKind::Markers, svgtypes::PaintOrderKind::Fill] => [stroke, fill],
+        [svgtypes::PaintOrderKind::Markers, svgtypes::PaintOrderKind::Fill, svgtypes::PaintOrderKind::Stroke] => [fill, stroke],
+        [svgtypes::PaintOrderKind::Markers, svgtypes::PaintOrderKind::Stroke, svgtypes::PaintOrderKind::Fill] => [stroke, fill],
+        _ => unreachable!("Impossible paint order: {:?}", paint_order.order),
+    }
 }

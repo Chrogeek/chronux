@@ -1,9 +1,9 @@
-use skia_safe::{Canvas, Data, Image, Paint, Rect};
+use skia_safe::{Canvas, Data, Image, Paint, PaintStyle, Rect};
 
 use crate::{
     animation::properties::Properties,
     svg::element::Shape,
-    util::{ChronuxError, ChronuxResult},
+    util::{ChronuxError, ChronuxResult, sort_paints},
 };
 
 pub mod viewport;
@@ -16,34 +16,34 @@ pub fn draw(canvas: &Canvas, shape: &Shape, properties: &Properties) -> ChronuxR
     let fill = properties.get_fill_paint();
     let stroke = properties.get_stroke_paint();
 
+    let paints = sort_paints(properties.paint_order, stroke, fill);
+
     match shape {
         Shape::Path { d } => {
             let effects = properties.get_effects();
-            let (mut fill, mut stroke) = (fill, stroke);
+            let mut paints = paints;
             for e in effects.into_iter() {
-                fill.set_path_effect(e.clone());
-                stroke.set_path_effect(e);
+                paints[0].set_path_effect(e.clone());
+                paints[1].set_path_effect(e);
             }
 
-            canvas.draw_path(&d, &fill);
-            canvas.draw_path(&d, &stroke);
+            canvas.draw_path(&d, &paints[0]);
+            canvas.draw_path(&d, &paints[1]);
         }
         Shape::Circle { cx, cy, r } => {
             let (cx, cy, r) = (*cx, *cy, *r);
-            canvas.draw_arc(
-                Rect::new(cx - r, cy - r, cx + r, cy + r),
-                -90.0,
-                properties.sweep * 360.0,
-                true,
-                &fill,
-            );
-            canvas.draw_arc(
-                Rect::new(cx - r, cy - r, cx + r, cy + r),
-                -90.0,
-                properties.sweep * 360.0,
-                false,
-                &stroke,
-            );
+            for paint in paints {
+                canvas.draw_arc(
+                    Rect::new(cx - r, cy - r, cx + r, cy + r),
+                    -90.0,
+                    properties.sweep * 360.0,
+                    match paint.style() {
+                        PaintStyle::Fill => true,
+                        PaintStyle::Stroke | PaintStyle::StrokeAndFill => false,
+                    },
+                    &paint,
+                );
+            }
         }
         Shape::Text { children, .. } => {
             let (start, end) = properties.typewriter;

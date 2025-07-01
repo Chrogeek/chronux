@@ -1,9 +1,12 @@
+use std::str::FromStr;
+
 use skia_safe::{
     Color, Font, FontHinting, FontStyle, Matrix, PaintCap, PaintJoin, Vector,
     font::Edging,
     font_style::{Slant, Width},
     utils::text_utils::Align,
 };
+use svgtypes::PaintOrder;
 
 use crate::{
     animation::Animation,
@@ -23,6 +26,7 @@ pub struct Properties {
     pub stroke_width: f32,
     pub stroke_linecap: PaintCap,
     pub stroke_linejoin: PaintJoin,
+    pub paint_order: PaintOrder,
     // pub translate_x: f32,
     // pub translate_y: f32,
     // pub scale_x: f32,
@@ -48,6 +52,7 @@ impl Default for Properties {
             stroke_width: 0.0,
             stroke_linecap: PaintCap::Round,   // default to butt cap
             stroke_linejoin: PaintJoin::Round, // default to miter join
+            paint_order: Default::default(),
             // translate_x: 0.0,
             // translate_y: 0.0,
             // scale_x: 1.0,
@@ -204,6 +209,12 @@ impl Properties {
                 ff
             };
             result.font_family = ff;
+        }
+
+        if let Some(paint_order) = rules.get("paint-order") {
+            result.paint_order = PaintOrder::from_str(paint_order).map_err(|_| {
+                ChronuxError::ArgError(format!("invalid paint-order value: {}", paint_order))
+            })?;
         }
 
         Ok(result)

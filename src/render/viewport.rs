@@ -143,9 +143,11 @@ pub fn calc_viewport_keyframe_bezier(viewports: &mut Vec<Viewport>) {
         if i > 0 {
             assert!(
                 viewports[i].t > viewports[i - 1].t,
-                "viewport keyframes must be in ascending order (failed between index {} and {})",
+                "viewport keyframes must be in ascending order (failed between index {} and {}): {:?} vs {:?}",
                 i - 1,
-                i
+                i,
+                viewports[i - 1],
+                viewports[i],
             );
         }
         match viewports[i].smooth {
