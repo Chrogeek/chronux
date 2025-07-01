@@ -4,7 +4,7 @@ use std::process::ExitCode;
 use std::{path::PathBuf, str::FromStr};
 
 use clap::Parser;
-use indicatif::{ParallelProgressIterator, ProgressIterator, ProgressStyle};
+use indicatif::{ParallelProgressIterator, ProgressFinish, ProgressIterator, ProgressStyle};
 use pariter::IteratorExt;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use skia_safe::surfaces;
@@ -269,12 +269,14 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         Writer::PngSequence { .. } => (frame_start..frame_end)
             .into_par_iter()
             .progress_with_style(pstyle)
+            .with_finish(ProgressFinish::AndLeave)
             .map(render_routine)
             .enumerate()
             .map(write_routine)
             .find_any(ChronuxResult::is_err),
         Writer::Ffmpeg { .. } => (frame_start..frame_end)
             .progress_with_style(pstyle)
+            .with_finish(ProgressFinish::AndLeave)
             .parallel_map(render_routine)
             .enumerate()
             .map(write_routine)
