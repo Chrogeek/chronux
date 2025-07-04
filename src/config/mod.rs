@@ -8,7 +8,7 @@ use crate::{
     config::{event::Event, group::Group},
     render::viewport::Viewport,
     svg::element::Object,
-    util::{ChronuxError, ChronuxResult},
+    util::{version::is_compatible, ChronuxError, ChronuxResult},
 };
 
 pub mod event;
@@ -26,6 +26,7 @@ pub struct Config {
 
 #[derive(Debug, Deserialize)]
 pub struct InputConfig {
+    pub version: String,
     pub svg: String,
     #[serde(default = "Vec::new")]
     pub pinned: Vec<String>,
@@ -55,6 +56,12 @@ impl Config {
             std::fs::read_to_string(filename).map_err(|e| ChronuxError::IoError(e))?;
         let config: Config =
             toml::from_str(&config_data).map_err(|e| ChronuxError::ConfigError(e))?;
+
+        if !is_compatible(&config.input.version) {
+            return Err(ChronuxError::VersionError(
+                config.input.version.clone(),
+            ));
+        }
         Ok(config)
     }
 

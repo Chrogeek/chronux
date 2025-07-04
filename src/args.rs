@@ -1,6 +1,7 @@
 use clap_derive::{Parser, ValueEnum};
 
 #[derive(Parser, Debug)]
+#[command(version = env!("CARGO_PKG_VERSION"), about = "A CLI tool for creating simple animations", long_about = None)]
 pub struct Args {
     #[arg(short = 'i', long)]
     pub config: String,

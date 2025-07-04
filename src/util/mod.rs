@@ -5,9 +5,11 @@ use skia_safe::{Color, Paint};
 use svgtypes::PaintOrder;
 
 pub mod vector;
+pub mod version;
 
 #[derive(Debug)]
 pub enum ChronuxError {
+    VersionError(String),
     IoError(std::io::Error),
     ConfigError(toml::de::Error),
     XmlError(roxmltree::Error),
@@ -31,6 +33,9 @@ pub type ChronuxResult<T> = Result<T, ChronuxError>;
 impl Display for ChronuxError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            ChronuxError::VersionError(version) => {
+                write!(f, "Incompatible version: {}", version)
+            }
             ChronuxError::IoError(e) => write!(f, "IO Error: {}", e),
             ChronuxError::ConfigError(e) => {
                 write!(f, "Config Error at span '{:?}': {}", e.span(), e.message())

@@ -8,12 +8,14 @@ clap = "4.5.40"
 clap_derive = "4.5.40"
 csscolorparser = "0.7.2"
 env_logger = "0.11.8"
+image-rs = "0.1.1"
 indicatif = { version = "0.17.11", features = ["rayon"] }
 log = "0.4.27"
 pariter = "0.5.1"
 rayon = "1.10.0"
 roots = "0.0.8"
 roxmltree = "0.20.0"
+semver = "1.0.26"
 serde = { version = "1.0.219", features = ["derive"] }
 simplecss = "0.2.2"
 skia-safe = { version = "0.86.1", features = ["default", "textlayout"] }
