@@ -7,9 +7,10 @@ use clap::Parser;
 use indicatif::{ParallelProgressIterator, ProgressFinish, ProgressIterator, ProgressStyle};
 use pariter::IteratorExt;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
-use skia_safe::surfaces;
+use skia_safe::{surfaces, AlphaType, ColorSpace, ColorType, ImageInfo, SurfaceProps};
 
 use crate::util::timecode_rt;
+use crate::util::version::CHRONUX_VERSION;
 use crate::{
     animation::Animation,
     args::Args,
@@ -36,6 +37,7 @@ fn main() -> ExitCode {
 
     env_logger::init();
     log::info!("Welcome to Chronux!");
+    log::info!("Version {}", CHRONUX_VERSION);
 
     match run(args) {
         Ok(_) => {
@@ -215,11 +217,16 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         let (vx, vy) = (cx - vw / 2.0, cy - vh / 2.0);
 
         // 创建 Skia 画布
-        let mut surface =
-            surfaces::raster_n32_premul((conf.output.width as i32, conf.output.height as i32))
-                .ok_or(ChronuxError::SkiaError(
-                    "failed to create Skia surface".into(),
-                ))?;
+        let ii = ImageInfo::new(
+            (conf.output.width as i32, conf.output.height as i32),
+            ColorType::RGBA8888,
+            AlphaType::Premul,
+            ColorSpace::new_srgb(),
+        );
+        let mut surface = surfaces::raster(&ii, (0) as usize, Some(&SurfaceProps::default()))
+            .ok_or(ChronuxError::SkiaError(
+                "failed to create Skia surface".into(),
+            ))?;
         surface.canvas().clear(conf.output.background_color); // 设置背景颜色
 
         let (sx, sy) = (

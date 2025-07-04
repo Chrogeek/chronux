@@ -3,7 +3,7 @@ use std::{
     process::{Command, Stdio},
 };
 
-use skia_safe::{ImageInfo, Pixmap};
+use image::{ExtendedColorType, ImageEncoder, codecs::png::PngEncoder};
 
 use crate::util::{ChronuxError, ChronuxResult};
 
@@ -30,7 +30,7 @@ impl Writer {
             .arg("-f")
             .arg("rawvideo")
             .arg("-pix_fmt")
-            .arg("bgra")
+            .arg("rgba")
             .arg("-s")
             .arg(format!("{}x{}", width, height))
             .arg("-r")
@@ -89,21 +89,19 @@ impl Writer {
                 let mut file =
                     std::fs::File::create(output).map_err(|e| ChronuxError::IoError(e))?;
 
-                let mut raw = raw;
-                let pixmap = Pixmap::new(
-                    &ImageInfo::new_n32_premul((*width as i32, *height as i32), None),
-                    &mut raw,
-                    *width * 4,
-                )
-                .ok_or(ChronuxError::SkiaError(
-                    "Failed to create Pixmap from raw data".into(),
-                ))?;
-
-                skia_safe::png_encoder::encode(
-                    &pixmap,
-                    &mut file,
-                    &skia_safe::png_encoder::Options::default(),
-                );
+                PngEncoder::new(&mut file)
+                    .write_image(
+                        &raw,
+                        *width as u32,
+                        *height as u32,
+                        ExtendedColorType::Rgba8,
+                    )
+                    .map_err(|e| {
+                        ChronuxError::IoError(std::io::Error::new(
+                            std::io::ErrorKind::Other,
+                            format!("Failed to encode PNG: {}", e),
+                        ))
+                    })?;
             }
         }
         Ok(())

@@ -8,7 +8,7 @@ clap = "4.5.40"
 clap_derive = "4.5.40"
 csscolorparser = "0.7.2"
 env_logger = "0.11.8"
-image-rs = "0.1.1"
+image = "0.25.6"
 indicatif = { version = "0.17.11", features = ["rayon"] }
 log = "0.4.27"
 pariter = "0.5.1"
