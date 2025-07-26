@@ -15,13 +15,11 @@ pub fn svg_to_path(d: &str, mat: Matrix) -> ChronuxResult<Path> {
             )));
         }
         let seg = seg.unwrap();
-        if cur.is_none() {
-            cur = Some((0.0, 0.0))
-        }
+
         match seg {
             PathSegment::MoveTo { abs, x, y } => {
                 let (x, y) = (x as f32, y as f32);
-                if abs {
+                if abs || cur.is_none() {
                     cur = Some((x, y));
 
                     let Point { x, y } = mat.map_point((x, y));
