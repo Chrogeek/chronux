@@ -65,7 +65,45 @@ impl Tspan {
 
         let mut result = Vec::new();
 
+        let coeff = match base_style.text_anchor {
+            Align::Left => 0.0,
+            Align::Center => 0.5,
+            Align::Right => 1.0,
+        };
+
         dfs_node(node, mat, x, y, base_style, &mut result)?;
+
+        if result.is_empty() {
+            return Ok(result);
+        }
+
+        let mut new_xy = Vec::new();
+        let mut total_length = 0.0;
+        let mut start_id = 0;
+        let (mut sx, mut _sy) = (result[0].x, result[0].y);
+
+        for (id, tsp) in result.iter().enumerate() {
+            total_length += tsp.length;
+            if id + 1 == result.len() || tsp.x != result[id + 1].x || tsp.y != result[id + 1].y {
+                let mut cx = sx - total_length * coeff;
+                for i in start_id..=id {
+                    new_xy.push((cx + result[i].length * coeff, result[i].y));
+                    cx += result[i].length;
+                }
+
+                total_length = 0.0;
+                start_id = id + 1;
+                if id + 1 < result.len() {
+                    sx = result[id + 1].x;
+                    _sy = result[id + 1].y;
+                }
+            }
+        }
+
+        for (i, (x, y)) in new_xy.iter().enumerate() {
+            result[i].x = *x;
+            result[i].y = *y;
+        }
 
         Ok(result)
     }
@@ -100,6 +138,7 @@ impl Tspan {
 
         if tr - tl < 1e-3 {
             // Avoid drawing if the text length is too small
+            // Do nothing here
         } else if tl < 1e-3 && tr > self.length - 1e-3 {
             let (x, y) = (self.x, self.y);
             canvas.draw_text_align(
