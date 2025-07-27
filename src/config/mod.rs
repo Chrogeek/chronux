@@ -55,6 +55,10 @@ pub struct DrawingConfig {
     _colors: (),
     pub scale: Option<ScaleConfig>,
     pub minimap: Option<MinimapConfig>,
+    #[serde(rename = "debug-timecode")]
+    pub debug_timecode: bool,
+    #[serde(rename = "ascii-font", default = "default_ascii_font")]
+    pub ascii_font: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -84,6 +88,10 @@ fn default_zero() -> f32 {
 
 fn default_output_time() -> f32 {
     f32::NAN
+}
+
+fn default_ascii_font() -> String {
+    "sans-serif".to_string()
 }
 
 impl Config {

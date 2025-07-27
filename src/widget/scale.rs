@@ -6,7 +6,7 @@ use crate::{
     widget::{WIDGET_CANVAS_HEIGHT, WIDGET_CANVAS_WIDTH},
 };
 
-pub fn draw(canvas: &Canvas, scale: &ScaleConfig, viewbox_width: f32) -> ChronuxResult<()> {
+pub fn draw(canvas: &Canvas, scale: &ScaleConfig, viewbox_width: f32, font_family: &str) -> ChronuxResult<()> {
     let mut fill = skia_safe::Paint::default();
     fill.set_anti_alias(true);
     fill.set_color(skia_safe::Color::BLACK);
@@ -46,7 +46,7 @@ pub fn draw(canvas: &Canvas, scale: &ScaleConfig, viewbox_width: f32) -> Chronux
     let meters = meters.unwrap() as f32;
     let length = meters / resolution;
 
-    let font = get_font("Moscow Sans Web", 20.0, 400)?;
+    let font = get_font(font_family, 20.0, 400)?;
     let height = font.measure_str("0", Some(&fill)).1.height();
 
     // 在画布的右下角绘制比例尺

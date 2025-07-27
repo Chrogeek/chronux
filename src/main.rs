@@ -7,9 +7,10 @@ use clap::Parser;
 use indicatif::{ParallelProgressIterator, ProgressFinish, ProgressIterator, ProgressStyle};
 use pariter::IteratorExt;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
+use skia_safe::utils::text_utils::Align;
 use skia_safe::{AlphaType, ColorSpace, ColorType, ImageInfo, SurfaceProps, surfaces};
 
-use crate::util::timecode_rt;
+use crate::util::{get_font, timecode_rt};
 use crate::util::version::CHRONUX_VERSION;
 use crate::widget::{WIDGET_CANVAS_HEIGHT, WIDGET_CANVAS_WIDTH};
 use crate::{
@@ -271,8 +272,30 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                 &surface.canvas(),
                 scale,
                 vw,
+                &conf.drawing.ascii_font,
             )?;
         }
+
+        // 调试模式下输出时间码
+        if conf.drawing.debug_timecode {
+            surface.canvas().reset_matrix();
+            let timecode = timecode_rt(t, conf.output.fps);
+            let mut paint = skia_safe::Paint::default();
+            paint.set_anti_alias(true);
+            paint.set_color(skia_safe::Color::BLACK);
+
+            let sc = conf.output.width as f32 / 1920.0;
+            let font = get_font(&conf.drawing.ascii_font, 20.0 * sc, 400)?;
+            let (x, y) = (1900.0 * sc, 960.0 * sc);
+            surface.canvas().draw_text_align(
+                &timecode,
+                (x, y),
+                &font,
+                &paint,
+                Align::Right,
+            );
+        }
+
 
         // 输出图片
         let pixmap = surface.peek_pixels().ok_or(ChronuxError::SkiaError(
