@@ -1,13 +1,13 @@
 use std::str::FromStr;
 
-use skia_safe::{
-    utils::text_utils::Align, Color, Font, Matrix, PaintCap, PaintJoin, Vector
-};
+use skia_safe::{Color, Font, Matrix, PaintCap, PaintJoin, Vector, utils::text_utils::Align};
 use svgtypes::PaintOrder;
 
 use crate::{
     animation::Animation,
-    util::{self, parse_css_color, parse_font_weight, parse_unit_value, ChronuxError, ChronuxResult},
+    util::{
+        self, ChronuxError, ChronuxResult, parse_css_color, parse_font_weight, parse_unit_value,
+    },
 };
 
 #[derive(Debug, Clone)]
@@ -68,6 +68,13 @@ impl Properties {
         match event {
             Animation::TrimPath { reverse } => {
                 let (start, end) = if *reverse { (1.0 - t, 1.0) } else { (0.0, t) };
+                Properties {
+                    trim: (start, end),
+                    ..self.clone()
+                }
+            }
+            Animation::TrimPathOut { reverse } => {
+                let (start, end) = if *reverse { (t, 1.0) } else { (0.0, 1.0 - t) };
                 Properties {
                     trim: (start, end),
                     ..self.clone()

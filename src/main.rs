@@ -10,8 +10,8 @@ use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterato
 use skia_safe::utils::text_utils::Align;
 use skia_safe::{AlphaType, ColorSpace, ColorType, ImageInfo, SurfaceProps, surfaces};
 
-use crate::util::{get_font, timecode_rt};
 use crate::util::version::CHRONUX_VERSION;
+use crate::util::{get_font, timecode_rt};
 use crate::widget::{WIDGET_CANVAS_HEIGHT, WIDGET_CANVAS_WIDTH};
 use crate::{
     animation::Animation,
@@ -163,7 +163,10 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                         tl.start.opacity = 0.0;
                     }
                     // 下面这些不是出现动画，什么都不用做
-                    Animation::TypewriterOut | Animation::Tween(_) | Animation::FadeOut => {}
+                    Animation::TypewriterOut
+                    | Animation::Tween(_)
+                    | Animation::FadeOut
+                    | Animation::TrimPathOut { .. } => {}
                 }
             }
         }
@@ -253,27 +256,19 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         }
 
         // 绘制包装前，需要重置 viewbox 变换，然后按照 1920x1080 大小重新缩放
-        surface.canvas().reset_matrix().scale((conf.output.width as f32 / WIDGET_CANVAS_WIDTH, conf.output.height as f32 / WIDGET_CANVAS_HEIGHT));
+        surface.canvas().reset_matrix().scale((
+            conf.output.width as f32 / WIDGET_CANVAS_WIDTH,
+            conf.output.height as f32 / WIDGET_CANVAS_HEIGHT,
+        ));
 
         // 绘制小地图
         if let Some(minimap) = conf.drawing.minimap.as_ref() {
-            widget::minimap::draw(
-                &surface.canvas(),
-                minimap,
-                &timeline,
-                &objs,
-                t
-            )?;
+            widget::minimap::draw(&surface.canvas(), minimap, &timeline, &objs, t)?;
         }
 
         // 绘制比例尺
         if let Some(scale) = conf.drawing.scale.as_ref() {
-            widget::scale::draw(
-                &surface.canvas(),
-                scale,
-                vw,
-                &conf.drawing.ascii_font,
-            )?;
+            widget::scale::draw(&surface.canvas(), scale, vw, &conf.drawing.ascii_font)?;
         }
 
         // 调试模式下输出时间码
@@ -287,15 +282,10 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             let sc = conf.output.width as f32 / 1920.0;
             let font = get_font(&conf.drawing.ascii_font, 20.0 * sc, 400)?;
             let (x, y) = (1900.0 * sc, 960.0 * sc);
-            surface.canvas().draw_text_align(
-                &timecode,
-                (x, y),
-                &font,
-                &paint,
-                Align::Right,
-            );
+            surface
+                .canvas()
+                .draw_text_align(&timecode, (x, y), &font, &paint, Align::Right);
         }
-
 
         // 输出图片
         let pixmap = surface.peek_pixels().ok_or(ChronuxError::SkiaError(

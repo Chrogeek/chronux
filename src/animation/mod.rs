@@ -18,8 +18,8 @@ pub mod tween;
 pub enum Animation {
     #[serde(rename = "trim-path")]
     TrimPath { reverse: bool },
-    // #[serde(rename = "trim-path-out")]
-    // TrimPathOut { reverse: bool },
+    #[serde(rename = "trim-path-out")]
+    TrimPathOut { reverse: bool },
     #[serde(rename = "typewriter")]
     Typewriter,
     #[serde(rename = "typewriter-out")]
@@ -98,6 +98,69 @@ pub fn track(obj: &Object, event: &Event, x: f32, y: f32) -> ChronuxResult<f32> 
                 let tm = (tl + tr) / 2.0;
 
                 let tm = if reverse { 1.0 - tm } else { tm };
+
+                log::trace!("track result: tm = {}", tm);
+
+                Ok(tm)
+            } else {
+                Err(ChronuxError::ArgError(
+                    "non-path shapes cannot be tracked".into(),
+                ))
+            }
+        }
+        Animation::TrimPathOut { reverse } => {
+            const SEGMENTS: usize = 20;
+
+            if let Shape::Path { d } = &obj.shape {
+                let mut pm = PathMeasure::new(&d, false, Some(2.0));
+                let length = pm.length();
+
+                let closest = (0..SEGMENTS + 1)
+                    .map(|i| {
+                        let t = event.easing.evaluate(i as f32 / SEGMENTS as f32);
+                        let dis = t * length;
+                        (i, pm.pos_tan(dis).unwrap().0)
+                    })
+                    .min_by(|(_, p1), (_, p2)| {
+                        let d1 = (p1.x - x).powi(2) + (p1.y - y).powi(2);
+                        let d2 = (p2.x - x).powi(2) + (p2.y - y).powi(2);
+                        d1.partial_cmp(&d2).unwrap()
+                    })
+                    .unwrap();
+
+                let mut tl = if closest.0 > 0 {
+                    closest.0 - 1
+                } else {
+                    closest.0
+                } as f32
+                    / SEGMENTS as f32;
+
+                let mut tr = if closest.0 < SEGMENTS {
+                    closest.0 + 1
+                } else {
+                    closest.0
+                } as f32
+                    / SEGMENTS as f32;
+
+                for _ in 0..10 {
+                    let mml = tl + (tr - tl) / 3.0;
+                    let mmr = tr - (tr - tl) / 3.0;
+                    let ml = event.easing.evaluate(mml);
+                    let mr = event.easing.evaluate(mmr);
+                    let dl = pm.pos_tan(ml * length).unwrap().0;
+                    let dr = pm.pos_tan(mr * length).unwrap().0;
+                    let d1 = (dl.x - x).powi(2) + (dl.y - y).powi(2);
+                    let d2 = (dr.x - x).powi(2) + (dr.y - y).powi(2);
+                    if d1 < d2 {
+                        tr = mmr;
+                    } else {
+                        tl = mml;
+                    }
+                }
+
+                let tm = (tl + tr) / 2.0;
+
+                let tm = if reverse { tm } else { 1.0 - tm };
 
                 log::trace!("track result: tm = {}", tm);
 
