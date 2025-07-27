@@ -1,12 +1,12 @@
 use std::path::PathBuf;
 
 use roxmltree::Node;
-use skia_safe::{Matrix, Path, Point, Vector};
+use skia_safe::{Data, Image, Matrix, Path, Point, Vector};
 
 use crate::{
     animation::properties::Properties,
     svg::{self, tspan::Tspan},
-    util::ChronuxResult,
+    util::{ChronuxError, ChronuxResult},
 };
 
 #[derive(Debug, Clone)]
@@ -32,11 +32,11 @@ pub enum Shape {
         children: Vec<Tspan>,
     },
     Image {
-        href: String,
         x: f32,
         y: f32,
         width: f32,
         height: f32,
+        skia_img: Image,
     },
 }
 
@@ -89,12 +89,21 @@ impl Object {
                     x: width,
                     y: height,
                 } = mat.map_vector((width, height));
+
+                let data = Data::from_filename(&href).ok_or(ChronuxError::HrefError(format!(
+                    "Failed to load image data from {}",
+                    href
+                )))?;
+                let img = Image::from_encoded(data).ok_or(ChronuxError::HrefError(format!(
+                    "Failed to load image from {}",
+                    href
+                )))?;
                 Shape::Image {
-                    href,
                     x,
                     y,
                     width,
                     height,
+                    skia_img: img,
                 }
             }
             _ => unreachable!("unexpected SVG element: {}", node.tag_name().name()),

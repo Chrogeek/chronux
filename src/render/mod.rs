@@ -1,9 +1,9 @@
-use skia_safe::{Canvas, Data, Image, Paint, PaintStyle, Rect};
+use skia_safe::{Canvas, Paint, PaintStyle, Rect};
 
 use crate::{
     animation::properties::Properties,
     svg::element::Shape,
-    util::{ChronuxError, ChronuxResult, sort_paints},
+    util::{ChronuxResult, sort_paints},
 };
 
 pub mod viewport;
@@ -72,25 +72,51 @@ pub fn draw(canvas: &Canvas, shape: &Shape, properties: &Properties) -> ChronuxR
             }
         }
         Shape::Image {
-            href,
             x,
             y,
             width,
             height,
+            skia_img,
         } => {
-            let data = Data::from_filename(href).ok_or(ChronuxError::HrefError(format!(
-                "Failed to load image data from {}",
-                href
-            )))?;
-            let img = Image::from_encoded(data).ok_or(ChronuxError::HrefError(format!(
-                "Failed to load image from {}",
-                href
-            )))?;
             let mut paint = Paint::default();
             paint.set_alpha((properties.opacity * 255.0) as u8);
-            canvas.draw_image_rect(&img, None, Rect::new(*x, *y, x + width, y + height), &paint);
+            canvas.draw_image_rect(
+                skia_img,
+                None,
+                Rect::new(*x, *y, x + width, y + height),
+                &paint,
+            );
         }
     }
 
     Ok(())
+}
+
+pub fn get_bounding_box(shape: &Shape, properties: &Properties) -> (f32, f32, f32, f32) {
+    match shape {
+        Shape::Path { d } => {
+            const SEGMENTS: usize = 20;
+            let mut pm = skia_safe::PathMeasure::new(d, false, None);
+            let length = pm.length();
+            let (tl, tr) = properties.trim;
+            let mut rect: Option<(f32, f32, f32, f32)> = None;
+            (0..SEGMENTS).for_each(|i| {
+                let dis = (i as f32 / (SEGMENTS - 1) as f32 * (tr - tl) + tl) * length;
+                let pt = pm.pos_tan(dis).unwrap().0;
+                if let Some((rl, rt, rr, rb)) = rect {
+                    rect = Some((rl.min(pt.x), rt.min(pt.y), rr.max(pt.x), rb.max(pt.y)));
+                } else {
+                    rect = Some((pt.x, pt.y, pt.x, pt.y));
+                }
+            });
+            rect.expect("")
+        }
+        _ => {
+            log::warn!(
+                "Bounding box calculation for {:?} is not implemented",
+                shape
+            );
+            (0.0, 0.0, 0.0, 0.0) // Return a default value
+        }
+    }
 }

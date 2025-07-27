@@ -1,3 +1,4 @@
+use core::f32;
 use std::collections::{HashMap, HashSet};
 
 use serde::Deserialize;
@@ -31,12 +32,6 @@ pub struct InputConfig {
     pub svg: String,
     #[serde(default = "Vec::new")]
     pub pinned: Vec<String>,
-    /// OSM zoom level
-    /// If the scale is drawn, both `zoom_level` and `latitude` must be set.
-    pub zoom_level: Option<f32>,
-    /// Latitude in degrees to calculate scale
-    /// If the scale is drawn, both `zoom_level` and `latitude` must be set.
-    pub latitude: Option<f32>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -58,10 +53,43 @@ pub struct DrawingConfig {
     #[serde(rename = "colors")]
     #[serde(deserialize_with = "deserialize_color_dict")]
     _colors: (),
+    /// OSM zoom level
+    /// If the scale is drawn, both `zoom` and `lat` must be set.
+    pub zoom: Option<f32>,
+    /// Latitude in degrees to calculate scale
+    /// If the scale is drawn, both `zoom` and `lat` must be set.
+    pub lat: Option<f32>,
+    pub minimap: Option<MinimapConfig>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct MinimapConfig {
+    pub paths: HashSet<String>,
+    #[serde(rename = "min-scale", default = "default_min_scale")]
+    pub min_scale: f32,
+    #[serde(rename = "max-scale", default = "default_max_scale")]
+    pub max_scale: f32,
+    pub padding: f32,
+    #[serde(rename = "corner-radius", default = "default_zero")]
+    pub corner_radius: f32,
+    #[serde(rename = "minimap-size")]
+    pub size: f32,
+}
+
+fn default_zero() -> f32 {
+    0.0
 }
 
 fn default_output_time() -> f32 {
     f32::NAN
+}
+
+fn default_min_scale() -> f32 {
+    1.0
+}
+
+fn default_max_scale() -> f32 {
+    f32::INFINITY
 }
 
 impl Config {

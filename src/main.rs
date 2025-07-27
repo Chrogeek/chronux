@@ -11,6 +11,7 @@ use skia_safe::{AlphaType, ColorSpace, ColorType, ImageInfo, SurfaceProps, surfa
 
 use crate::util::timecode_rt;
 use crate::util::version::CHRONUX_VERSION;
+use crate::widget::{WIDGET_CANVAS_HEIGHT, WIDGET_CANVAS_WIDTH};
 use crate::{
     animation::Animation,
     args::Args,
@@ -29,7 +30,7 @@ mod config;
 mod render;
 mod svg;
 mod util;
-// mod widget;
+mod widget;
 mod writer;
 
 fn main() -> ExitCode {
@@ -248,6 +249,20 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                 None => o.style.clone(),
             };
             render::draw(&surface.canvas(), &o.shape, &properties)?;
+        }
+
+        // 绘制包装前，需要重置 viewbox 变换，然后按照 1920x1080 大小重新缩放
+        surface.canvas().reset_matrix().scale((conf.output.width as f32 / WIDGET_CANVAS_WIDTH, conf.output.height as f32 / WIDGET_CANVAS_HEIGHT));
+
+        // 绘制小地图
+        if let Some(minimap) = conf.drawing.minimap.as_ref() {
+            widget::minimap::draw(
+                &surface.canvas(),
+                minimap,
+                &timeline,
+                &objs,
+                t
+            )?;
         }
 
         // 输出图片
