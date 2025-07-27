@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use skia_safe::{Canvas, ClipOp, RRect, Rect};
+use skia_safe::{Canvas, Rect};
 
 use crate::{
     animation::timeline::Timeline,
@@ -106,7 +106,7 @@ pub fn draw(
         }
     }
 
-    // 恢复坐标变换和裁剪区域
+    // 恢复坐标变换
     canvas.restore_to_count(canvas_restore_count);
 
     Ok(())

@@ -265,6 +265,15 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             )?;
         }
 
+        // 绘制比例尺
+        if let Some(scale) = conf.drawing.scale.as_ref() {
+            widget::scale::draw(
+                &surface.canvas(),
+                scale,
+                vw,
+            )?;
+        }
+
         // 输出图片
         let pixmap = surface.peek_pixels().ok_or(ChronuxError::SkiaError(
             "failed to peek pixels from Skia surface".into(),

@@ -53,12 +53,7 @@ pub struct DrawingConfig {
     #[serde(rename = "colors")]
     #[serde(deserialize_with = "deserialize_color_dict")]
     _colors: (),
-    /// OSM zoom level
-    /// If the scale is drawn, both `zoom` and `lat` must be set.
-    pub zoom: Option<f32>,
-    /// Latitude in degrees to calculate scale
-    /// If the scale is drawn, both `zoom` and `lat` must be set.
-    pub lat: Option<f32>,
+    pub scale: Option<ScaleConfig>,
     pub minimap: Option<MinimapConfig>,
 }
 
@@ -74,6 +69,17 @@ pub struct MinimapConfig {
     pub corner_radius: f32,
     #[serde(rename = "minimap-size")]
     pub size: f32,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct ScaleConfig {
+    /// OSM zoom level
+    /// If the scale is drawn, both `zoom` and `lat` must be set.
+    pub zoom: f32,
+    /// Latitude in degrees to calculate scale
+    /// If the scale is drawn, both `zoom` and `lat` must be set.
+    pub lat: f32,
+    pub padding: f32,
 }
 
 fn default_zero() -> f32 {

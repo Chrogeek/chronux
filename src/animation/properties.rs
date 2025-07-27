@@ -1,16 +1,13 @@
 use std::str::FromStr;
 
 use skia_safe::{
-    Color, Font, FontHinting, FontStyle, Matrix, PaintCap, PaintJoin, Vector,
-    font::Edging,
-    font_style::{Slant, Width},
-    utils::text_utils::Align,
+    utils::text_utils::Align, Color, Font, Matrix, PaintCap, PaintJoin, Vector
 };
 use svgtypes::PaintOrder;
 
 use crate::{
     animation::Animation,
-    util::{ChronuxError, ChronuxResult, parse_css_color, parse_font_weight, parse_unit_value},
+    util::{self, parse_css_color, parse_font_weight, parse_unit_value, ChronuxError, ChronuxResult},
 };
 
 #[derive(Debug, Clone)]
@@ -258,23 +255,7 @@ impl Properties {
     }
 
     pub fn get_font(&self) -> ChronuxResult<Font> {
-        let mgr = skia_safe::FontMgr::default();
-        let mut family = mgr.match_family(&self.font_family);
-        let tf = family
-            .match_style(FontStyle::new(
-                (self.font_weight as i32).into(),
-                Width::NORMAL,
-                Slant::Upright,
-            ))
-            .ok_or(ChronuxError::SkiaError(format!(
-                "failed to create typeface '{}'",
-                self.font_family
-            )))?;
-        let mut font = Font::from_typeface(tf, self.font_size);
-        font.set_subpixel(true);
-        font.set_hinting(FontHinting::Slight);
-        font.set_edging(Edging::SubpixelAntiAlias);
-        Ok(font)
+        util::get_font(&self.font_family, self.font_size, self.font_weight as i32)
     }
 
     pub fn measure_string(&self, text: &str) -> ChronuxResult<f32> {
