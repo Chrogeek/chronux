@@ -60,10 +60,6 @@ pub struct DrawingConfig {
 #[derive(Debug, Deserialize, Clone)]
 pub struct MinimapConfig {
     pub paths: HashSet<String>,
-    #[serde(rename = "min-scale", default = "default_min_scale")]
-    pub min_scale: f32,
-    #[serde(rename = "max-scale", default = "default_max_scale")]
-    pub max_scale: f32,
     pub padding: f32,
     #[serde(rename = "corner-radius", default = "default_zero")]
     pub corner_radius: f32,
@@ -88,14 +84,6 @@ fn default_zero() -> f32 {
 
 fn default_output_time() -> f32 {
     f32::NAN
-}
-
-fn default_min_scale() -> f32 {
-    1.0
-}
-
-fn default_max_scale() -> f32 {
-    f32::INFINITY
 }
 
 impl Config {

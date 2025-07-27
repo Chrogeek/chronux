@@ -1,4 +1,4 @@
-use skia_safe::{Canvas, FontMetrics, Point, utils::text_utils::Align};
+use skia_safe::{Canvas, Point, utils::text_utils::Align};
 
 use crate::{
     config::ScaleConfig,
