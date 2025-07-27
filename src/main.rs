@@ -7,7 +7,7 @@ use clap::Parser;
 use indicatif::{ParallelProgressIterator, ProgressFinish, ProgressIterator, ProgressStyle};
 use pariter::IteratorExt;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
-use skia_safe::{surfaces, AlphaType, ColorSpace, ColorType, ImageInfo, SurfaceProps};
+use skia_safe::{AlphaType, ColorSpace, ColorType, ImageInfo, SurfaceProps, surfaces};
 
 use crate::util::timecode_rt;
 use crate::util::version::CHRONUX_VERSION;
@@ -68,7 +68,12 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     log::trace!("IDs: {:?}", ids);
 
     // 解析SVG
-    let svg = Svg::from_file(&conf.input.svg)?;
+    let svg_file = PathBuf::from_str(&input)
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join(&conf.input.svg);
+    let svg = Svg::from_file(svg_file.clone())?;
     log::info!("Loaded SVG from file `{}`", conf.input.svg);
 
     // 读取 SVG 中的路径、圆形和文本
@@ -76,8 +81,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     ids.extend(conf.input.pinned.iter().cloned());
     let objs = svg.search_labels(
         &ids,
-        PathBuf::from_str(&conf.input.svg.clone())
-            .unwrap()
+        svg_file
             .parent()
             .ok_or(ChronuxError::HrefError("incorrect href".to_string()))?
             .to_path_buf(),

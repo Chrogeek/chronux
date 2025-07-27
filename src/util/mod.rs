@@ -1,5 +1,6 @@
-use std::fmt::Display;
+use std::{collections::HashMap, fmt::Display};
 
+use once_cell::sync::OnceCell;
 use serde::Deserialize;
 use skia_safe::{Color, Paint};
 use svgtypes::PaintOrder;
@@ -69,9 +70,16 @@ impl Display for ChronuxError {
     }
 }
 
+pub static COLOR_DICT: OnceCell<HashMap<String, Color>> = OnceCell::new();
+
 pub fn parse_css_color(color: &str, opacity: f32) -> ChronuxResult<Color> {
     if color == "none" {
         return Ok(Color::TRANSPARENT);
+    }
+    if let Some(dict) = COLOR_DICT.get()
+        && let Some(c) = dict.get(color)
+    {
+        return Ok(*c);
     }
     let [r, g, b, _] = csscolorparser::parse(color)
         .map_err(|e| {
@@ -155,12 +163,36 @@ where
 
 pub fn sort_paints(paint_order: PaintOrder, stroke: Paint, fill: Paint) -> [Paint; 2] {
     match paint_order.order {
-        [svgtypes::PaintOrderKind::Fill, svgtypes::PaintOrderKind::Stroke, svgtypes::PaintOrderKind::Markers] => [fill, stroke],
-        [svgtypes::PaintOrderKind::Fill, svgtypes::PaintOrderKind::Markers, svgtypes::PaintOrderKind::Stroke] => [fill, stroke],
-        [svgtypes::PaintOrderKind::Stroke, svgtypes::PaintOrderKind::Fill, svgtypes::PaintOrderKind::Markers] => [stroke, fill],
-        [svgtypes::PaintOrderKind::Stroke, svgtypes::PaintOrderKind::Markers, svgtypes::PaintOrderKind::Fill] => [stroke, fill],
-        [svgtypes::PaintOrderKind::Markers, svgtypes::PaintOrderKind::Fill, svgtypes::PaintOrderKind::Stroke] => [fill, stroke],
-        [svgtypes::PaintOrderKind::Markers, svgtypes::PaintOrderKind::Stroke, svgtypes::PaintOrderKind::Fill] => [stroke, fill],
+        [
+            svgtypes::PaintOrderKind::Fill,
+            svgtypes::PaintOrderKind::Stroke,
+            svgtypes::PaintOrderKind::Markers,
+        ] => [fill, stroke],
+        [
+            svgtypes::PaintOrderKind::Fill,
+            svgtypes::PaintOrderKind::Markers,
+            svgtypes::PaintOrderKind::Stroke,
+        ] => [fill, stroke],
+        [
+            svgtypes::PaintOrderKind::Stroke,
+            svgtypes::PaintOrderKind::Fill,
+            svgtypes::PaintOrderKind::Markers,
+        ] => [stroke, fill],
+        [
+            svgtypes::PaintOrderKind::Stroke,
+            svgtypes::PaintOrderKind::Markers,
+            svgtypes::PaintOrderKind::Fill,
+        ] => [stroke, fill],
+        [
+            svgtypes::PaintOrderKind::Markers,
+            svgtypes::PaintOrderKind::Fill,
+            svgtypes::PaintOrderKind::Stroke,
+        ] => [fill, stroke],
+        [
+            svgtypes::PaintOrderKind::Markers,
+            svgtypes::PaintOrderKind::Stroke,
+            svgtypes::PaintOrderKind::Fill,
+        ] => [stroke, fill],
         _ => unreachable!("Impossible paint order: {:?}", paint_order.order),
     }
 }

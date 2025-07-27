@@ -8,7 +8,7 @@ use crate::{
     config::{event::Event, group::Group},
     render::viewport::Viewport,
     svg::element::Object,
-    util::{version::is_compatible, ChronuxError, ChronuxResult},
+    util::{version::is_compatible, ChronuxError, ChronuxResult, COLOR_DICT},
 };
 
 pub mod event;
@@ -18,6 +18,7 @@ pub mod group;
 pub struct Config {
     pub input: InputConfig,
     pub output: OutputConfig,
+    pub drawing: DrawingConfig,
     #[serde(deserialize_with = "deserialize_events")]
     pub events: HashMap<String, Event>,
     pub groups: Vec<Group>,
@@ -30,6 +31,12 @@ pub struct InputConfig {
     pub svg: String,
     #[serde(default = "Vec::new")]
     pub pinned: Vec<String>,
+    /// OSM zoom level
+    /// If the scale is drawn, both `zoom_level` and `latitude` must be set.
+    pub zoom_level: Option<f32>,
+    /// Latitude in degrees to calculate scale
+    /// If the scale is drawn, both `zoom_level` and `latitude` must be set.
+    pub latitude: Option<f32>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -46,6 +53,13 @@ pub struct OutputConfig {
     pub background_color: Color,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct DrawingConfig {
+    #[serde(rename = "colors")]
+    #[serde(deserialize_with = "deserialize_color_dict")]
+    _colors: (),
+}
+
 fn default_output_time() -> f32 {
     f32::NAN
 }
@@ -58,9 +72,7 @@ impl Config {
             toml::from_str(&config_data).map_err(|e| ChronuxError::ConfigError(e))?;
 
         if !is_compatible(&config.input.version) {
-            return Err(ChronuxError::VersionError(
-                config.input.version.clone(),
-            ));
+            return Err(ChronuxError::VersionError(config.input.version.clone()));
         }
         Ok(config)
     }
@@ -210,4 +222,32 @@ where
         events.insert(item.id.clone(), item);
     }
     Ok(events)
+}
+
+fn deserialize_color_dict<'de, D>(deserializer: D) -> Result<(), D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let colors = HashMap::<String, String>::deserialize(deserializer)?
+        .into_iter()
+        .map(|(k, v)| -> ChronuxResult<(String, Color)> {
+            let [r, g, b, a] = csscolorparser::parse(&v)
+                .map_err(|e| {
+                    ChronuxError::ColorParseError(format!(
+                        "cannot parse color literal '{}' for color key '{}': {}",
+                        v,
+                        k,
+                        e.to_string()
+                    ))
+                })?
+                .to_rgba8();
+            Ok((k, Color::from_argb(a, r, g, b)))
+        })
+        .flatten()
+        .collect();
+
+    COLOR_DICT.set(colors)
+        .map_err(|_| serde::de::Error::custom("Failed to set COLOR_DICT"))?;
+
+    Ok(())
 }

@@ -19,7 +19,7 @@ pub struct Svg {
 }
 
 impl Svg {
-    pub fn from_file(filename: &str) -> ChronuxResult<Svg> {
+    pub fn from_file(filename: PathBuf) -> ChronuxResult<Svg> {
         let svg_text = std::fs::read_to_string(filename).map_err(ChronuxError::IoError)?;
         // Leak the String to get a &'static str for Document
         let leaked_svg_text: &'static str = Box::leak(svg_text.clone().into_boxed_str());
