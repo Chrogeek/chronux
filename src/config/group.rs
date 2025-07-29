@@ -30,11 +30,7 @@ impl Group {
             .map(|(i, (obj_id, animation))| {
                 let track_follows = matches!(&self.offset, Offset::Track { .. }) && i != 0;
                 Event {
-                    id: format!(
-                        "{}{}",
-                        self.id,
-                        if i == 0 { String::new() } else { i.to_string() }
-                    ),
+                    id: if i == 0 { self.id.clone() } else { format!("{}____{}", self.id, i.to_string()) },
                     depends: if track_follows {
                         vec![self.id.clone()]
                     } else {
