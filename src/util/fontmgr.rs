@@ -22,18 +22,18 @@ static FONT_CACHE: LazyLock<RwLock<HashMap<TypefaceMatcher, Font>>> =
     LazyLock::new(|| RwLock::new(HashMap::new()));
 
 pub fn get_font(font_family: &str, font_size: f32, font_weight: i32) -> ChronuxResult<Font> {
-    let mut cache = FONT_CACHE
-        .write()
-        .map_err(|_| ChronuxError::SkiaError("Failed to write to font cache".to_string()))?;
-
     let matcher = TypefaceMatcher {
         font_family: font_family.to_string(),
         font_size: font_size as i32,
         font_weight,
     };
 
-    if cache.contains_key(&matcher) {
-        return Ok(cache[&matcher].clone());
+    if let Some(font) = FONT_CACHE
+        .read()
+        .map_err(|_| ChronuxError::SkiaError("Failed to load font cache".to_string()))?
+        .get(&matcher)
+    {
+        return Ok(font.clone());
     }
 
     let mgr = skia_safe::FontMgr::new();
@@ -51,7 +51,10 @@ pub fn get_font(font_family: &str, font_size: f32, font_weight: i32) -> ChronuxR
     font.set_hinting(FontHinting::Slight);
     font.set_edging(Edging::SubpixelAntiAlias);
 
-    cache.insert(matcher.clone(), font.clone());
+    FONT_CACHE
+        .write()
+        .map_err(|_| ChronuxError::SkiaError("Failed to write to font cache".to_string()))?
+        .insert(matcher.clone(), font.clone());
 
     Ok(font)
 }
