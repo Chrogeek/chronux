@@ -6,7 +6,7 @@ use std::{path::PathBuf, str::FromStr};
 use clap::Parser;
 use indicatif::{ParallelProgressIterator, ProgressFinish, ProgressIterator, ProgressStyle};
 use pariter::IteratorExt;
-use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use skia_safe::utils::text_utils::Align;
 use skia_safe::{AlphaType, ColorSpace, ColorType, ImageInfo, SurfaceProps, surfaces};
 
@@ -299,12 +299,12 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             ))?
             .to_vec();
 
-        Ok(raw)
+        Ok((f, raw))
     };
 
-    let write_routine = |(f, raw)| {
-        let res = match raw {
-            Ok(raw) => {
+    let write_routine = |indexed_raw| {
+        let res = match indexed_raw {
+            Ok((f, raw)) => {
                 writer.write_frame(f, raw)?;
                 Ok(())
             }
@@ -319,14 +319,12 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             .progress_with_style(pstyle)
             .with_finish(ProgressFinish::AndLeave)
             .map(render_routine)
-            .enumerate()
             .map(write_routine)
             .find_any(ChronuxResult::is_err),
         Writer::Ffmpeg { .. } => (frame_start..frame_end)
             .progress_with_style(pstyle)
             .with_finish(ProgressFinish::AndLeave)
             .parallel_map(render_routine)
-            .enumerate()
             .map(write_routine)
             .find(ChronuxResult::is_err),
     };
