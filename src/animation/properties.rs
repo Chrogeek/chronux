@@ -262,7 +262,7 @@ impl Properties {
     }
 
     pub fn get_font(&self) -> ChronuxResult<Font> {
-        util::get_font(&self.font_family, self.font_size, self.font_weight as i32)
+        util::fontmgr::get_font(&self.font_family, self.font_size, self.font_weight as i32)
     }
 
     pub fn measure_string(&self, text: &str) -> ChronuxResult<f32> {

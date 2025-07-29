@@ -10,8 +10,9 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use skia_safe::utils::text_utils::Align;
 use skia_safe::{AlphaType, ColorSpace, ColorType, ImageInfo, SurfaceProps, surfaces};
 
+use crate::util::fontmgr::get_font;
 use crate::util::version::CHRONUX_VERSION;
-use crate::util::{get_font, timecode_rt};
+use crate::util::{timecode_rt};
 use crate::widget::{WIDGET_CANVAS_HEIGHT, WIDGET_CANVAS_WIDTH};
 use crate::{
     animation::Animation,

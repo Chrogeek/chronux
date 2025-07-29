@@ -2,13 +2,10 @@ use std::{collections::HashMap, fmt::Display};
 
 use once_cell::sync::OnceCell;
 use serde::Deserialize;
-use skia_safe::{
-    Color, Font, FontHinting, FontStyle, Paint,
-    font::Edging,
-    font_style::{Slant, Width},
-};
+use skia_safe::{Color, Paint};
 use svgtypes::PaintOrder;
 
+pub mod fontmgr;
 pub mod vector;
 pub mod version;
 
@@ -199,22 +196,4 @@ pub fn sort_paints(paint_order: PaintOrder, stroke: Paint, fill: Paint) -> [Pain
         ] => [stroke, fill],
         _ => unreachable!("Impossible paint order: {:?}", paint_order.order),
     }
-}
-
-pub fn get_font(font_family: &str, font_size: f32, font_weight: i32) -> ChronuxResult<Font> {
-    let mgr = skia_safe::FontMgr::new();
-    let tf = mgr
-        .match_family_style(
-            font_family,
-            FontStyle::new(font_weight.into(), Width::NORMAL, Slant::Upright),
-        )
-        .ok_or(ChronuxError::SkiaError(format!(
-            "failed to create typeface '{}'",
-            font_family
-        )))?;
-    let mut font = Font::from_typeface(tf, font_size);
-    font.set_subpixel(true);
-    font.set_hinting(FontHinting::Slight);
-    font.set_edging(Edging::SubpixelAntiAlias);
-    Ok(font)
 }

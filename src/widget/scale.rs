@@ -2,7 +2,7 @@ use skia_safe::{Canvas, Point, utils::text_utils::Align};
 
 use crate::{
     config::ScaleConfig,
-    util::{ChronuxResult, get_font},
+    util::{fontmgr::get_font, ChronuxResult},
     widget::{WIDGET_CANVAS_HEIGHT, WIDGET_CANVAS_WIDTH},
 };
 
