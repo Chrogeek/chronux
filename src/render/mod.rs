@@ -92,13 +92,16 @@ pub fn draw(canvas: &Canvas, shape: &Shape, properties: &Properties) -> ChronuxR
     Ok(())
 }
 
-pub fn get_bounding_box(shape: &Shape, properties: &Properties) -> (f32, f32, f32, f32) {
+pub fn get_bounding_box(shape: &Shape, properties: &Properties) -> Option<(f32, f32, f32, f32)> {
     match shape {
         Shape::Path { d } => {
             const SEGMENTS: usize = 20;
             let mut pm = skia_safe::PathMeasure::new(d, false, None);
             let length = pm.length();
             let (tl, tr) = properties.trim;
+            if tr - tl < 1e-3 {
+                return None; // 没有有效的长度
+            }
             let mut rect: Option<(f32, f32, f32, f32)> = None;
             (0..SEGMENTS).for_each(|i| {
                 let dis = (i as f32 / (SEGMENTS - 1) as f32 * (tr - tl) + tl) * length;
@@ -109,14 +112,14 @@ pub fn get_bounding_box(shape: &Shape, properties: &Properties) -> (f32, f32, f3
                     rect = Some((pt.x, pt.y, pt.x, pt.y));
                 }
             });
-            rect.expect("")
+            rect
         }
         _ => {
             log::warn!(
                 "Bounding box calculation for {:?} is not implemented",
                 shape
             );
-            (0.0, 0.0, 0.0, 0.0) // Return a default value
+            None
         }
     }
 }

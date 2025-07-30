@@ -26,15 +26,15 @@ pub fn draw(
                 None => o.style.clone(),
             };
             let ret_bb = get_bounding_box(&o.shape, &properties);
-            if let Some((bl, bt, br, bb)) = bounding_box {
+            if let Some((bl, bt, br, bb)) = bounding_box && let Some(ret_bb) = ret_bb {
                 bounding_box = Some((
                     bl.min(ret_bb.0),
                     bt.min(ret_bb.1),
                     br.max(ret_bb.2),
                     bb.max(ret_bb.3),
                 ));
-            } else {
-                bounding_box = Some(ret_bb);
+            } else if bounding_box.is_none() {
+                bounding_box = ret_bb;
             }
         }
     }
