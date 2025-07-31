@@ -1,21 +1,26 @@
 use core::f32;
 use std::collections::{HashMap, HashSet};
 
+use itertools::multizip;
 use serde::Deserialize;
-use skia_safe::Color;
+use skia_safe::{Color, Path, PathMeasure};
 
 use crate::{
-    animation::{properties::Properties, timeline::Timeline, track},
-    config::{event::Event, group::Group},
-    render::viewport::Viewport,
-    svg::element::Object,
-    util::{version::is_compatible, ChronuxError, ChronuxResult, COLOR_DICT},
+    animation::{properties::Properties, timeline::Timeline, track, track_on_path},
+    config::{event::Event, group::Group, viewport::ViewportTrack},
+    render::viewport::{Viewport, interpolate_viewport},
+    svg::element::{Object, Shape},
+    util::{
+        COLOR_DICT, ChronuxError, ChronuxResult, pchip::PchipInterpolator, vector::Vec3,
+        version::is_compatible,
+    },
 };
 
 pub mod event;
 pub mod group;
+pub mod viewport;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Config {
     pub input: InputConfig,
     pub output: OutputConfig,
@@ -24,9 +29,16 @@ pub struct Config {
     pub events: HashMap<String, Event>,
     pub groups: Vec<Group>,
     pub viewports: Vec<Viewport>,
+    pub viewport_tracks: Vec<ViewportTrack>,
+    #[serde(skip)]
+    pub vp_pos_pchip: Vec<PchipInterpolator>,
+    #[serde(skip)]
+    pub vp_size_pchip: Vec<PchipInterpolator>,
+    #[serde(skip)]
+    pub vp_tracks: Vec<Path>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct InputConfig {
     pub version: String,
     pub svg: String,
@@ -34,7 +46,7 @@ pub struct InputConfig {
     pub pinned: Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct OutputConfig {
     pub width: u32,
     pub height: u32,
@@ -48,7 +60,7 @@ pub struct OutputConfig {
     pub background_color: Color,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct DrawingConfig {
     #[serde(rename = "colors")]
     #[serde(deserialize_with = "deserialize_color_dict")]
@@ -234,6 +246,91 @@ impl Config {
 
         Ok(())
     }
+
+    pub fn calc_viewport_tracks(&mut self, objs: &Vec<Object>) -> ChronuxResult<()> {
+        let objmap = objs
+            .iter()
+            .enumerate()
+            .map(|(i, o)| (o.id.clone(), i))
+            .collect::<HashMap<_, _>>();
+
+        for viewport in self.viewport_tracks.drain(..) {
+            let tracked_path = &objs[objmap[&viewport.tracked_path]];
+            let d = match &tracked_path.shape {
+                Shape::Path { d } => d,
+                _ => {
+                    return Err(ChronuxError::ArgError(format!(
+                        "Tracked object for viewport_track is not a path: {}",
+                        viewport.tracked_path
+                    )));
+                }
+            };
+            let keyframes = viewport
+                .keyframes
+                .into_iter()
+                .map(|k| {
+                    let (dep, offset) = (k.time.depends, k.time.offset);
+
+                    let position = track_on_path(d, k.x, k.y).1;
+
+                    if let Some(ev) = self.events.get(&dep) {
+                        let time = ev.start + offset;
+                        Ok((position, k.size, time))
+                    } else {
+                        Err(ChronuxError::BrokenDependency(format!(
+                            "a viewport keyframe depends on non-existent event {}",
+                            dep
+                        )))
+                    }
+                })
+                .flatten()
+                .collect::<Vec<_>>();
+
+            let pos_seq = keyframes.iter().map(|(pos, _, _)| *pos).collect::<Vec<_>>();
+            let size_seq = keyframes
+                .iter()
+                .map(|(_, size, _)| *size)
+                .collect::<Vec<_>>();
+            let time_seq = keyframes
+                .iter()
+                .map(|(_, _, time)| *time)
+                .collect::<Vec<_>>();
+
+            let pos_pchip = PchipInterpolator::new(time_seq.clone(), pos_seq);
+            let size_pchip = PchipInterpolator::new(time_seq, size_seq);
+
+            self.vp_pos_pchip.push(pos_pchip);
+            self.vp_size_pchip.push(size_pchip);
+            self.vp_tracks.push(d.clone());
+        }
+        Ok(())
+    }
+
+    pub fn interpolate_vp(&self, t: f32) -> ChronuxResult<Vec3> {
+        // Try to interpolate with tracks first
+        for (pos, size, pm) in multizip((
+            self.vp_pos_pchip.iter(),
+            self.vp_size_pchip.iter(),
+            self.vp_tracks.iter(),
+        )) {
+            let pos = pos.interpolate(t);
+            let size = size.interpolate(t);
+            if let Some(pos) = pos
+                && let Some(size) = size
+            {
+                let mut pm = PathMeasure::new(pm, false, Some(2.0));
+                let pos = pm.pos_tan(pos).unwrap().0;
+                return Ok(Vec3(pos.x, pos.y, size));
+            }
+        }
+
+        // If no tracks are available, use the legacy viewport keyframes
+        // Return an error if still failed
+        interpolate_viewport(&self.viewports, t).ok_or(ChronuxError::ArgError(format!(
+            "Viewport interpolation failed for time {}",
+            t
+        )))
+    }
 }
 
 fn deserialize_events<'de, D>(deserializer: D) -> Result<HashMap<String, Event>, D::Error>
@@ -276,7 +373,8 @@ where
         .flatten()
         .collect();
 
-    COLOR_DICT.set(colors)
+    COLOR_DICT
+        .set(colors)
         .map_err(|_| serde::de::Error::custom("Failed to set COLOR_DICT"))?;
 
     Ok(())

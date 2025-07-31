@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use skia_safe::PathMeasure;
+use skia_safe::{Path, PathMeasure};
 
 use crate::{
     animation::tween::Tween,
@@ -37,71 +37,13 @@ pub enum Animation {
 }
 
 pub fn track(obj: &Object, event: &Event, x: f32, y: f32) -> ChronuxResult<f32> {
-    log::trace!(
-        "tracking object '{}' for event '{}', position ({}, {})",
-        obj.id,
-        event.id,
-        x,
-        y
-    );
     let t = match event.animation {
         Animation::TrimPath { reverse } => {
-            const SEGMENTS: usize = 20;
-
             if let Shape::Path { d } = &obj.shape {
-                let mut pm = PathMeasure::new(&d, false, Some(2.0));
-                let length = pm.length();
-
-                let closest = (0..SEGMENTS + 1)
-                    .map(|i| {
-                        let t = event.easing.evaluate(i as f32 / SEGMENTS as f32);
-                        let dis = t * length;
-                        (i, pm.pos_tan(dis).unwrap().0)
-                    })
-                    .min_by(|(_, p1), (_, p2)| {
-                        let d1 = (p1.x - x).powi(2) + (p1.y - y).powi(2);
-                        let d2 = (p2.x - x).powi(2) + (p2.y - y).powi(2);
-                        d1.partial_cmp(&d2).unwrap()
-                    })
-                    .unwrap();
-
-                let mut tl = if closest.0 > 0 {
-                    closest.0 - 1
-                } else {
-                    closest.0
-                } as f32
-                    / SEGMENTS as f32;
-
-                let mut tr = if closest.0 < SEGMENTS {
-                    closest.0 + 1
-                } else {
-                    closest.0
-                } as f32
-                    / SEGMENTS as f32;
-
-                for _ in 0..10 {
-                    let mml = tl + (tr - tl) / 3.0;
-                    let mmr = tr - (tr - tl) / 3.0;
-                    let ml = event.easing.evaluate(mml);
-                    let mr = event.easing.evaluate(mmr);
-                    let dl = pm.pos_tan(ml * length).unwrap().0;
-                    let dr = pm.pos_tan(mr * length).unwrap().0;
-                    let d1 = (dl.x - x).powi(2) + (dl.y - y).powi(2);
-                    let d2 = (dr.x - x).powi(2) + (dr.y - y).powi(2);
-                    if d1 < d2 {
-                        tr = mmr;
-                    } else {
-                        tl = mml;
-                    }
-                }
-
-                let tm = (tl + tr) / 2.0;
-
-                let tm = if reverse { 1.0 - tm } else { tm };
-
-                log::trace!("track result: tm = {}", tm);
-
-                Ok(tm)
+                let t = track_on_path(d, x, y).0;
+                let t = event.easing.evaluate(t);
+                let t = if reverse { 1.0 - t } else { t };
+                Ok(t)
             } else {
                 Err(ChronuxError::ArgError(
                     "non-path shapes cannot be tracked".into(),
@@ -109,62 +51,11 @@ pub fn track(obj: &Object, event: &Event, x: f32, y: f32) -> ChronuxResult<f32> 
             }
         }
         Animation::TrimPathOut { reverse } => {
-            const SEGMENTS: usize = 20;
-
             if let Shape::Path { d } = &obj.shape {
-                let mut pm = PathMeasure::new(&d, false, Some(2.0));
-                let length = pm.length();
-
-                let closest = (0..SEGMENTS + 1)
-                    .map(|i| {
-                        let t = event.easing.evaluate(i as f32 / SEGMENTS as f32);
-                        let dis = t * length;
-                        (i, pm.pos_tan(dis).unwrap().0)
-                    })
-                    .min_by(|(_, p1), (_, p2)| {
-                        let d1 = (p1.x - x).powi(2) + (p1.y - y).powi(2);
-                        let d2 = (p2.x - x).powi(2) + (p2.y - y).powi(2);
-                        d1.partial_cmp(&d2).unwrap()
-                    })
-                    .unwrap();
-
-                let mut tl = if closest.0 > 0 {
-                    closest.0 - 1
-                } else {
-                    closest.0
-                } as f32
-                    / SEGMENTS as f32;
-
-                let mut tr = if closest.0 < SEGMENTS {
-                    closest.0 + 1
-                } else {
-                    closest.0
-                } as f32
-                    / SEGMENTS as f32;
-
-                for _ in 0..10 {
-                    let mml = tl + (tr - tl) / 3.0;
-                    let mmr = tr - (tr - tl) / 3.0;
-                    let ml = event.easing.evaluate(mml);
-                    let mr = event.easing.evaluate(mmr);
-                    let dl = pm.pos_tan(ml * length).unwrap().0;
-                    let dr = pm.pos_tan(mr * length).unwrap().0;
-                    let d1 = (dl.x - x).powi(2) + (dl.y - y).powi(2);
-                    let d2 = (dr.x - x).powi(2) + (dr.y - y).powi(2);
-                    if d1 < d2 {
-                        tr = mmr;
-                    } else {
-                        tl = mml;
-                    }
-                }
-
-                let tm = (tl + tr) / 2.0;
-
-                let tm = if reverse { tm } else { 1.0 - tm };
-
-                log::trace!("track result: tm = {}", tm);
-
-                Ok(tm)
+                let t = track_on_path(d, x, y).0;
+                let t = event.easing.evaluate(t);
+                let t = if reverse { t } else { 1.0 - t };
+                Ok(t)
             } else {
                 Err(ChronuxError::ArgError(
                     "non-path shapes cannot be tracked".into(),
@@ -177,4 +68,56 @@ pub fn track(obj: &Object, event: &Event, x: f32, y: f32) -> ChronuxResult<f32> 
         ))),
     }?;
     Ok(t * event.duration)
+}
+
+/// Calculate the nearest point on path d to given point (x, y)
+/// Returns (t, l) where l is the length from path origin to the nearest point, and t = l / length(d)
+pub fn track_on_path(d: &Path, x: f32, y: f32) -> (f32, f32) {
+    const SEGMENTS: usize = 20;
+
+    let mut pm = PathMeasure::new(&d, false, Some(2.0));
+    let length = pm.length();
+
+    let closest = (0..SEGMENTS + 1)
+        .map(|i| {
+            let t = i as f32 / SEGMENTS as f32;
+            let dis = t * length;
+            (i, pm.pos_tan(dis).unwrap().0)
+        })
+        .min_by(|(_, p1), (_, p2)| {
+            let d1 = (p1.x - x).powi(2) + (p1.y - y).powi(2);
+            let d2 = (p2.x - x).powi(2) + (p2.y - y).powi(2);
+            d1.partial_cmp(&d2).unwrap()
+        })
+        .unwrap();
+
+    let mut tl = if closest.0 > 0 {
+        closest.0 - 1
+    } else {
+        closest.0
+    } as f32
+        / SEGMENTS as f32;
+
+    let mut tr = if closest.0 < SEGMENTS {
+        closest.0 + 1
+    } else {
+        closest.0
+    } as f32
+        / SEGMENTS as f32;
+
+    for _ in 0..10 {
+        let ml = tl + (tr - tl) / 3.0;
+        let mr = tr - (tr - tl) / 3.0;
+        let dl = pm.pos_tan(ml * length).unwrap().0;
+        let dr = pm.pos_tan(mr * length).unwrap().0;
+        let d1 = (dl.x - x).powi(2) + (dl.y - y).powi(2);
+        let d2 = (dr.x - x).powi(2) + (dr.y - y).powi(2);
+        if d1 < d2 {
+            tr = mr;
+        } else {
+            tl = ml;
+        }
+    }
+
+    ((tl + tr) / 2.0, length)
 }

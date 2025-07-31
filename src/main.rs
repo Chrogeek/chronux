@@ -11,18 +11,16 @@ use skia_safe::utils::text_utils::Align;
 use skia_safe::{AlphaType, ColorSpace, ColorType, ImageInfo, SurfaceProps, surfaces};
 
 use crate::util::fontmgr::get_font;
+use crate::util::timecode_rt;
 use crate::util::version::CHRONUX_VERSION;
-use crate::util::{timecode_rt};
 use crate::widget::{WIDGET_CANVAS_HEIGHT, WIDGET_CANVAS_WIDTH};
 use crate::{
     animation::Animation,
     args::Args,
     config::Config,
-    render::viewport::{
-        calc_viewport_keyframe_bezier, calc_viewport_times, interpolate_viewport, sort_viewports,
-    },
+    render::viewport::{calc_viewport_keyframe_bezier, calc_viewport_times, sort_viewports},
     svg::Svg,
-    util::{ChronuxError, ChronuxResult, vector::Vec3},
+    util::{ChronuxError, ChronuxResult},
     writer::Writer,
 };
 
@@ -94,6 +92,9 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     // 计算每个动画的起始时间
     conf.calc_start_times(&objs)?;
     log::info!("Calculated start times for objects");
+
+    // 计算镜头路径跟踪动画
+    conf.calc_viewport_tracks(&objs)?;
 
     // 计算所有动画全部结束的时间
     let time_end = conf
@@ -213,11 +214,14 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         let t = f as f32 / conf.output.fps as f32;
 
         // 计算当前镜头位置
-        let vb = interpolate_viewport(&conf.viewports, t).unwrap_or(Vec3(
-            0.0,
-            0.0,
-            conf.output.width as f32,
-        ));
+        // let vb = interpolate_viewport(&conf.viewports, t).unwrap_or(Vec3(
+        //     0.0,
+        //     0.0,
+        //     conf.output.width as f32,
+        // ));
+
+        let vb = conf.interpolate_vp(t)?;
+
         let (cx, cy, vw, vh) = (
             vb.0,
             vb.1,
