@@ -125,6 +125,8 @@
 此方法平衡了简单性和鲁棒性，严格满足您的要求。如果您有具体数据或实现问题，我可以进一步调整算法细节。
  */
 
+use crate::util::{ChronuxError, ChronuxResult};
+
 #[derive(Debug, Clone)]
 pub struct PchipInterpolator {
     t: Vec<f32>,
@@ -142,10 +144,12 @@ pub struct PchipInterpolator {
 }
 
 impl PchipInterpolator {
-    pub fn new(t: Vec<f32>, p: Vec<f32>) -> PchipInterpolator {
+    pub fn new(t: Vec<f32>, p: Vec<f32>) -> ChronuxResult<PchipInterpolator> {
         // check input validity
         if t.len() != p.len() || t.is_empty() {
-            panic!("Time and position arrays must have the same non-zero length.");
+            return Err(ChronuxError::ArgError(
+                "Time and position arrays must have the same non-zero length.".into(),
+            ));
         }
 
         let n = t.len();
@@ -153,19 +157,25 @@ impl PchipInterpolator {
         // check if t is strictly increasing
         for i in 1..n {
             if t[i] <= t[i - 1] {
-                panic!("Time points must be strictly increasing.");
+                return Err(ChronuxError::ArgError(
+                    "Time points must be strictly increasing.".into(),
+                ));
             }
         }
 
         // check if p is non-decreasing
         for i in 1..n {
             if p[i] < p[i - 1] {
-                panic!("Position points must be non-decreasing.");
+                return Err(ChronuxError::ArgError(
+                    "Position points must be non-decreasing.".into(),
+                ));
             }
         }
 
         if p[n - 1] <= p[0] {
-            panic!("End position must be greater than start position.");
+            return Err(ChronuxError::ArgError(
+                "End position must be greater than start position.".into(),
+            ));
         }
 
         let t_start = t[0];
@@ -201,7 +211,7 @@ impl PchipInterpolator {
             .map(|i| (m[i] + m[i + 1] - 2.0 * d[i]) / (h[i] * h[i]))
             .collect::<Vec<_>>();
 
-        PchipInterpolator {
+        Ok(PchipInterpolator {
             t,
             p,
             m,
@@ -214,7 +224,7 @@ impl PchipInterpolator {
             t_start,
             p_start,
             p_end,
-        }
+        })
     }
 
     pub fn interpolate(&self, t: f32) -> Option<f32> {

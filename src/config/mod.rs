@@ -296,8 +296,8 @@ impl Config {
                 .map(|(_, _, time)| *time)
                 .collect::<Vec<_>>();
 
-            let pos_pchip = PchipInterpolator::new(time_seq.clone(), pos_seq);
-            let size_pchip = PchipInterpolator::new(time_seq, size_seq);
+            let pos_pchip = PchipInterpolator::new(time_seq.clone(), pos_seq)?;
+            let size_pchip = PchipInterpolator::new(time_seq, size_seq)?;
 
             self.vp_pos_pchip.push(pos_pchip);
             self.vp_size_pchip.push(size_pchip);
