@@ -8,6 +8,7 @@ pub struct TimeKey {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct ViewportKeyframe {
+    #[serde(flatten)]
     pub time: TimeKey,
     pub x: f32,
     pub y: f32,
@@ -16,6 +17,7 @@ pub struct ViewportKeyframe {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct ViewportTrack {
+    #[serde(rename = "tracked-path")]
     pub tracked_path: String,
     pub keyframes: Vec<ViewportKeyframe>,
 }

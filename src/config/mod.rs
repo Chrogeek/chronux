@@ -11,7 +11,7 @@ use crate::{
     render::viewport::{Viewport, interpolate_viewport},
     svg::element::{Object, Shape},
     util::{
-        COLOR_DICT, ChronuxError, ChronuxResult, pchip::PchipInterpolator, vector::Vec3,
+        COLOR_DICT, ChronuxError, ChronuxResult, interpolator::Interpolator, vector::Vec3,
         version::is_compatible,
     },
 };
@@ -29,11 +29,12 @@ pub struct Config {
     pub events: HashMap<String, Event>,
     pub groups: Vec<Group>,
     pub viewports: Vec<Viewport>,
+    #[serde(rename = "vp-tracks")]
     pub viewport_tracks: Vec<ViewportTrack>,
     #[serde(skip)]
-    pub vp_pos_pchip: Vec<PchipInterpolator>,
+    pub vp_pos_inter: Vec<Interpolator>,
     #[serde(skip)]
-    pub vp_size_pchip: Vec<PchipInterpolator>,
+    pub vp_size_inter: Vec<Interpolator>,
     #[serde(skip)]
     pub vp_tracks: Vec<Path>,
 }
@@ -211,7 +212,9 @@ impl Config {
 
         let timeline = timeline
             .into_iter()
-            .map(|(object_id, events)| (object_id, Timeline::new(events, Properties::default())))
+            .filter_map(|(object_id, events)| {
+                Timeline::new(events, Properties::default()).map(|tl| (object_id, tl))
+            })
             .collect();
 
         Ok(timeline)
@@ -225,6 +228,12 @@ impl Config {
 
             if !objects.contains(object_id) {
                 objects.insert(object_id.clone());
+            }
+        }
+
+        for vp_tracks in self.viewport_tracks.iter() {
+            if !objects.contains(&vp_tracks.tracked_path) {
+                objects.insert(vp_tracks.tracked_path.clone());
             }
         }
 
@@ -260,7 +269,7 @@ impl Config {
                 Shape::Path { d } => d,
                 _ => {
                     return Err(ChronuxError::ArgError(format!(
-                        "Tracked object for viewport_track is not a path: {}",
+                        "Tracked object for viewport_track is not a Path: {}",
                         viewport.tracked_path
                     )));
                 }
@@ -271,7 +280,8 @@ impl Config {
                 .map(|k| {
                     let (dep, offset) = (k.time.depends, k.time.offset);
 
-                    let position = track_on_path(d, k.x, k.y).1;
+                    let (pt, len) = track_on_path(d, k.x, k.y);
+                    let position = pt * len;
 
                     if let Some(ev) = self.events.get(&dep) {
                         let time = ev.start + offset;
@@ -296,11 +306,11 @@ impl Config {
                 .map(|(_, _, time)| *time)
                 .collect::<Vec<_>>();
 
-            let pos_pchip = PchipInterpolator::new(time_seq.clone(), pos_seq)?;
-            let size_pchip = PchipInterpolator::new(time_seq, size_seq)?;
+            let pos_pchip = Interpolator::new_pchip(time_seq.clone(), pos_seq)?;
+            let size_pchip = Interpolator::new_pchip(time_seq, size_seq)?;
 
-            self.vp_pos_pchip.push(pos_pchip);
-            self.vp_size_pchip.push(size_pchip);
+            self.vp_pos_inter.push(pos_pchip);
+            self.vp_size_inter.push(size_pchip);
             self.vp_tracks.push(d.clone());
         }
         Ok(())
@@ -308,9 +318,9 @@ impl Config {
 
     pub fn interpolate_vp(&self, t: f32) -> ChronuxResult<Vec3> {
         // Try to interpolate with tracks first
-        for (pos, size, pm) in multizip((
-            self.vp_pos_pchip.iter(),
-            self.vp_size_pchip.iter(),
+        for (pos, size, path) in multizip((
+            self.vp_pos_inter.iter(),
+            self.vp_size_inter.iter(),
             self.vp_tracks.iter(),
         )) {
             let pos = pos.interpolate(t);
@@ -318,7 +328,7 @@ impl Config {
             if let Some(pos) = pos
                 && let Some(size) = size
             {
-                let mut pm = PathMeasure::new(pm, false, Some(2.0));
+                let mut pm = PathMeasure::new(path, false, Some(2.0));
                 let pos = pm.pos_tan(pos).unwrap().0;
                 return Ok(Vec3(pos.x, pos.y, size));
             }

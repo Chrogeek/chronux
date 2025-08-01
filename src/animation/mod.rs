@@ -82,7 +82,7 @@ pub fn track_on_path(d: &Path, x: f32, y: f32) -> (f32, f32) {
         .map(|i| {
             let t = i as f32 / SEGMENTS as f32;
             let dis = t * length;
-            (i, pm.pos_tan(dis).unwrap().0)
+            (t, pm.pos_tan(dis).unwrap().0)
         })
         .min_by(|(_, p1), (_, p2)| {
             let d1 = (p1.x - x).powi(2) + (p1.y - y).powi(2);
@@ -91,19 +91,8 @@ pub fn track_on_path(d: &Path, x: f32, y: f32) -> (f32, f32) {
         })
         .unwrap();
 
-    let mut tl = if closest.0 > 0 {
-        closest.0 - 1
-    } else {
-        closest.0
-    } as f32
-        / SEGMENTS as f32;
-
-    let mut tr = if closest.0 < SEGMENTS {
-        closest.0 + 1
-    } else {
-        closest.0
-    } as f32
-        / SEGMENTS as f32;
+    let mut tl = (closest.0 - 1.0 / SEGMENTS as f32).max(0.0);
+    let mut tr = (closest.0 + 1.0 / SEGMENTS as f32).min(1.0);
 
     for _ in 0..10 {
         let ml = tl + (tr - tl) / 3.0;

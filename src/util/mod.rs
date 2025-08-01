@@ -8,7 +8,7 @@ use svgtypes::PaintOrder;
 pub mod fontmgr;
 pub mod vector;
 pub mod version;
-pub mod pchip;
+pub mod interpolator;
 
 #[derive(Debug)]
 pub enum ChronuxError {

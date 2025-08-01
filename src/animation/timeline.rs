@@ -8,7 +8,11 @@ pub struct Timeline {
 }
 
 impl Timeline {
-    pub fn new(events: Vec<Event>, start: Properties) -> Self {
+    pub fn new(events: Vec<Event>, start: Properties) -> Option<Self> {
+        if events.is_empty() {
+            return None;
+        }
+
         let mut events = events;
         events.sort_by(|a, b| {
             a.start
@@ -16,7 +20,7 @@ impl Timeline {
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
 
-        Timeline { events, start }
+        Some(Timeline { events, start })
     }
 
     pub fn interpolate(&self, time: f32) -> Properties {

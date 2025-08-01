@@ -132,12 +132,9 @@ pub struct PchipInterpolator {
     t: Vec<f32>,
     p: Vec<f32>,
     m: Vec<f32>,
-    // h: Vec<f32>,
-    // d: Vec<f32>,
     c2: Vec<f32>,
     c3: Vec<f32>,
     max_t: f32,
-    n: usize,
     t_start: f32,
     p_start: f32,
     p_end: f32,
@@ -147,9 +144,11 @@ impl PchipInterpolator {
     pub fn new(t: Vec<f32>, p: Vec<f32>) -> ChronuxResult<PchipInterpolator> {
         // check input validity
         if t.len() != p.len() || t.is_empty() {
-            return Err(ChronuxError::ArgError(
-                "Time and position arrays must have the same non-zero length.".into(),
-            ));
+            return Err(ChronuxError::ArgError(format!(
+                "Time and position arrays must have the same non-zero length: t.len() = {}, p.len() = {}",
+                t.len(),
+                p.len()
+            )));
         }
 
         let n = t.len();
@@ -157,25 +156,27 @@ impl PchipInterpolator {
         // check if t is strictly increasing
         for i in 1..n {
             if t[i] <= t[i - 1] {
-                return Err(ChronuxError::ArgError(
-                    "Time points must be strictly increasing.".into(),
-                ));
+                return Err(ChronuxError::ArgError(format!(
+                    "Time points must be strictly increasing: t[{}] = {}, t[{}] = {}",
+                    i - 1,
+                    t[i - 1],
+                    i,
+                    t[i]
+                )));
             }
         }
 
         // check if p is non-decreasing
         for i in 1..n {
             if p[i] < p[i - 1] {
-                return Err(ChronuxError::ArgError(
-                    "Position points must be non-decreasing.".into(),
-                ));
+                return Err(ChronuxError::ArgError(format!(
+                    "Position points must be non-decreasing: p[{}] = {}, p[{}] = {}",
+                    i - 1,
+                    p[i - 1],
+                    i,
+                    p[i]
+                )));
             }
-        }
-
-        if p[n - 1] <= p[0] {
-            return Err(ChronuxError::ArgError(
-                "End position must be greater than start position.".into(),
-            ));
         }
 
         let t_start = t[0];
@@ -183,10 +184,18 @@ impl PchipInterpolator {
         let p_start = p[0];
         let p_end = p[n - 1];
 
+        let is_zero_length = p_end - p_start < 1e-6;
+
         let t = t.iter().map(|v| v - t_start).collect::<Vec<_>>();
         let p = p
             .iter()
-            .map(|v| (v - p_start) / (p_end - p_start))
+            .map(|v| {
+                if is_zero_length {
+                    0.0
+                } else {
+                    (v - p_start) / (p_end - p_start)
+                }
+            })
             .collect::<Vec<_>>();
 
         let h = t.windows(2).map(|w| w[1] - w[0]).collect::<Vec<_>>();
@@ -197,7 +206,13 @@ impl PchipInterpolator {
             .collect::<Vec<_>>();
         let mut m = d
             .windows(2)
-            .map(|w| 2.0 * (w[0] * w[1]) / (w[0] + w[1]))
+            .map(|w| {
+                if is_zero_length {
+                    0.0
+                } else {
+                    2.0 * (w[0] * w[1]) / (w[0] + w[1])
+                }
+            })
             .fold(vec![0.0], |mut acc, v| {
                 acc.push(v);
                 acc
@@ -215,12 +230,9 @@ impl PchipInterpolator {
             t,
             p,
             m,
-            // h,
-            // d,
             c2,
             c3,
             max_t,
-            n,
             t_start,
             p_start,
             p_end,
@@ -238,7 +250,8 @@ impl PchipInterpolator {
             return None;
         }
         let t = t - self.t_start;
-        let i = self.t.iter().position(|&x| x > t).unwrap_or(self.n - 1) - 1;
+        let i = self.t.iter().position(|&x| x > t).unwrap() - 1;
+
         let dt = t - self.t[i];
         let p_i = self.p[i];
         let m_i = self.m[i];
