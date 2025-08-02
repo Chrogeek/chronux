@@ -36,6 +36,13 @@ pub enum Animation {
     FadeOut,
 }
 
+#[derive(Debug, Deserialize, Clone)]
+pub struct TaggedAnimation {
+    pub obj_id: String,
+    #[serde(flatten)]
+    pub animation: Animation,
+}
+
 pub fn track(obj: &Object, event: &Event, x: f32, y: f32) -> ChronuxResult<f32> {
     let t = match event.animation {
         Animation::TrimPath { reverse } => {
@@ -82,10 +89,15 @@ pub fn track_on_path(d: &Path, x: f32, y: f32, easing: &Easing) -> (f32, f32) {
             let dis = t * length;
             (t, pm.pos_tan(dis).unwrap().0)
         })
-        .min_by(|(_, p1), (_, p2)| {
+        .min_by(|(i1, p1), (i2, p2)| {
             let d1 = (p1.x - x).powi(2) + (p1.y - y).powi(2);
             let d2 = (p2.x - x).powi(2) + (p2.y - y).powi(2);
-            d1.partial_cmp(&d2).unwrap()
+            let cmp = d1.partial_cmp(&d2).unwrap();
+            if cmp.is_eq() {
+                i1.partial_cmp(&i2).unwrap()
+            } else {
+                cmp
+            }
         })
         .unwrap();
 
@@ -99,7 +111,7 @@ pub fn track_on_path(d: &Path, x: f32, y: f32, easing: &Easing) -> (f32, f32) {
         let dr = pm.pos_tan(easing.evaluate(mr) * length).unwrap().0;
         let d1 = (dl.x - x).powi(2) + (dl.y - y).powi(2);
         let d2 = (dr.x - x).powi(2) + (dr.y - y).powi(2);
-        if d1 < d2 {
+        if d1 < d2 || (d1 == d2 && ml < mr) {
             tr = mr;
         } else {
             tl = ml;

@@ -166,19 +166,6 @@ impl PchipInterpolator {
             }
         }
 
-        // check if p is non-decreasing
-        // for i in 1..n {
-        //     if p[i] < p[i - 1] {
-        //         return Err(ChronuxError::ArgError(format!(
-        //             "Position points must be non-decreasing: p[{}] = {}, p[{}] = {}",
-        //             i - 1,
-        //             p[i - 1],
-        //             i,
-        //             p[i]
-        //         )));
-        //     }
-        // }
-
         let t_start = t[0];
         let max_t = *t.last().unwrap() - t_start;
         let p_start = p[0];

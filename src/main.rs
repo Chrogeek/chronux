@@ -93,9 +93,6 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     conf.calc_start_times(&objs)?;
     log::info!("Calculated start times for objects");
 
-    // 计算镜头路径跟踪动画
-    conf.calc_viewport_tracks(&objs)?;
-
     // 计算所有动画全部结束的时间
     let time_end = conf
         .events
@@ -113,36 +110,25 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         conf.output.time_end
     };
 
-    if args.timeline_only {
+    if args.encoder == args::OutputWriter::Timeline {
         // 只需要计算时间线而不渲染帧
-        let mut filtered_events = conf
+        let mut events = conf
             .events
-            .values()
             .into_iter()
-            .filter(|e| e.timeline_marked)
+            .map(|(id, e)| (id, e.start))
             .collect::<Vec<_>>();
-        filtered_events.sort_by(|a, b| {
-            a.start
-                .partial_cmp(&b.start)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
+        events.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
         let mut file = File::create(&output).map_err(|e| ChronuxError::IoError(e))?;
-        writeln!(file, "| ID | Start Time | End Time | Duration |")
-            .map_err(|e| ChronuxError::IoError(e))?;
-        writeln!(file, "| :-- | --: | --: | --: |").map_err(|e| ChronuxError::IoError(e))?;
-        for e in filtered_events {
-            writeln!(
-                file,
-                "| {} | {} | {} | {} |",
-                e.id,
-                timecode_rt(e.start, conf.output.fps),
-                timecode_rt(e.start + e.duration, conf.output.fps),
-                timecode_rt(e.duration, conf.output.fps)
-            )
-            .map_err(|e| ChronuxError::IoError(e))?;
+        writeln!(file, "id,start,").map_err(|e| ChronuxError::IoError(e))?;
+        for (id, start) in events {
+            writeln!(file, "{},{}", id, timecode_rt(start, conf.output.fps),)
+                .map_err(|e| ChronuxError::IoError(e))?;
         }
         return Ok(());
     }
+
+    // 计算镜头路径跟踪动画
+    conf.calc_viewport_tracks(&objs)?;
 
     let mut timeline = conf.calc_timeline()?;
 
@@ -201,6 +187,9 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             conf.output.width as usize,
             conf.output.height as usize,
         )?,
+        args::OutputWriter::Timeline => {
+            unreachable!("Timeline writer should not be used here")
+        }
     };
 
     let pstyle = ProgressStyle::with_template(&format!(

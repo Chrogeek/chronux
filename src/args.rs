@@ -11,14 +11,14 @@ pub struct Args {
     pub output: String,
     #[arg(short = 'w', long, value_enum, default_value_t = OutputWriter::PngSequence)]
     pub encoder: OutputWriter,
-    #[arg(long = "timeline-only", default_value_t = false)]
-    pub timeline_only: bool,
 }
 
-#[derive(Debug, Clone, ValueEnum)]
+#[derive(Debug, Clone, ValueEnum, PartialEq)]
 pub enum OutputWriter {
     #[clap(name = "ffmpeg")]
     Ffmpeg,
     #[clap(name = "pngseq")]
     PngSequence,
+    #[clap(name = "timeline")]
+    Timeline,
 }
