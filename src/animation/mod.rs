@@ -38,6 +38,7 @@ pub enum Animation {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct TaggedAnimation {
+    #[serde(rename = "object")]
     pub obj_id: String,
     #[serde(flatten)]
     pub animation: Animation,
