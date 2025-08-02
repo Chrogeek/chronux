@@ -214,12 +214,6 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         let t = f as f32 / conf.output.fps as f32;
 
         // 计算当前镜头位置
-        // let vb = interpolate_viewport(&conf.viewports, t).unwrap_or(Vec3(
-        //     0.0,
-        //     0.0,
-        //     conf.output.width as f32,
-        // ));
-
         let vb = conf.interpolate_vp(t)?;
 
         let (cx, cy, vw, vh) = (
@@ -253,11 +247,13 @@ fn run(args: Args) -> Result<(), ChronuxError> {
 
         // 绘制每个图形
         for o in objs.iter() {
-            let properties = match timeline.get(&o.id) {
-                Some(tl) => tl.interpolate(t),
-                None => o.style.clone(),
-            };
-            render::draw(&surface.canvas(), &o.shape, &properties)?;
+            if let Some(tl) = timeline.get(&o.id) {
+                let properties = tl.interpolate(t);
+                render::draw(&surface.canvas(), &o.shape, &properties)?;
+            } else if conf.input.pinned.contains(&o.id) {
+                // 如果是固定的对象，直接绘制
+                render::draw(&surface.canvas(), &o.shape, &o.style)?;
+            }
         }
 
         // 绘制包装前，需要重置 viewbox 变换，然后按照 1920x1080 大小重新缩放

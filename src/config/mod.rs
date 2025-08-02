@@ -6,13 +6,16 @@ use serde::Deserialize;
 use skia_safe::{Color, Path, PathMeasure};
 
 use crate::{
-    animation::{properties::Properties, timeline::Timeline, track, track_on_path},
-    config::{event::Event, group::Group, viewport::ViewportTrack},
-    render::viewport::{Viewport, interpolate_viewport},
+    animation::{easing::Easing, properties::Properties, timeline::Timeline, track, track_on_path},
+    config::{
+        event::Event,
+        group::Group,
+        viewport::{TimeKey, ViewportTrack},
+    },
+    render::viewport::{interpolate_viewport, Viewport},
     svg::element::{Object, Shape},
     util::{
-        COLOR_DICT, ChronuxError, ChronuxResult, interpolator::Interpolator, vector::Vec3,
-        version::is_compatible,
+        interpolator::PchipInterpolator, vector::Vec3, version::is_compatible, ChronuxError, ChronuxResult, COLOR_DICT
     },
 };
 
@@ -32,9 +35,9 @@ pub struct Config {
     #[serde(rename = "vp-tracks")]
     pub viewport_tracks: Vec<ViewportTrack>,
     #[serde(skip)]
-    pub vp_pos_inter: Vec<Interpolator>,
+    pub vp_pos_inter: Vec<PchipInterpolator>,
     #[serde(skip)]
-    pub vp_size_inter: Vec<Interpolator>,
+    pub vp_size_inter: Vec<PchipInterpolator>,
     #[serde(skip)]
     pub vp_tracks: Vec<Path>,
 }
@@ -43,8 +46,8 @@ pub struct Config {
 pub struct InputConfig {
     pub version: String,
     pub svg: String,
-    #[serde(default = "Vec::new")]
-    pub pinned: Vec<String>,
+    #[serde(default = "HashSet::new")]
+    pub pinned: HashSet<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -264,7 +267,13 @@ impl Config {
             .collect::<HashMap<_, _>>();
 
         for viewport in self.viewport_tracks.drain(..) {
-            let tracked_path = &objs[objmap[&viewport.tracked_path]];
+            let tracked_path =
+                &objs[*objmap
+                    .get(&viewport.tracked_path)
+                    .ok_or(ChronuxError::ArgError(format!(
+                        "Viewport track reference object does not exist: {}",
+                        viewport.tracked_path
+                    )))?];
             let d = match &tracked_path.shape {
                 Shape::Path { d } => d,
                 _ => {
@@ -274,17 +283,36 @@ impl Config {
                     )));
                 }
             };
+            let num_keyframes = viewport.keyframes.len();
             let keyframes = viewport
                 .keyframes
                 .into_iter()
-                .map(|k| {
-                    let (dep, offset) = (k.time.depends, k.time.offset);
+                .enumerate()
+                .map(|(id, k)| {
+                    let (dep, time, duration_coeff) = match k.time {
+                        TimeKey::WithPrevious { depends, delay } => (depends, delay, 0.0),
+                        TimeKey::AfterPrevious { depends, offset } => (depends, offset, 1.0),
+                    };
 
-                    let (pt, len) = track_on_path(d, k.x, k.y);
-                    let position = pt * len;
+                    let position = if let Some(kx) = k.x
+                        && let Some(ky) = k.y
+                    {
+                        let (pt, len) = track_on_path(d, kx, ky, &Easing::Linear);
+                        pt * len
+                    } else if id == 0 {
+                        0.0
+                    } else if id == num_keyframes - 1 {
+                        let mut pm = PathMeasure::new(d, false, Some(2.0));
+                        pm.length()
+                    } else {
+                        return Err(ChronuxError::ArgError(format!(
+                            "Viewport keyframe {} has no position defined",
+                            id
+                        )));
+                    };
 
                     if let Some(ev) = self.events.get(&dep) {
-                        let time = ev.start + offset;
+                        let time = ev.start + time + ev.duration * duration_coeff;
                         Ok((position, k.size, time))
                     } else {
                         Err(ChronuxError::BrokenDependency(format!(
@@ -301,13 +329,26 @@ impl Config {
                 .iter()
                 .map(|(_, size, _)| *size)
                 .collect::<Vec<_>>();
+            let mut new_size_seq = Vec::new();
+            for s in size_seq.iter() {
+                if let Some(s) = s {
+                    new_size_seq.push(*s);
+                } else if let Some(last) = new_size_seq.last() {
+                    new_size_seq.push(*last);
+                } else {
+                    return Err(ChronuxError::ArgError(format!(
+                        "For each viewport track, size must be defined for the first keyframe even if it is not changed since previous track end: {:?}",
+                        size_seq
+                    )));
+                }
+            }
             let time_seq = keyframes
                 .iter()
                 .map(|(_, _, time)| *time)
                 .collect::<Vec<_>>();
 
-            let pos_pchip = Interpolator::new_pchip(time_seq.clone(), pos_seq)?;
-            let size_pchip = Interpolator::new_pchip(time_seq, size_seq)?;
+            let pos_pchip = PchipInterpolator::new(time_seq.clone(), pos_seq)?;
+            let size_pchip = PchipInterpolator::new(time_seq, new_size_seq)?;
 
             self.vp_pos_inter.push(pos_pchip);
             self.vp_size_inter.push(size_pchip);
@@ -318,11 +359,12 @@ impl Config {
 
     pub fn interpolate_vp(&self, t: f32) -> ChronuxResult<Vec3> {
         // Try to interpolate with tracks first
-        for (pos, size, path) in multizip((
+        let vp_zip = multizip((
             self.vp_pos_inter.iter(),
             self.vp_size_inter.iter(),
             self.vp_tracks.iter(),
-        )) {
+        )).collect::<Vec<_>>();
+        for (pos, size, path) in vp_zip.iter() {
             let pos = pos.interpolate(t);
             let size = size.interpolate(t);
             if let Some(pos) = pos
@@ -330,6 +372,27 @@ impl Config {
             {
                 let mut pm = PathMeasure::new(path, false, Some(2.0));
                 let pos = pm.pos_tan(pos).unwrap().0;
+                return Ok(Vec3(pos.x, pos.y, size));
+            }
+        }
+
+        // If no tracks are available, try to interpolate between tracks
+        for w in vp_zip.windows(2) {
+            let (pos1, size1, path1) = w[0];
+            let (pos2, size2, path2) = w[1];
+
+            let te1 = pos1.t_end;
+            let ts2 = pos2.t_start;
+
+            if te1 <= t && t <= ts2 {
+                let p = (t - te1) / (ts2 - te1);
+                let mut pm1 = PathMeasure::new(path1, false, Some(2.0));
+                let mut pm2 = PathMeasure::new(path2, false, Some(2.0));
+                let path1_len = pm1.length();
+                let p1 = pm1.pos_tan(path1_len).unwrap().0;
+                let p2 = pm2.pos_tan(0.0).unwrap().0;
+                let pos = p1 + (p2 - p1) * p;
+                let size = size1.p_end + (size2.p_start - size1.p_end) * p;
                 return Ok(Vec3(pos.x, pos.y, size));
             }
         }

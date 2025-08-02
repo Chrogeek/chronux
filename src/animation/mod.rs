@@ -2,7 +2,7 @@ use serde::Deserialize;
 use skia_safe::{Path, PathMeasure};
 
 use crate::{
-    animation::tween::Tween,
+    animation::{easing::Easing, tween::Tween},
     config::event::Event,
     svg::element::{Object, Shape},
     util::{ChronuxError, ChronuxResult},
@@ -40,8 +40,7 @@ pub fn track(obj: &Object, event: &Event, x: f32, y: f32) -> ChronuxResult<f32> 
     let t = match event.animation {
         Animation::TrimPath { reverse } => {
             if let Shape::Path { d } = &obj.shape {
-                let t = track_on_path(d, x, y).0;
-                let t = event.easing.evaluate(t);
+                let t = track_on_path(d, x, y, &event.easing).0;
                 let t = if reverse { 1.0 - t } else { t };
                 Ok(t)
             } else {
@@ -52,8 +51,7 @@ pub fn track(obj: &Object, event: &Event, x: f32, y: f32) -> ChronuxResult<f32> 
         }
         Animation::TrimPathOut { reverse } => {
             if let Shape::Path { d } = &obj.shape {
-                let t = track_on_path(d, x, y).0;
-                let t = event.easing.evaluate(t);
+                let t = track_on_path(d, x, y, &event.easing).0;
                 let t = if reverse { t } else { 1.0 - t };
                 Ok(t)
             } else {
@@ -70,9 +68,9 @@ pub fn track(obj: &Object, event: &Event, x: f32, y: f32) -> ChronuxResult<f32> 
     Ok(t * event.duration)
 }
 
-/// Calculate the nearest point on path d to given point (x, y)
-/// Returns (t, l) where l is the length from path origin to the nearest point, and t = l / length(d)
-pub fn track_on_path(d: &Path, x: f32, y: f32) -> (f32, f32) {
+/// Calculate the nearest point on path d to given point (x, y).
+/// Returns (t, d) where d is the path length, l is the length from path origin to the nearest point, and t = l / d.
+pub fn track_on_path(d: &Path, x: f32, y: f32, easing: &Easing) -> (f32, f32) {
     const SEGMENTS: usize = 20;
 
     let mut pm = PathMeasure::new(&d, false, Some(2.0));
@@ -80,7 +78,7 @@ pub fn track_on_path(d: &Path, x: f32, y: f32) -> (f32, f32) {
 
     let closest = (0..SEGMENTS + 1)
         .map(|i| {
-            let t = i as f32 / SEGMENTS as f32;
+            let t = easing.evaluate(i as f32 / SEGMENTS as f32);
             let dis = t * length;
             (t, pm.pos_tan(dis).unwrap().0)
         })
@@ -94,11 +92,11 @@ pub fn track_on_path(d: &Path, x: f32, y: f32) -> (f32, f32) {
     let mut tl = (closest.0 - 1.0 / SEGMENTS as f32).max(0.0);
     let mut tr = (closest.0 + 1.0 / SEGMENTS as f32).min(1.0);
 
-    for _ in 0..10 {
+    for _ in 0..20 {
         let ml = tl + (tr - tl) / 3.0;
         let mr = tr - (tr - tl) / 3.0;
-        let dl = pm.pos_tan(ml * length).unwrap().0;
-        let dr = pm.pos_tan(mr * length).unwrap().0;
+        let dl = pm.pos_tan(easing.evaluate(ml) * length).unwrap().0;
+        let dr = pm.pos_tan(easing.evaluate(mr) * length).unwrap().0;
         let d1 = (dl.x - x).powi(2) + (dl.y - y).powi(2);
         let d2 = (dr.x - x).powi(2) + (dr.y - y).powi(2);
         if d1 < d2 {
