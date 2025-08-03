@@ -304,7 +304,8 @@ impl Config {
                     let position = if let Some(kx) = k.x
                         && let Some(ky) = k.y
                     {
-                        let (pt, len) = track_on_path(d, kx, ky, &Easing::Linear);
+                        let (pt, len) = track_on_path(d, kx, ky, &Easing::Linear, 0.0);
+                        // total_time=0.0 since in this case (not animating) we don't care it
                         pt * len
                     } else if id == 0 {
                         0.0

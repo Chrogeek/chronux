@@ -33,7 +33,7 @@ impl Timeline {
             } else if time > event.start {
                 // Interpolate between start and end of the event
                 let t = (time - event.start) / event.duration;
-                result = result.apply(&event.animation, event.easing.evaluate(t));
+                result = result.apply(&event.animation, event.easing.evaluate(t, event.duration));
             }
         }
 
