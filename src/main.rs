@@ -8,7 +8,7 @@ use indicatif::{ParallelProgressIterator, ProgressFinish, ProgressIterator, Prog
 use pariter::IteratorExt;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use skia_safe::utils::text_utils::Align;
-use skia_safe::{AlphaType, ColorSpace, ColorType, ImageInfo, SurfaceProps, surfaces};
+use skia_safe::{surfaces, AlphaType, ColorSpace, ColorType, ImageInfo, Rect, SurfaceProps};
 
 use crate::util::fontmgr::get_font;
 use crate::util::timecode_rt;
@@ -253,7 +253,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
 
         // 绘制小地图
         if let Some(minimap) = conf.drawing.minimap.as_ref() {
-            widget::minimap::draw(&surface.canvas(), minimap, &timeline, &objs, t)?;
+            widget::minimap::draw(&surface.canvas(), minimap, &timeline, &objs, &Rect::new(vx, vy, vx + vw, vy + vh), t)?;
         }
 
         // 绘制比例尺

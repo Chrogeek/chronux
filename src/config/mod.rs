@@ -158,7 +158,9 @@ impl Config {
             with_start_time = with_start_time.max(t);
 
             if let event::Offset::Track { .. } = self.events[event_id].offset {
-                let nextobj = &objs[objmap[&self.events[next].object]];
+                let nextobj = &objs[*objmap
+                    .get(&self.events[next].object)
+                    .expect(&format!("No entry found for event: {}", next))];
                 let obj = &objs[objmap[&self.events[event_id].object]];
                 let (x, y) = obj.get_position();
                 track_start_time = t + track(nextobj, &self.events[next], x, y)?;
