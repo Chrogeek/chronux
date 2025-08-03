@@ -337,8 +337,7 @@ impl Config {
                         )))
                     }
                 })
-                .flatten()
-                .collect::<Vec<_>>();
+                .collect::<ChronuxResult<Vec<_>>>()?;
 
             let pos_seq = keyframes.iter().map(|(pos, _, _)| *pos).collect::<Vec<_>>();
             let size_seq = keyframes
@@ -460,8 +459,9 @@ where
                 .to_rgba8();
             Ok((k, Color::from_argb(a, r, g, b)))
         })
-        .flatten()
-        .collect();
+        .collect::<Result<HashMap<_, _>, _>>().map_err(|e| {
+            serde::de::Error::custom(format!("Failed to parse color dictionary: {}", e))
+        })?;
 
     COLOR_DICT
         .set(colors)
