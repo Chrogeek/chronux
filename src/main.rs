@@ -238,10 +238,10 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         for o in objs.iter() {
             if let Some(tl) = timeline.get(&o.id) {
                 let properties = tl.interpolate(t);
-                render::draw(&surface.canvas(), &o.shape, &properties)?;
+                render::draw(&surface.canvas(), &o.shape, &properties, 0.0)?;
             } else if conf.input.pinned.contains(&o.id) {
                 // 如果是固定的对象，直接绘制
-                render::draw(&surface.canvas(), &o.shape, &o.style)?;
+                render::draw(&surface.canvas(), &o.shape, &o.style, 0.0)?;
             }
         }
 

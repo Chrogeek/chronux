@@ -1,4 +1,4 @@
-use skia_safe::{Canvas, Paint, PaintStyle, Rect};
+use skia_safe::{Canvas, Paint, PaintStyle, Rect, Vector};
 
 use crate::{
     animation::properties::Properties,
@@ -8,13 +8,26 @@ use crate::{
 
 pub mod viewport;
 
-pub fn draw(canvas: &Canvas, shape: &Shape, properties: &Properties) -> ChronuxResult<()> {
+pub fn draw(
+    canvas: &Canvas,
+    shape: &Shape,
+    properties: &Properties,
+    min_stroke_width: f32,
+) -> ChronuxResult<()> {
     if !properties.visible || properties.opacity <= 1e-3 {
         return Ok(());
     }
 
+    let mat = canvas.local_to_device_as_3x3();
+    let min_stroke_width = mat
+        .invert()
+        .expect("Viewport transform must be invertible")
+        .map_vector(Vector::new(min_stroke_width, 0.0))
+        .length();
+
     let fill = properties.get_fill_paint();
-    let stroke = properties.get_stroke_paint();
+    let mut stroke = properties.get_stroke_paint();
+    stroke.set_stroke_width(stroke.stroke_width().max(min_stroke_width));
 
     let paints = sort_paints(properties.paint_order, stroke, fill);
 

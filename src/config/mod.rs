@@ -86,6 +86,12 @@ pub struct MinimapConfig {
     pub corner_radius: f32,
     #[serde(rename = "minimap-size")]
     pub size: f32,
+    #[serde(rename = "min-stroke-width", default = "default_stroke_width")]
+    pub min_stroke_width: f32,
+}
+
+fn default_stroke_width() -> f32 {
+    5.0
 }
 
 #[derive(Debug, Deserialize, Clone)]

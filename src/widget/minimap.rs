@@ -112,7 +112,7 @@ pub fn draw(
                 Some(tl) => tl.interpolate(t),
                 None => o.style.clone(),
             };
-            render::draw(canvas, &o.shape, &properties)?;
+            render::draw(canvas, &o.shape, &properties, minimap.min_stroke_width)?;
         }
     }
 
