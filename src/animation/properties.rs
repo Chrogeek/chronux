@@ -1,6 +1,8 @@
 use std::str::FromStr;
 
-use skia_safe::{Color, Font, Matrix, PaintCap, PaintJoin, Vector, utils::text_utils::Align};
+use skia_safe::{
+    Color, Font, Matrix, PaintCap, PaintJoin, Vector, utils::text_utils::Align,
+};
 use svgtypes::PaintOrder;
 
 use crate::{
@@ -33,6 +35,8 @@ pub struct Properties {
     pub typewriter: (f32, f32),
     pub sweep: f32,
     pub tweening: bool,
+    pub dash_offset: f32,
+    pub dash_array: Vec<f32>,
 }
 
 impl Default for Properties {
@@ -59,6 +63,8 @@ impl Default for Properties {
             typewriter: (0.0, 1.0),
             sweep: 1.0,
             tweening: false,
+            dash_offset: 0.0,
+            dash_array: Vec::new(),
         }
     }
 }
@@ -219,6 +225,26 @@ impl Properties {
             result.paint_order = PaintOrder::from_str(paint_order).map_err(|_| {
                 ChronuxError::ArgError(format!("invalid paint-order value: {}", paint_order))
             })?;
+        }
+
+        if let Some(dash_offset) = rules.get("stroke-dashoffset") {
+            result.dash_offset = parse_unit_value(dash_offset)?;
+        }
+
+        if let Some(dash_array) = rules.get("stroke-dasharray") {
+            if dash_array.trim() == "none" {
+                result.dash_array.clear();
+            } else {
+                let mut array = dash_array
+                    .split(',')
+                    .map(|s| parse_unit_value(s.trim()))
+                    .collect::<ChronuxResult<Vec<_>>>()?;
+                if array.len() % 2 != 0 {
+                    let dup = array.clone();
+                    array.extend(&dup);
+                }
+                result.dash_array = array;
+            }
         }
 
         Ok(result)
