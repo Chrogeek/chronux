@@ -171,7 +171,7 @@ impl PchipInterpolator {
         let p_start = p[0];
         let p_end = p[n - 1];
 
-        let is_zero_length = p_end - p_start < 1e-6;
+        let is_zero_length = (p_end - p_start).abs() < 1e-6;
 
         let t = t.iter().map(|v| v - t_start).collect::<Vec<_>>();
         let p = p
@@ -196,6 +196,8 @@ impl PchipInterpolator {
             .map(|w| {
                 if is_zero_length {
                     0.0
+                } else if w[0].signum() * w[1].signum() <= 0.0 {
+                    0.0 // if the slopes have different signs, set m to 0
                 } else {
                     2.0 * (w[0] * w[1]) / (w[0] + w[1])
                 }
@@ -228,12 +230,6 @@ impl PchipInterpolator {
 
     pub fn interpolate(&self, t: f32) -> Option<f32> {
         if t <= self.t_start || t >= self.t_end {
-            log::warn!(
-                "Time point out of bounds in PCHIP interpolation: t = {}, t_start = {}, t_end = {}",
-                t,
-                self.t_start,
-                self.t_end
-            );
             return None;
         }
         let t = t - self.t_start;

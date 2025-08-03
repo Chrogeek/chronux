@@ -90,15 +90,10 @@ pub fn track_on_path(d: &Path, x: f32, y: f32, easing: &Easing) -> (f32, f32) {
             let dis = t * length;
             (t, pm.pos_tan(dis).unwrap().0)
         })
-        .min_by(|(i1, p1), (i2, p2)| {
+        .min_by(|(_, p1), (_, p2)| {
             let d1 = (p1.x - x).powi(2) + (p1.y - y).powi(2);
             let d2 = (p2.x - x).powi(2) + (p2.y - y).powi(2);
-            let cmp = d1.partial_cmp(&d2).unwrap();
-            if cmp.is_eq() {
-                i1.partial_cmp(&i2).unwrap()
-            } else {
-                cmp
-            }
+            d1.partial_cmp(&d2).unwrap()
         })
         .unwrap();
 
@@ -112,7 +107,7 @@ pub fn track_on_path(d: &Path, x: f32, y: f32, easing: &Easing) -> (f32, f32) {
         let dr = pm.pos_tan(easing.evaluate(mr) * length).unwrap().0;
         let d1 = (dl.x - x).powi(2) + (dl.y - y).powi(2);
         let d2 = (dr.x - x).powi(2) + (dr.y - y).powi(2);
-        if d1 < d2 || (d1 == d2 && ml < mr) {
+        if d1 < d2 {
             tr = mr;
         } else {
             tl = ml;

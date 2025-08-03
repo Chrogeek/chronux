@@ -12,10 +12,11 @@ use crate::{
         group::Group,
         viewport::{TimeKey, ViewportTrack},
     },
-    render::viewport::{interpolate_viewport, Viewport},
+    render::viewport::{Viewport, interpolate_viewport},
     svg::element::{Object, Shape},
     util::{
-        interpolator::PchipInterpolator, vector::Vec3, version::is_compatible, ChronuxError, ChronuxResult, COLOR_DICT
+        COLOR_DICT, ChronuxError, ChronuxResult, interpolator::PchipInterpolator, vector::Vec3,
+        version::is_compatible,
     },
 };
 
@@ -145,7 +146,13 @@ impl Config {
 
         stack.insert(event_id.clone());
 
-        for next in self.events[event_id].depends.iter() {
+        for next in self
+            .events
+            .get(event_id)
+            .expect(&format!("no entry found for event_id = '{}'", event_id))
+            .depends
+            .iter()
+        {
             let t = self.dfs(next, visited, stack, objs, objmap)?;
             after_start_time = after_start_time.max(t + self.events[next].duration);
             with_start_time = with_start_time.max(t);
@@ -363,7 +370,8 @@ impl Config {
             self.vp_pos_inter.iter(),
             self.vp_size_inter.iter(),
             self.vp_tracks.iter(),
-        )).collect::<Vec<_>>();
+        ))
+        .collect::<Vec<_>>();
         for (pos, size, path) in vp_zip.iter() {
             let pos = pos.interpolate(t);
             let size = size.interpolate(t);
