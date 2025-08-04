@@ -3,10 +3,8 @@ use skia_safe::{Canvas, Paint, PaintStyle, Rect, Vector};
 use crate::{
     animation::properties::Properties,
     svg::element::Shape,
-    util::{ChronuxResult, sort_paints},
+    util::{sort_paints, ChronuxError, ChronuxResult},
 };
-
-pub mod viewport;
 
 pub fn draw(
     canvas: &Canvas,
@@ -21,7 +19,13 @@ pub fn draw(
     let mat = canvas.local_to_device_as_3x3();
     let min_stroke_width = mat
         .invert()
-        .expect("Viewport transform must be invertible")
+        .ok_or_else(|| {
+            log::error!(
+                "Non-invertible viewport transform: {:?}", mat
+            );
+            log::error!("min_stroke_width: {}", min_stroke_width);
+            ChronuxError::ArgError("Viewport transform must be invertible".to_string())
+        })?
         .map_vector(Vector::new(min_stroke_width, 0.0))
         .length();
 

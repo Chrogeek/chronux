@@ -18,7 +18,6 @@ use crate::{
     animation::Animation,
     args::Args,
     config::Config,
-    render::viewport::{calc_viewport_keyframe_bezier, calc_viewport_times, sort_viewports},
     svg::Svg,
     util::{ChronuxError, ChronuxResult},
     writer::Writer,
@@ -161,13 +160,6 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         }
     }
     log::info!("Calculated timeline for objects");
-
-    // 处理镜头
-    calc_viewport_times(&mut conf.viewports, &conf.events)?;
-    sort_viewports(&mut conf.viewports);
-
-    calc_viewport_keyframe_bezier(&mut conf.viewports);
-    log::info!("Calculated viewport keyframes");
 
     // 渲染动画
     let frame_start = (animation_start * conf.output.fps as f32) as usize;

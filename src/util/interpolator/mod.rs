@@ -155,7 +155,7 @@ impl PchipInterpolator {
 
         // check if t is strictly increasing
         for i in 1..n {
-            if t[i] <= t[i - 1] {
+            if t[i] - t[i - 1] < 1e-6 {
                 return Err(ChronuxError::ArgError(format!(
                     "Time points must be strictly increasing: t[{}] = {}, t[{}] = {}",
                     i - 1,
@@ -198,6 +198,8 @@ impl PchipInterpolator {
                     0.0
                 } else if w[0].signum() * w[1].signum() <= 0.0 {
                     0.0 // if the slopes have different signs, set m to 0
+                } else if w[0].abs() < 1e-6 || w[1].abs() < 1e-6 {
+                    0.0 // if either slope is zero, set m to 0
                 } else {
                     2.0 * (w[0] * w[1]) / (w[0] + w[1])
                 }
@@ -229,11 +231,11 @@ impl PchipInterpolator {
     }
 
     pub fn interpolate(&self, t: f32) -> Option<f32> {
-        if t <= self.t_start || t >= self.t_end {
+        if t < self.t_start || t > self.t_end {
             return None;
         }
         let t = t - self.t_start;
-        let i = self.t.iter().position(|&x| x > t).unwrap() - 1;
+        let i = self.t.iter().position(|&x| x > t)? - 1;
 
         let dt = t - self.t[i];
         let p_i = self.p[i];

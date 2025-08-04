@@ -12,7 +12,6 @@ use crate::{
         group::Group,
         viewport::{TimeKey, ViewportTrack},
     },
-    render::viewport::{Viewport, interpolate_viewport},
     svg::element::{Object, Shape},
     util::{
         COLOR_DICT, ChronuxError, ChronuxResult, interpolator::PchipInterpolator, vector::Vec3,
@@ -32,8 +31,7 @@ pub struct Config {
     #[serde(deserialize_with = "deserialize_events")]
     pub events: HashMap<String, Event>,
     pub groups: Vec<Group>,
-    pub viewports: Vec<Viewport>,
-    #[serde(rename = "vp-tracks")]
+    #[serde(rename = "viewports")]
     pub viewport_tracks: Vec<ViewportTrack>,
     #[serde(skip)]
     pub vp_pos_inter: Vec<PchipInterpolator>,
@@ -425,9 +423,24 @@ impl Config {
             }
         }
 
-        // If no tracks are available, use the legacy viewport keyframes
-        // Return an error if still failed
-        interpolate_viewport(&self.viewports, t).ok_or(ChronuxError::ArgError(format!(
+        if t <= self.vp_pos_inter[0].t_start {
+            // If t is before the first track, use the first track's position and size
+            let size = self.vp_size_inter[0].p_start;
+            let mut pm = PathMeasure::new(&self.vp_tracks[0], false, Some(2.0));
+            let pos = pm.pos_tan(0.0).unwrap().0;
+            return Ok(Vec3(pos.x, pos.y, size));
+        } else if let Some(vp_pos_last) = self.vp_pos_inter.last()
+            && t >= vp_pos_last.t_end
+        {
+            // If t is after the last track, use the last track's position and size
+            let size = self.vp_size_inter.last().unwrap().p_end;
+            let mut pm = PathMeasure::new(self.vp_tracks.last().unwrap(), false, Some(2.0));
+            let len = pm.length();
+            let pos = pm.pos_tan(len).unwrap().0;
+            return Ok(Vec3(pos.x, pos.y, size));
+        }
+
+        Err(ChronuxError::ArgError(format!(
             "Viewport interpolation failed for time {}",
             t
         )))
