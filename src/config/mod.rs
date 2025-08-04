@@ -39,6 +39,8 @@ pub struct Config {
     pub vp_size_inter: Vec<PchipInterpolator>,
     #[serde(skip)]
     pub vp_tracks: Vec<Path>,
+    #[serde(skip)]
+    pub vp_track_paths: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -378,6 +380,25 @@ impl Config {
             self.vp_pos_inter.push(pos_pchip);
             self.vp_size_inter.push(size_pchip);
             self.vp_tracks.push(d.clone());
+            self.vp_track_paths.push(viewport.tracked_path.clone());
+        }
+
+        for i in 1..self.vp_pos_inter.len() {
+            // 检查相邻两个插值的时间区间是否交叉
+            let (p0, p1) = (&self.vp_pos_inter[i - 1], &self.vp_pos_inter[i]);
+            if p1.t_start <= p0.t_end {
+                log::warn!(
+                    "Viewport tracks time interval intersection detected between track '{}' and '{}'",
+                    self.vp_track_paths[i - 1],
+                    self.vp_track_paths[i]
+                );
+                log::warn!(
+                    "This may cause unexpected behavior for viewport move."
+                );
+                log::warn!(
+                    "You may want to adjust the keyframes or time intervals to avoid this issue."
+                );
+            }
         }
         Ok(())
     }
