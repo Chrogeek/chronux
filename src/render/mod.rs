@@ -45,11 +45,12 @@ pub fn draw(
         }
         Shape::Circle { cx, cy, r } => {
             let (cx, cy, r) = (*cx, *cy, *r);
+            let (sweep_start, sweep_end) = properties.sweep;
             for paint in paints {
                 canvas.draw_arc(
                     Rect::new(cx - r, cy - r, cx + r, cy + r),
-                    -90.0,
-                    properties.sweep * 360.0,
+                    -90.0 + sweep_start * 360.0,
+                    (sweep_end - sweep_start) * 360.0,
                     match paint.style() {
                         PaintStyle::Fill => true,
                         PaintStyle::Stroke | PaintStyle::StrokeAndFill => false,

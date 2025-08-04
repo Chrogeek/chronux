@@ -8,7 +8,7 @@ use indicatif::{ParallelProgressIterator, ProgressFinish, ProgressIterator, Prog
 use pariter::IteratorExt;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use skia_safe::utils::text_utils::Align;
-use skia_safe::{surfaces, AlphaType, ColorSpace, ColorType, ImageInfo, Rect, SurfaceProps};
+use skia_safe::{AlphaType, ColorSpace, ColorType, ImageInfo, Rect, SurfaceProps, surfaces};
 
 use crate::util::fontmgr::get_font;
 use crate::util::timecode_rt;
@@ -145,13 +145,14 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                         tl.start.typewriter = (0.0, 0.0);
                     }
                     Animation::Sweep => {
-                        tl.start.sweep = 0.0;
+                        tl.start.sweep = (0.0, 0.0);
                     }
                     Animation::FadeIn => {
                         tl.start.opacity = 0.0;
                     }
                     // 下面这些不是出现动画，什么都不用做
                     Animation::TypewriterOut
+                    | Animation::SweepOut
                     | Animation::Tween(_)
                     | Animation::FadeOut
                     | Animation::TrimPathOut { .. } => {}
@@ -253,7 +254,14 @@ fn run(args: Args) -> Result<(), ChronuxError> {
 
         // 绘制小地图
         if let Some(minimap) = conf.drawing.minimap.as_ref() {
-            widget::minimap::draw(&surface.canvas(), minimap, &timeline, &objs, &Rect::new(vx, vy, vx + vw, vy + vh), t)?;
+            widget::minimap::draw(
+                &surface.canvas(),
+                minimap,
+                &timeline,
+                &objs,
+                &Rect::new(vx, vy, vx + vw, vy + vh),
+                t,
+            )?;
         }
 
         // 绘制比例尺

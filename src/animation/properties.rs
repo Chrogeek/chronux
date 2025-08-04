@@ -33,7 +33,7 @@ pub struct Properties {
     // pub rotate: f32,
     pub trim: (f32, f32),
     pub typewriter: (f32, f32),
-    pub sweep: f32,
+    pub sweep: (f32, f32),
     pub tweening: bool,
     pub dash_offset: f32,
     pub dash_array: Vec<f32>,
@@ -61,7 +61,7 @@ impl Default for Properties {
             // rotate: 0.0,
             trim: (0.0, 1.0),
             typewriter: (0.0, 1.0),
-            sweep: 1.0,
+            sweep: (0.0, 1.0),
             tweening: false,
             dash_offset: 0.0,
             dash_array: Vec::new(),
@@ -95,7 +95,11 @@ impl Properties {
                 ..self.clone()
             },
             Animation::Sweep => Properties {
-                sweep: t,
+                sweep: (0.0, t),
+                ..self.clone()
+            },
+            Animation::SweepOut => Properties {
+                sweep: (0.0, 1.0 - t),
                 ..self.clone()
             },
             Animation::Tween(tween) => {

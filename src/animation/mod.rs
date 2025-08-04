@@ -26,8 +26,8 @@ pub enum Animation {
     TypewriterOut,
     #[serde(rename = "sweep")]
     Sweep,
-    // #[serde(rename = "sweep-out")]
-    // SweepOut,
+    #[serde(rename = "sweep-out")]
+    SweepOut,
     #[serde(rename = "tween")]
     Tween(Tween),
     #[serde(rename = "fade-in")]

@@ -362,8 +362,20 @@ impl Config {
                 .map(|(_, _, time)| *time)
                 .collect::<Vec<_>>();
 
-            let pos_pchip = PchipInterpolator::new(time_seq.clone(), pos_seq)?;
-            let size_pchip = PchipInterpolator::new(time_seq, new_size_seq)?;
+            let pos_pchip = PchipInterpolator::new(time_seq.clone(), pos_seq).map_err(|e| {
+                log::error!(
+                    "Failed to create position PchipInterpolator for viewport track on {})",
+                    tracked_path.id,
+                );
+                e
+            })?;
+            let size_pchip = PchipInterpolator::new(time_seq, new_size_seq).map_err(|e| {
+                log::error!(
+                    "Failed to create size PchipInterpolator for viewport track on {}",
+                    tracked_path.id,
+                );
+                e
+            })?;
 
             self.vp_pos_inter.push(pos_pchip);
             self.vp_size_inter.push(size_pchip);
@@ -459,7 +471,8 @@ where
                 .to_rgba8();
             Ok((k, Color::from_argb(a, r, g, b)))
         })
-        .collect::<Result<HashMap<_, _>, _>>().map_err(|e| {
+        .collect::<Result<HashMap<_, _>, _>>()
+        .map_err(|e| {
             serde::de::Error::custom(format!("Failed to parse color dictionary: {}", e))
         })?;
 
