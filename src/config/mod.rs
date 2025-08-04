@@ -386,11 +386,13 @@ impl Config {
         for i in 1..self.vp_pos_inter.len() {
             // 检查相邻两个插值的时间区间是否交叉
             let (p0, p1) = (&self.vp_pos_inter[i - 1], &self.vp_pos_inter[i]);
-            if p1.t_start <= p0.t_end {
+            if p1.t_start < p0.t_end {
                 log::warn!(
-                    "Viewport tracks time interval intersection detected between track '{}' and '{}'",
+                    "Viewport tracks time interval intersection detected between track '{} (t_end = {})' and '{} (t_start = {})'",
                     self.vp_track_paths[i - 1],
-                    self.vp_track_paths[i]
+                    p0.t_end,
+                    self.vp_track_paths[i],
+                    p1.t_start,
                 );
                 log::warn!(
                     "This may cause unexpected behavior for viewport move."
