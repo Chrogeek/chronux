@@ -16,7 +16,6 @@ pub fn draw(
     minimap: &MinimapConfig,
     timeline: &HashMap<String, Timeline>,
     objs: &Vec<Object>,
-    viewport: &Rect,
     t: f32,
 ) -> ChronuxResult<()> {
     let mut bounding_box: Option<(f32, f32, f32, f32)> = None;
@@ -48,14 +47,6 @@ pub fn draw(
     let canvas_restore_count = canvas.save();
 
     let bb = bounding_box.unwrap();
-
-    // 将 viewport 加到小地图中
-    let bb = (
-        bb.0.min(viewport.left()),
-        bb.1.min(viewport.top()),
-        bb.2.max(viewport.right()),
-        bb.3.max(viewport.bottom()),
-    );
 
     let (bw, bh) = (bb.2 - bb.0, bb.3 - bb.1);
 

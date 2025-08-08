@@ -8,7 +8,7 @@ use indicatif::{ParallelProgressIterator, ProgressFinish, ProgressIterator, Prog
 use pariter::IteratorExt;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use skia_safe::utils::text_utils::Align;
-use skia_safe::{AlphaType, ColorSpace, ColorType, ImageInfo, Rect, SurfaceProps, surfaces};
+use skia_safe::{AlphaType, ColorSpace, ColorType, ImageInfo, SurfaceProps, surfaces};
 
 use crate::util::fontmgr::get_font;
 use crate::util::timecode_rt;
@@ -251,7 +251,6 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                 minimap,
                 &timeline,
                 &objs,
-                &Rect::new(vx, vy, vx + vw, vy + vh),
                 t,
             )?;
         }

@@ -166,7 +166,7 @@ impl Config {
             if let event::Offset::Track { .. } = self.events[event_id].offset {
                 let nextobj = &objs[*objmap
                     .get(&self.events[next].object)
-                    .expect(&format!("No entry found for event: {}", next))];
+                    .expect(&format!("Object for event {} not found ({}, failed for event tracking)", next, self.events[next].object))];
                 let obj = &objs[objmap[&self.events[event_id].object]];
                 let (x, y) = obj.get_position();
                 track_start_time = t + track(nextobj, &self.events[next], x, y)?;
