@@ -39,7 +39,7 @@ impl PlaceholderText {
                 let value = *counters.get(counter).unwrap_or(&0.0);
 
                 if *max_decimals == 0 {
-                    return format!("{:.0}", value);
+                    return format!("{value:.0}");
                 }
 
                 let formatted = format!("{:.1$}", value, *max_decimals);
@@ -55,7 +55,7 @@ impl PlaceholderText {
                     format!(
                         "{}.{}",
                         int,
-                        frac[0..(*max_significant - int.len())].to_string()
+                        &frac[0..(*max_significant - int.len())]
                     )
                 }
             }

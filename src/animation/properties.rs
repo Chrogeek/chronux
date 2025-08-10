@@ -179,13 +179,13 @@ impl Properties {
         }
 
         if let Some(size) = rules.get("font-size") {
-            let s = parse_unit_value(*size)?;
+            let s = parse_unit_value(size)?;
             let Vector { x: s, y: _ } = mat.map_vector((s, 0.0));
             result.font_size = s;
         }
 
         if let Some(weight) = rules.get("font-weight") {
-            result.font_weight = parse_font_weight(*weight)?;
+            result.font_weight = parse_font_weight(weight)?;
         }
 
         if let Some(anchor) = rules.get("text-anchor") {
@@ -218,9 +218,7 @@ impl Properties {
         if let Some(font_family) = rules.get("font-family") {
             let ff = font_family.to_string();
             // dequote ff
-            let ff = if ff.starts_with('"') && ff.ends_with('"') {
-                ff[1..ff.len() - 1].to_string()
-            } else if ff.starts_with('\'') && ff.ends_with('\'') {
+            let ff = if (ff.starts_with('"') && ff.ends_with('"')) || (ff.starts_with('\'') && ff.ends_with('\'')) {
                 ff[1..ff.len() - 1].to_string()
             } else {
                 ff
@@ -230,7 +228,7 @@ impl Properties {
 
         if let Some(paint_order) = rules.get("paint-order") {
             result.paint_order = PaintOrder::from_str(paint_order).map_err(|_| {
-                ChronuxError::ArgError(format!("invalid paint-order value: {}", paint_order))
+                ChronuxError::ArgError(format!("invalid paint-order value: {paint_order}"))
             })?;
         }
 
@@ -283,15 +281,11 @@ impl Properties {
     }
 
     pub fn get_effects(&self) -> Vec<Option<skia_safe::PathEffect>> {
-        let mut effects = Vec::new();
-
-        effects.push(skia_safe::trim_path_effect::new(
+        vec![skia_safe::trim_path_effect::new(
             self.trim.0,
             self.trim.1,
             skia_safe::trim_path_effect::Mode::Normal, // reverse
-        ));
-
-        effects
+        )]
     }
 
     pub fn get_font(&self) -> ChronuxResult<Font> {

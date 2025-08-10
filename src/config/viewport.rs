@@ -100,8 +100,7 @@ impl ViewportSequence {
         }
 
         Err(ChronuxError::ArgError(format!(
-            "Viewport interpolation failed for time {}",
-            t
+            "Viewport interpolation failed for time {t}"
         )))
     }
 }

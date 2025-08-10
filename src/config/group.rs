@@ -23,9 +23,9 @@ pub struct Group {
 }
 
 impl Group {
-    pub fn to_events(self) -> Vec<Event> {
+    pub fn to_events(&self) -> Vec<Event> {
         self.anilist
-            .into_iter()
+            .iter()
             .enumerate()
             .map(
                 |(
@@ -41,7 +41,7 @@ impl Group {
                         id: if i == 0 {
                             self.id.clone()
                         } else {
-                            format!("{}____{}", self.id, i.to_string())
+                            format!("{}____{}", self.id, i)
                         },
                         depends: if track_follows {
                             vec![self.id.clone()]
@@ -61,9 +61,9 @@ impl Group {
                         duration: self.duration,
                         animation: animation.clone(),
                         counters: if i == 0 {
-                            merge_counters(&self.counters, &counters)
+                            merge_counters(&self.counters, counters)
                         } else {
-                            counters
+                            counters.clone()
                         },
                     }
                 },

@@ -34,7 +34,7 @@ fn main() -> ExitCode {
 
     env_logger::init();
     log::info!("Welcome to Chronux!");
-    log::info!("Version {}", CHRONUX_VERSION);
+    log::info!("Version {CHRONUX_VERSION}");
 
     match run(args) {
         Ok(_) => {
@@ -43,7 +43,7 @@ fn main() -> ExitCode {
         }
         Err(e) => {
             log::error!("Rendering failed with error:");
-            log::error!("{}", e);
+            log::error!("{e}");
             ExitCode::FAILURE
         }
     }
@@ -55,14 +55,14 @@ fn run(args: Args) -> Result<(), ChronuxError> {
 
     // 加载动画配置
     let mut conf = Config::load(&input)?;
-    log::info!("Loaded config from file `{}`", input);
+    log::info!("Loaded config from file `{input}`");
 
     // 拆分所有动画组
     conf.flatten_groups()?;
 
     // 提取所需的SVG元素
     let ids = conf.extract_objects()?;
-    log::trace!("IDs: {:?}", ids);
+    log::trace!("IDs: {ids:?}");
 
     // 解析SVG
     let svg_file = PathBuf::from_str(&input)
@@ -139,11 +139,11 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             .map(|(id, e)| (id, e.start))
             .collect::<Vec<_>>();
         events.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
-        let mut file = File::create(&output).map_err(|e| ChronuxError::IoError(e))?;
-        writeln!(file, "id,start,").map_err(|e| ChronuxError::IoError(e))?;
+        let mut file = File::create(&output).map_err(ChronuxError::IoError)?;
+        writeln!(file, "id,start,").map_err(ChronuxError::IoError)?;
         for (id, start) in events {
             writeln!(file, "{},{}", id, timecode_rt(start, conf.output.fps),)
-                .map_err(|e| ChronuxError::IoError(e))?;
+                .map_err(ChronuxError::IoError)?;
         }
         return Ok(());
     }
@@ -187,7 +187,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     // 渲染动画
     let frame_start = (animation_start * conf.output.fps as f32) as usize;
     let frame_end = (animation_end * conf.output.fps as f32) as usize;
-    log::info!("Frames rendered: {} - {}", frame_start, frame_end);
+    log::info!("Frames rendered: {frame_start} - {frame_end}");
 
     log::info!("Start rendering frames...");
 
@@ -226,7 +226,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
 
         // 添加求和计数器
         for (sum_counter, sub_counters) in &conf.drawing.sum_counters {
-            add_sum_counter_item(&mut counters, &sum_counter, &sub_counters);
+            add_sum_counter_item(&mut counters, sum_counter, sub_counters);
         }
 
         // 计算当前镜头位置
@@ -248,7 +248,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             AlphaType::Premul,
             ColorSpace::new_srgb(),
         );
-        let mut surface = surfaces::raster(&ii, (0) as usize, Some(&SurfaceProps::default()))
+        let mut surface = surfaces::raster(&ii, 0_usize, Some(&SurfaceProps::default()))
             .ok_or(ChronuxError::SkiaError(
                 "failed to create Skia surface".into(),
             ))?;
@@ -269,7 +269,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             } else if let Some(tl) = timeline.get(&o.id) {
                 let properties = tl.interpolate(t);
                 render::draw(
-                    &surface.canvas(),
+                    surface.canvas(),
                     &o.shape,
                     &properties,
                     0.0,
@@ -279,7 +279,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             } else if conf.input.pinned.contains(&o.id) {
                 // 如果是固定的对象，直接绘制
                 render::draw(
-                    &surface.canvas(),
+                    surface.canvas(),
                     &o.shape,
                     &o.style,
                     0.0,
@@ -303,7 +303,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             } else if let Some(tl) = timeline.get(&o.id) {
                 let properties = tl.interpolate(t);
                 render::draw(
-                    &surface.canvas(),
+                    surface.canvas(),
                     &o.shape,
                     &properties,
                     0.0,
@@ -313,7 +313,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             } else if conf.input.pinned.contains(&o.id) {
                 // 如果是固定的对象，直接绘制
                 render::draw(
-                    &surface.canvas(),
+                    surface.canvas(),
                     &o.shape,
                     &o.style,
                     0.0,
@@ -325,12 +325,12 @@ fn run(args: Args) -> Result<(), ChronuxError> {
 
         // 绘制小地图
         if let Some(minimap) = conf.drawing.minimap.as_ref() {
-            widget::minimap::draw(&surface.canvas(), minimap, &timeline, &objs, t, &counters)?;
+            widget::minimap::draw(surface.canvas(), minimap, &timeline, &objs, t, &counters)?;
         }
 
         // 绘制比例尺
         if let Some(scale) = conf.drawing.scale.as_ref() {
-            widget::scale::draw(&surface.canvas(), scale, vw, &conf.drawing.ascii_font)?;
+            widget::scale::draw(surface.canvas(), scale, vw, &conf.drawing.ascii_font)?;
         }
 
         // 调试模式下输出时间码
@@ -368,14 +368,14 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     };
 
     let write_routine = |indexed_raw| {
-        let res = match indexed_raw {
+        
+        match indexed_raw {
             Ok((f, raw, frame_time)) => {
                 writer.write_frame(f, raw)?;
                 Ok(frame_time)
             }
             Err(e) => Err(e),
-        };
-        res
+        }
     };
 
     let render_err_fold = |acc, res| match (acc, res) {

@@ -6,9 +6,9 @@ use skia_safe::{Color, Paint};
 use svgtypes::PaintOrder;
 
 pub mod fontmgr;
+pub mod interpolator;
 pub mod vector;
 pub mod version;
-pub mod interpolator;
 
 #[derive(Debug)]
 pub enum ChronuxError {
@@ -37,37 +37,33 @@ impl Display for ChronuxError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ChronuxError::VersionError(version) => {
-                write!(f, "Incompatible version: {}", version)
+                write!(f, "Incompatible version: {version}")
             }
-            ChronuxError::IoError(e) => write!(f, "IO Error: {}", e),
+            ChronuxError::IoError(e) => write!(f, "IO Error: {e}"),
             ChronuxError::ConfigError(e) => {
                 write!(f, "Config Error at span '{:?}': {}", e.span(), e.message())
             }
-            ChronuxError::XmlError(e) => write!(f, "SVG Parse Error: {}", e),
+            ChronuxError::XmlError(e) => write!(f, "SVG Parse Error: {e}"),
             ChronuxError::CircularDependency(id) => {
-                write!(f, "Circular dependency detected: {}", id)
+                write!(f, "Circular dependency detected: {id}")
             }
             ChronuxError::AttributeNotFound { node_id, attribute } => {
                 if let Some(node_id) = node_id {
-                    write!(
-                        f,
-                        "Attribute '{}' not found in node '{}'",
-                        attribute, node_id
-                    )
+                    write!(f, "Attribute '{attribute}' not found in node '{node_id}'")
                 } else {
-                    write!(f, "Attribute '{}' not found in node", attribute)
+                    write!(f, "Attribute '{attribute}' not found in node")
                 }
             }
-            ChronuxError::ParseFloatError(e) => write!(f, "Floating-point parse error: {}", e),
+            ChronuxError::ParseFloatError(e) => write!(f, "Floating-point parse error: {e}"),
             ChronuxError::ColorParseError(color) => {
-                write!(f, "Failed to parse color: '{}'", color)
+                write!(f, "Failed to parse color: '{color}'")
             }
-            ChronuxError::SvgError(msg) => write!(f, "SVG Error: {}", msg),
-            ChronuxError::SkiaError(msg) => write!(f, "Skia Error: {}", msg),
-            ChronuxError::ArgError(msg) => write!(f, "Argument Error: {}", msg),
-            ChronuxError::HrefError(msg) => write!(f, "Href Error: {}", msg),
-            ChronuxError::BrokenDependency(id) => write!(f, "Broken dependency: {}", id),
-            ChronuxError::FfmpegError(msg) => write!(f, "FFmpeg Error: {}", msg),
+            ChronuxError::SvgError(msg) => write!(f, "SVG Error: {msg}"),
+            ChronuxError::SkiaError(msg) => write!(f, "Skia Error: {msg}"),
+            ChronuxError::ArgError(msg) => write!(f, "Argument Error: {msg}"),
+            ChronuxError::HrefError(msg) => write!(f, "Href Error: {msg}"),
+            ChronuxError::BrokenDependency(id) => write!(f, "Broken dependency: {id}"),
+            ChronuxError::FfmpegError(msg) => write!(f, "FFmpeg Error: {msg}"),
         }
     }
 }
@@ -85,11 +81,7 @@ pub fn parse_css_color(color: &str, opacity: f32) -> ChronuxResult<Color> {
     }
     let [r, g, b, _] = csscolorparser::parse(color)
         .map_err(|e| {
-            ChronuxError::ColorParseError(format!(
-                "cannot parse color literal '{}': {}",
-                color.to_string(),
-                e.to_string()
-            ))
+            ChronuxError::ColorParseError(format!("cannot parse color literal '{color}': {e}"))
         })?
         .to_rgba8();
     let a = (opacity * 255.0).clamp(0.0, 255.0) as u8;
@@ -104,11 +96,11 @@ pub fn timecode(f: u32, fps: u32) -> String {
     let frames = f % fps;
 
     if hours > 0 {
-        format!("{:02}:{:02}:{:02}:{:02}", hours, minutes, seconds, frames)
+        format!("{hours:02}:{minutes:02}:{seconds:02}:{frames:02}")
     } else if minutes > 0 {
-        format!("{:02}:{:02}:{:02}", minutes, seconds, frames)
+        format!("{minutes:02}:{seconds:02}:{frames:02}")
     } else {
-        format!("{:02}:{:02}", seconds, frames)
+        format!("{seconds:02}:{frames:02}")
     }
 }
 
@@ -117,18 +109,18 @@ pub fn timecode_rt(t: f32, fps: u32) -> String {
 }
 
 pub fn parse_unit_value(v: &str) -> ChronuxResult<f32> {
-    if v.ends_with("px") {
-        v[..v.len() - 2]
+    if let Some(stripped) = v.strip_suffix("px") {
+        stripped
             .parse::<f32>()
             .map_err(ChronuxError::ParseFloatError)
-    } else if v.ends_with("pt") {
-        v[..v.len() - 2]
+    } else if let Some(stripped) = v.strip_suffix("pt") {
+        stripped
             .parse::<f32>()
             .map(|v| v * 3.0 / 4.0)
             .map_err(ChronuxError::ParseFloatError)
     } else {
         v.parse::<f32>()
-            .map_err(|e| ChronuxError::ArgError(format!("Unsupported value '{}': {}", v, e)))
+            .map_err(|e| ChronuxError::ArgError(format!("Unsupported value '{v}': {e}")))
     }
 }
 

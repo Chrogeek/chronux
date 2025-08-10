@@ -39,14 +39,13 @@ pub fn get_font(font_family: &str, font_size: f32, font_weight: i32) -> ChronuxR
     let mgr = skia_safe::FontMgr::new();
     let tf = mgr
         .match_family_style(
-            &font_family,
+            font_family,
             FontStyle::new(font_weight.into(), Width::NORMAL, Slant::Upright),
         )
         .ok_or(ChronuxError::SkiaError(format!(
-            "failed to create typeface '{}'",
-            font_family
+            "failed to create typeface '{font_family}'"
         )))?;
-    let mut font = Font::from_typeface(tf, font_size as f32);
+    let mut font = Font::from_typeface(tf, font_size);
     font.set_subpixel(true);
     font.set_hinting(FontHinting::Slight);
     font.set_edging(Edging::SubpixelAntiAlias);

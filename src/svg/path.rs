@@ -10,8 +10,7 @@ pub fn svg_to_path(d: &str, mat: Matrix) -> ChronuxResult<Path> {
     for seg in PathParser::from(d) {
         if seg.is_err() {
             return Err(ChronuxError::SvgError(format!(
-                "failed to parse path segment for d = {}",
-                d
+                "failed to parse path segment for d = {d}"
             )));
         }
         let seg = seg.unwrap();
@@ -179,8 +178,7 @@ pub fn svg_to_path(d: &str, mat: Matrix) -> ChronuxResult<Path> {
             }
             _ => {
                 return Err(ChronuxError::SvgError(format!(
-                    "unsupported path segment {:?} in d = {}",
-                    seg, d
+                    "unsupported path segment {seg:?} in d = {d}"
                 )));
             }
         }

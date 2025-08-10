@@ -15,7 +15,7 @@ pub fn draw(
     canvas: &Canvas,
     minimap: &MinimapConfig,
     timeline: &HashMap<String, Timeline>,
-    objs: &Vec<Object>,
+    objs: &[Object],
     t: f32,
     counters: &Counters,
 ) -> ChronuxResult<()> {

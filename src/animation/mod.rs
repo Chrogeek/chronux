@@ -88,7 +88,7 @@ pub fn track(obj: &Object, event: &Event, x: f32, y: f32) -> ChronuxResult<f32> 
 pub fn track_on_path(d: &Path, x: f32, y: f32, easing: &Easing, total_time: f32) -> (f32, f32) {
     const SEGMENTS: usize = 20;
 
-    let mut pm = PathMeasure::new(&d, false, Some(2.0));
+    let mut pm = PathMeasure::new(d, false, Some(2.0));
     let length = pm.length();
 
     let closest = (0..SEGMENTS + 1)

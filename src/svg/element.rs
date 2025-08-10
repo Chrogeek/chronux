@@ -55,7 +55,7 @@ impl Object {
         apply_transform: bool,
     ) -> ChronuxResult<Object> {
         let style = Properties::from_style(
-            &svg::attribute_str(node, "style").unwrap_or(String::new()),
+            &svg::attribute_str(node, "style").unwrap_or_default(),
             mat,
             Default::default(),
         )?;
@@ -79,8 +79,8 @@ impl Object {
                     svg::attribute_f32(node, "y")?,
                 );
                 let Point { x, y } = mat.map_point((x, y));
-                let placeholder = node.attribute("chronux-placeholder").and_then(|s| PlaceholderText::parse(s));
-                let children = Tspan::from_subtree(&node, mat, x, y, style.clone(), &placeholder)?;
+                let placeholder = node.attribute("chronux-placeholder").and_then(PlaceholderText::parse);
+                let children = Tspan::from_subtree(node, mat, x, y, style.clone(), &placeholder)?;
                 Shape::Text { x, y, children }
             }
             "image" => {
@@ -107,12 +107,10 @@ impl Object {
                 } = mat.map_vector((width, height));
 
                 let data = Data::from_filename(&href).ok_or(ChronuxError::HrefError(format!(
-                    "Failed to load image data from {}",
-                    href
+                    "Failed to load image data from {href}"
                 )))?;
                 let img = Image::from_encoded(data).ok_or(ChronuxError::HrefError(format!(
-                    "Failed to load image from {}",
-                    href
+                    "Failed to load image from {href}"
                 )))?;
                 Shape::Image {
                     x,

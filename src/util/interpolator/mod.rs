@@ -194,12 +194,12 @@ impl PchipInterpolator {
         let mut m = d
             .windows(2)
             .map(|w| {
-                if is_zero_length {
+                if is_zero_length
+                || (w[0].signum() * w[1].signum() <= 0.0) // if the slopes have different signs, set m to 0
+                || (w[0].abs() < 1e-6 || w[1].abs() < 1e-6)
+                // if either slope is zero, set m to 0
+                {
                     0.0
-                } else if w[0].signum() * w[1].signum() <= 0.0 {
-                    0.0 // if the slopes have different signs, set m to 0
-                } else if w[0].abs() < 1e-6 || w[1].abs() < 1e-6 {
-                    0.0 // if either slope is zero, set m to 0
                 } else {
                     2.0 * (w[0] * w[1]) / (w[0] + w[1])
                 }

@@ -48,8 +48,7 @@ impl Svg {
         let vb = (vb[0], vb[1], vb[2], vb[3]);
         if width <= 0.0 || height <= 0.0 {
             return Err(ChronuxError::SvgError(format!(
-                "invalid SVG dimension: width = {}, height = {}",
-                width, height
+                "invalid SVG dimension: width = {width}, height = {height}"
             )));
         }
         if vb.2 <= 0.0 || vb.3 <= 0.0 {
@@ -61,10 +60,7 @@ impl Svg {
 
         if ((vb.2 / width) / (vb.3 / height) - 1.0).abs() > 1e-6 {
             log::warn!(
-                "SVG viewbox aspect ratio does not match width/height: viewBox = {:?}, width = {}, height = {}",
-                vb,
-                width,
-                height
+                "SVG viewbox aspect ratio does not match width/height: viewBox = {vb:?}, width = {width}, height = {height}"
             );
         }
 
@@ -106,7 +102,7 @@ impl Svg {
                 }
 
                 if let Some(parent_label) = parent {
-                    let full_name = format!("{}/{}", parent_label, label);
+                    let full_name = format!("{parent_label}/{label}");
                     if labels.contains(&full_name) {
                         results.push(Object::from_node(
                             node,
@@ -156,7 +152,7 @@ pub fn attribute_f32(node: &Node, attribute: &str) -> ChronuxResult<f32> {
             attribute: attribute.to_string(),
         })?
         .parse()
-        .map_err(|e| ChronuxError::ParseFloatError(e))
+        .map_err(ChronuxError::ParseFloatError)
 }
 
 pub fn attribute_str(node: &Node, attribute: &str) -> ChronuxResult<String> {
@@ -178,7 +174,7 @@ pub fn attribute_namespace_str(
         .attribute((namespace, attribute))
         .ok_or(ChronuxError::AttributeNotFound {
             node_id: attribute_label(node),
-            attribute: format!("{}:{}", namespace, attribute),
+            attribute: format!("{namespace}:{attribute}"),
         })?
         .into())
 }
@@ -213,6 +209,6 @@ pub fn attribute_transform(node: &Node) -> Matrix {
                 }
             })
         })
-        .filter_map(|t| t)
+        .flatten()
         .fold(Matrix::new_identity(), |acc, t| acc * t)
 }

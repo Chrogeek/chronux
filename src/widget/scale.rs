@@ -30,7 +30,7 @@ pub fn draw(
     stroke_scale.set_style(skia_safe::PaintStyle::Stroke);
     stroke_scale.set_stroke_cap(skia_safe::PaintCap::Round);
 
-    let resolution = 40075.016686 * 1000.0 / 512.0 * scale.lat.to_radians().cos()
+    let resolution = 40_075.016 * 1000.0 / 512.0 * scale.lat.to_radians().cos()
         / (scale.zoom.exp2())
         * viewbox_width
         / WIDGET_CANVAS_WIDTH; // resolution, in meters per pixel
@@ -41,7 +41,7 @@ pub fn draw(
 
     let meters = options.into_iter().find(|r| {
         let px = *r as f32 / resolution;
-        px >= 100.0 && px <= 300.0
+        (100.0..=300.0).contains(&px)
     });
 
     if meters.is_none() {
@@ -69,7 +69,7 @@ pub fn draw(
         // 在刻度下方绘制文本，居中对齐
         let text = match meters * loops as f32 {
             0.0 => "0".to_string(),
-            x if x < 1000.0 => format!("{} m", x),
+            x if x < 1000.0 => format!("{x} m"),
             x if x >= 1000.0 => format!("{} km", x / 1000.0),
             _ => unreachable!("Invalid meter value: {}", meters),
         };

@@ -17,9 +17,9 @@ pub fn cubic_bezier(x: f32, p1: f32, p2: f32, p3: f32, p4: f32) -> f32 {
     let t = match t {
         Roots::One([t]) => t,
         Roots::Two([t1, t2]) => {
-            if t1 >= 0.0 && t1 <= 1.0 {
+            if (0.0..=1.0).contains(&t1) {
                 t1
-            } else if t2 >= 0.0 && t2 <= 1.0 {
+            } else if (0.0..=1.0).contains(&t2) {
                 t2
             } else {
                 unreachable!()
@@ -27,13 +27,13 @@ pub fn cubic_bezier(x: f32, p1: f32, p2: f32, p3: f32, p4: f32) -> f32 {
         }
         Roots::Three([t1, t2, t3]) => {
             let mut valid_t = vec![];
-            if t1 >= 0.0 && t1 <= 1.0 {
+            if (0.0..=1.0).contains(&t1) {
                 valid_t.push(t1);
             }
-            if t2 >= 0.0 && t2 <= 1.0 {
+            if (0.0..=1.0).contains(&t2) {
                 valid_t.push(t2);
             }
-            if t3 >= 0.0 && t3 <= 1.0 {
+            if (0.0..=1.0).contains(&t3) {
                 valid_t.push(t3);
             }
             if valid_t.len() == 1 {
@@ -71,8 +71,7 @@ impl<'de> Deserialize<'de> for Easing {
             "ease-out" => Ok(Easing::EaseOut),
             "ease-in-out" => Ok(Easing::EaseInOut),
             _ => Err(serde::de::Error::custom(format!(
-                "Unknown easing type: {}",
-                s
+                "Unknown easing type: {s}"
             ))),
         }
     }

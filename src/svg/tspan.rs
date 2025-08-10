@@ -98,9 +98,10 @@ impl Tspan {
             total_length += tsp.length;
             if id + 1 == result.len() || tsp.x != result[id + 1].x || tsp.y != result[id + 1].y {
                 let mut cx = sx - total_length * coeff;
-                for i in start_id..=id {
-                    new_xy.push((cx + result[i].length * coeff, result[i].y));
-                    cx += result[i].length;
+                for ret in result.iter().take(id + 1).skip(start_id) {
+                    // start_id..=id
+                    new_xy.push((cx + ret.length * coeff, ret.y));
+                    cx += ret.length;
                 }
 
                 total_length = 0.0;
@@ -193,7 +194,7 @@ impl Tspan {
                     for paint in new_paints.iter_mut() {
                         // paint.set_path_effect(self.style.get_path_effect());
                         paint.set_alpha((alpha * paint.alpha() as f32) as u8);
-                        canvas.draw_text_align(g, (x + tx, y + ty), &font, &paint, Align::Left);
+                        canvas.draw_text_align(g, (x + tx, y + ty), &font, paint, Align::Left);
                     }
                 }
 

@@ -87,9 +87,9 @@ fn default_ascii_font() -> String {
 impl Config {
     pub fn load(filename: &str) -> ChronuxResult<Config> {
         let config_data =
-            std::fs::read_to_string(filename).map_err(|e| ChronuxError::IoError(e))?;
+            std::fs::read_to_string(filename).map_err(ChronuxError::IoError)?;
         let config: Config =
-            toml::from_str(&config_data).map_err(|e| ChronuxError::ConfigError(e))?;
+            toml::from_str(&config_data).map_err(ChronuxError::ConfigError)?;
 
         if !is_compatible(&config.input.version) {
             return Err(ChronuxError::VersionError(config.input.version.clone()));
@@ -122,7 +122,7 @@ impl Config {
         for next in self
             .events
             .get(event_id)
-            .expect(&format!("no entry found for event_id = '{}'", event_id))
+            .unwrap_or_else(|| panic!("no entry found for event_id = '{event_id}'"))
             .depends
             .iter()
         {
@@ -131,10 +131,8 @@ impl Config {
             with_start_time = with_start_time.max(t);
 
             if let event::Offset::Track { .. } = self.events[event_id].offset {
-                let nextobj = &objs[*objmap.get(&self.events[next].object).expect(&format!(
-                    "Object for event {} not found ({}, failed for event tracking)",
-                    next, self.events[next].object
-                ))];
+                let nextobj = &objs[*objmap.get(&self.events[next].object).unwrap_or_else(|| panic!("Object for event {} not found ({}, failed for event tracking)",
+                    next, self.events[next].object))];
                 let obj = &objs[objmap[&self.events[event_id].object]];
                 let (x, y) = obj.get_position();
                 track_start_time = t + track(nextobj, &self.events[next], x, y)?;
@@ -245,7 +243,7 @@ impl Config {
         Ok(())
     }
 
-    pub fn calc_viewport_tracks(&self, objs: &Vec<Object>) -> ChronuxResult<ViewportSequence> {
+    pub fn calc_viewport_tracks(&self, objs: &[Object]) -> ChronuxResult<ViewportSequence> {
         let objmap = objs
             .iter()
             .enumerate()
@@ -295,8 +293,7 @@ impl Config {
                         pm.length()
                     } else {
                         return Err(ChronuxError::ArgError(format!(
-                            "Viewport keyframe {} has no position defined",
-                            id
+                            "Viewport keyframe {id} has no position defined"
                         )));
                     };
 
@@ -305,8 +302,7 @@ impl Config {
                         Ok((position, k.size, time))
                     } else {
                         Err(ChronuxError::BrokenDependency(format!(
-                            "a viewport keyframe depends on non-existent event {}",
-                            dep
+                            "a viewport keyframe depends on non-existent event {dep}"
                         )))
                     }
                 })
@@ -325,8 +321,7 @@ impl Config {
                     new_size_seq.push(*last);
                 } else {
                     return Err(ChronuxError::ArgError(format!(
-                        "For each viewport track, size must be defined for the first keyframe even if it is not changed since previous track end: {:?}",
-                        size_seq
+                        "For each viewport track, size must be defined for the first keyframe even if it is not changed since previous track end: {size_seq:?}"
                     )));
                 }
             }
@@ -335,19 +330,17 @@ impl Config {
                 .map(|(_, _, time)| *time)
                 .collect::<Vec<_>>();
 
-            let pos_pchip = PchipInterpolator::new(time_seq.clone(), pos_seq).map_err(|e| {
+            let pos_pchip = PchipInterpolator::new(time_seq.clone(), pos_seq).inspect_err(|_e| {
                 log::error!(
                     "Failed to create position PchipInterpolator for viewport track on {})",
                     tracked_path.id,
                 );
-                e
             })?;
-            let size_pchip = PchipInterpolator::new(time_seq, new_size_seq).map_err(|e| {
+            let size_pchip = PchipInterpolator::new(time_seq, new_size_seq).inspect_err(|_e| {
                 log::error!(
                     "Failed to create size PchipInterpolator for viewport track on {}",
                     tracked_path.id,
                 );
-                e
             })?;
 
             seq.vp_pos_inter.push(pos_pchip);
@@ -422,10 +415,7 @@ where
             let [r, g, b, a] = csscolorparser::parse(&v)
                 .map_err(|e| {
                     ChronuxError::ColorParseError(format!(
-                        "cannot parse color literal '{}' for color key '{}': {}",
-                        v,
-                        k,
-                        e.to_string()
+                        "cannot parse color literal '{v}' for color key '{k}': {e}"
                     ))
                 })?
                 .to_rgba8();
@@ -433,7 +423,7 @@ where
         })
         .collect::<Result<HashMap<_, _>, _>>()
         .map_err(|e| {
-            serde::de::Error::custom(format!("Failed to parse color dictionary: {}", e))
+            serde::de::Error::custom(format!("Failed to parse color dictionary: {e}"))
         })?;
 
     COLOR_DICT

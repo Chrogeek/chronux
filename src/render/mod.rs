@@ -23,8 +23,8 @@ pub fn draw(
     let min_stroke_width = mat
         .invert()
         .ok_or_else(|| {
-            log::error!("Non-invertible viewport transform: {:?}", mat);
-            log::error!("min_stroke_width: {}", min_stroke_width);
+            log::error!("Non-invertible viewport transform: {mat:?}");
+            log::error!("min_stroke_width: {min_stroke_width}");
             ChronuxError::ArgError("Viewport transform must be invertible".to_string())
         })?
         .map_vector(Vector::new(min_stroke_width, 0.0))
@@ -48,8 +48,8 @@ pub fn draw(
             let restore_handle = canvas.save();
             canvas.translate(Vector::new(properties.translate_x, properties.translate_y));
 
-            canvas.draw_path(&d, &paints[0]);
-            canvas.draw_path(&d, &paints[1]);
+            canvas.draw_path(d, &paints[0]);
+            canvas.draw_path(d, &paints[1]);
 
             canvas.restore_to_count(restore_handle);
         }
@@ -113,7 +113,7 @@ pub fn draw(
                 x + width + properties.translate_x,
                 y + height + properties.translate_y,
             );
-            if !viewport_rect.intersects(&dst_rect) {
+            if !viewport_rect.intersects(dst_rect) {
                 return Ok(()); // 不在视口内，跳过绘制
             }
             let mut paint = Paint::default();
@@ -130,7 +130,7 @@ pub fn draw(
                 draw(
                     canvas,
                     &obj.shape,
-                    &Properties::merge(&obj.style, &properties),
+                    &Properties::merge(&obj.style, properties),
                     min_stroke_width,
                     counters,
                     viewport_rect,
@@ -166,8 +166,7 @@ pub fn get_bounding_box(shape: &Shape, properties: &Properties) -> Option<(f32, 
         }
         _ => {
             log::warn!(
-                "Bounding box calculation for {:?} is not implemented",
-                shape
+                "Bounding box calculation for {shape:?} is not implemented"
             );
             None
         }

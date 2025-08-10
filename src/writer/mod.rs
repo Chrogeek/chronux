@@ -32,7 +32,7 @@ impl Writer {
             .arg("-pix_fmt")
             .arg("rgba")
             .arg("-s")
-            .arg(format!("{}x{}", width, height))
+            .arg(format!("{width}x{height}"))
             .arg("-r")
             .arg(fps.to_string())
             .arg("-i")
@@ -50,7 +50,7 @@ impl Writer {
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()
-            .map_err(|e| ChronuxError::FfmpegError(format!("Failed to start ffmpeg: {}", e)))?;
+            .map_err(|e| ChronuxError::FfmpegError(format!("Failed to start ffmpeg: {e}")))?;
 
         Ok(Writer::Ffmpeg { process })
     }
@@ -60,8 +60,8 @@ impl Writer {
         width: usize,
         height: usize,
     ) -> ChronuxResult<Writer> {
-        std::fs::create_dir_all(output_dir).map_err(|e| ChronuxError::IoError(e))?;
-        log::info!("Created output directory `{}`", output_dir);
+        std::fs::create_dir_all(output_dir).map_err(ChronuxError::IoError)?;
+        log::info!("Created output directory `{output_dir}`");
 
         Ok(Writer::PngSequence {
             width,
@@ -78,16 +78,16 @@ impl Writer {
                     .as_ref()
                     .unwrap()
                     .write_all(&raw)
-                    .map_err(|e| ChronuxError::IoError(e))?;
+                    .map_err(ChronuxError::IoError)?;
             }
             Writer::PngSequence {
                 width,
                 height,
                 path,
             } => {
-                let output = std::path::Path::new(path).join(format!("frame_{:04}.png", f));
+                let output = std::path::Path::new(path).join(format!("frame_{f:04}.png"));
                 let mut file =
-                    std::fs::File::create(output).map_err(|e| ChronuxError::IoError(e))?;
+                    std::fs::File::create(output).map_err(ChronuxError::IoError)?;
 
                 PngEncoder::new(&mut file)
                     .write_image(
@@ -97,9 +97,8 @@ impl Writer {
                         ExtendedColorType::Rgba8,
                     )
                     .map_err(|e| {
-                        ChronuxError::IoError(std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            format!("Failed to encode PNG: {}", e),
+                        ChronuxError::IoError(std::io::Error::other(
+                            format!("Failed to encode PNG: {e}"),
                         ))
                     })?;
             }
@@ -115,7 +114,7 @@ impl Writer {
                     .as_ref()
                     .unwrap()
                     .flush()
-                    .map_err(|e| ChronuxError::IoError(e))?;
+                    .map_err(ChronuxError::IoError)?;
                 log::info!("FFmpeg writer finished.");
             }
             Writer::PngSequence { .. } => {
