@@ -2,11 +2,16 @@ use skia_safe::{Canvas, Point, utils::text_utils::Align};
 
 use crate::{
     config::ScaleConfig,
-    util::{fontmgr::get_font, ChronuxResult},
+    util::{ChronuxResult, fontmgr::get_font},
     widget::{WIDGET_CANVAS_HEIGHT, WIDGET_CANVAS_WIDTH},
 };
 
-pub fn draw(canvas: &Canvas, scale: &ScaleConfig, viewbox_width: f32, font_family: &str) -> ChronuxResult<()> {
+pub fn draw(
+    canvas: &Canvas,
+    scale: &ScaleConfig,
+    viewbox_width: f32,
+    font_family: &str,
+) -> ChronuxResult<()> {
     let mut fill = skia_safe::Paint::default();
     fill.set_anti_alias(true);
     fill.set_color(skia_safe::Color::BLACK);
@@ -23,6 +28,7 @@ pub fn draw(canvas: &Canvas, scale: &ScaleConfig, viewbox_width: f32, font_famil
     stroke_scale.set_color(skia_safe::Color::BLACK);
     stroke_scale.set_stroke_width(2.0);
     stroke_scale.set_style(skia_safe::PaintStyle::Stroke);
+    stroke_scale.set_stroke_cap(skia_safe::PaintCap::Round);
 
     let resolution = 40075.016686 * 1000.0 / 512.0 * scale.lat.to_radians().cos()
         / (scale.zoom.exp2())
@@ -49,14 +55,14 @@ pub fn draw(canvas: &Canvas, scale: &ScaleConfig, viewbox_width: f32, font_famil
     let font = get_font(font_family, 20.0, 400)?;
     let height = font.measure_str("0", Some(&fill)).1.height();
 
-    // 在画布的右下角绘制比例尺
-    let x1 = WIDGET_CANVAS_WIDTH - scale.padding - 300.0;
-    let x2 = WIDGET_CANVAS_WIDTH - scale.padding;
-    let y = WIDGET_CANVAS_HEIGHT - scale.padding - height - 5.0;
+    // 在画布的左下角绘制比例尺
+    let x1 = scale.padding;
+    let x2 = scale.padding + 300.0;
+    let y = WIDGET_CANVAS_HEIGHT - scale.padding - height - 5.0 - 140.0;
 
-    let mut current_x = x2;
+    let mut current_x = x1;
     let mut loops = 0;
-    while current_x >= x1 {
+    while current_x <= x2 {
         // 绘制刻度
         canvas.draw_line((current_x, y), (current_x, y - height), &stroke_scale);
 
@@ -70,25 +76,25 @@ pub fn draw(canvas: &Canvas, scale: &ScaleConfig, viewbox_width: f32, font_famil
 
         canvas.draw_text_align(
             &text,
-            Point::new(current_x, WIDGET_CANVAS_HEIGHT - scale.padding),
+            Point::new(current_x, y + height + 5.0),
             &font,
             &stroke_text,
             Align::Center,
         );
         canvas.draw_text_align(
             &text,
-            Point::new(current_x, WIDGET_CANVAS_HEIGHT - scale.padding),
+            Point::new(current_x, y + height + 5.0),
             &font,
             &fill,
             Align::Center,
         );
 
-        current_x -= length;
+        current_x += length;
         loops += 1;
     }
 
     // 绘制比例尺线段
-    canvas.draw_line((current_x + length, y), (x2, y), &stroke_scale);
+    canvas.draw_line((current_x - length, y), (x1, y), &stroke_scale);
 
     Ok(())
 }
