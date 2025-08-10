@@ -4,10 +4,10 @@ use skia_safe::{Canvas, Rect};
 
 use crate::{
     animation::timeline::Timeline,
-    config::{counter::Counters, MinimapConfig},
+    config::{MinimapConfig, counter::Counters},
     render::{self, get_bounding_box},
     svg::element::Object,
-    util::{parse_css_color, ChronuxResult},
+    util::{ChronuxResult, parse_css_color},
     widget::{PANEL_BACKGROUND_COLOR, PANEL_BORDER_COLOR, PANEL_BORDER_WIDTH, WIDGET_CANVAS_WIDTH},
 };
 
@@ -27,7 +27,9 @@ pub fn draw(
                 None => o.style.clone(),
             };
             let ret_bb = get_bounding_box(&o.shape, &properties);
-            if let Some((bl, bt, br, bb)) = bounding_box && let Some(ret_bb) = ret_bb {
+            if let Some((bl, bt, br, bb)) = bounding_box
+                && let Some(ret_bb) = ret_bb
+            {
                 bounding_box = Some((
                     bl.min(ret_bb.0),
                     bt.min(ret_bb.1),
@@ -94,7 +96,10 @@ pub fn draw(
     );
 
     canvas
-        .translate((WIDGET_CANVAS_WIDTH - minimap_size - minimap.padding, minimap.padding))
+        .translate((
+            WIDGET_CANVAS_WIDTH - minimap_size - minimap.padding,
+            minimap.padding,
+        ))
         .scale((scale, scale))
         .translate((-bl, -bt));
 
@@ -104,7 +109,14 @@ pub fn draw(
                 Some(tl) => tl.interpolate(t),
                 None => o.style.clone(),
             };
-            render::draw(canvas, &o.shape, &properties, minimap.min_stroke_width, counters)?;
+            render::draw(
+                canvas,
+                &o.shape,
+                &properties,
+                minimap.min_stroke_width,
+                counters,
+                &Rect::new(bl, bt, bl + bw, bt + bh),
+            )?;
         }
     }
 

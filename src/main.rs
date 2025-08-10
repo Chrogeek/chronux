@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::Write;
 use std::process::ExitCode;
+use std::time::Instant;
 use std::{path::PathBuf, str::FromStr};
 
 use clap::Parser;
@@ -8,7 +9,7 @@ use indicatif::{ParallelProgressIterator, ProgressFinish, ProgressIterator, Prog
 use pariter::IteratorExt;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use skia_safe::utils::text_utils::Align;
-use skia_safe::{AlphaType, ColorSpace, ColorType, ImageInfo, SurfaceProps, surfaces};
+use skia_safe::{AlphaType, ColorSpace, ColorType, ImageInfo, Rect, SurfaceProps, surfaces};
 
 use crate::config::counter::add_sum_counter_item;
 use crate::util::fontmgr::get_font;
@@ -16,12 +17,7 @@ use crate::util::timecode_rt;
 use crate::util::version::CHRONUX_VERSION;
 use crate::widget::{WIDGET_CANVAS_HEIGHT, WIDGET_CANVAS_WIDTH};
 use crate::{
-    animation::Animation,
-    args::Args,
-    config::Config,
-    svg::Svg,
-    util::{ChronuxError, ChronuxResult},
-    writer::Writer,
+    animation::Animation, args::Args, config::Config, svg::Svg, util::ChronuxError, writer::Writer,
 };
 
 mod animation;
@@ -219,6 +215,9 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     .unwrap();
 
     let render_routine = move |f| {
+        // 获取当前时间戳
+        let render_start = Instant::now();
+
         // 当前时间点（秒数）
         let t = f as f32 / conf.output.fps as f32;
 
@@ -240,6 +239,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             vb.2 * conf.output.height as f32 / conf.output.width as f32,
         );
         let (vx, vy) = (cx - vw / 2.0, cy - vh / 2.0);
+        let viewport_rect = Rect::new(vx, vy, vx + vw, vy + vh);
 
         // 创建 Skia 画布
         let ii = ImageInfo::new(
@@ -268,10 +268,24 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                 continue;
             } else if let Some(tl) = timeline.get(&o.id) {
                 let properties = tl.interpolate(t);
-                render::draw(&surface.canvas(), &o.shape, &properties, 0.0, &counters)?;
+                render::draw(
+                    &surface.canvas(),
+                    &o.shape,
+                    &properties,
+                    0.0,
+                    &counters,
+                    &viewport_rect,
+                )?;
             } else if conf.input.pinned.contains(&o.id) {
                 // 如果是固定的对象，直接绘制
-                render::draw(&surface.canvas(), &o.shape, &o.style, 0.0, &counters)?;
+                render::draw(
+                    &surface.canvas(),
+                    &o.shape,
+                    &o.style,
+                    0.0,
+                    &counters,
+                    &viewport_rect,
+                )?;
             }
         }
 
@@ -288,10 +302,24 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                 continue;
             } else if let Some(tl) = timeline.get(&o.id) {
                 let properties = tl.interpolate(t);
-                render::draw(&surface.canvas(), &o.shape, &properties, 0.0, &counters)?;
+                render::draw(
+                    &surface.canvas(),
+                    &o.shape,
+                    &properties,
+                    0.0,
+                    &counters,
+                    &viewport_rect,
+                )?;
             } else if conf.input.pinned.contains(&o.id) {
                 // 如果是固定的对象，直接绘制
-                render::draw(&surface.canvas(), &o.shape, &o.style, 0.0, &counters)?;
+                render::draw(
+                    &surface.canvas(),
+                    &o.shape,
+                    &o.style,
+                    0.0,
+                    &counters,
+                    &viewport_rect,
+                )?;
             }
         }
 
@@ -333,41 +361,54 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             ))?
             .to_vec();
 
-        Ok((f, raw))
+        let render_end = Instant::now();
+        let render_time_us = render_end.duration_since(render_start).as_micros() as f32;
+
+        Ok((f, raw, render_time_us))
     };
 
     let write_routine = |indexed_raw| {
         let res = match indexed_raw {
-            Ok((f, raw)) => {
+            Ok((f, raw, frame_time)) => {
                 writer.write_frame(f, raw)?;
-                Ok(())
+                Ok(frame_time)
             }
             Err(e) => Err(e),
         };
         res
     };
 
-    let render_err = match writer {
+    let render_err_fold = |acc, res| match (acc, res) {
+        (Ok(a), Ok(b)) => Ok(a + b),
+        (Err(e), _) | (_, Err(e)) => Err(e),
+    };
+
+    let render_result = match writer {
         Writer::PngSequence { .. } => (frame_start..frame_end)
             .into_par_iter()
             .progress_with_style(pstyle)
             .with_finish(ProgressFinish::AndLeave)
             .map(render_routine)
             .map(write_routine)
-            .find_any(ChronuxResult::is_err),
+            .reduce(|| Ok(0.0), render_err_fold),
         Writer::Ffmpeg { .. } => (frame_start..frame_end)
             .progress_with_style(pstyle)
             .with_finish(ProgressFinish::AndLeave)
             .parallel_map(render_routine)
             .map(write_routine)
-            .find(ChronuxResult::is_err),
+            .fold(Ok(0.0), render_err_fold),
     };
 
     writer.finish()?;
 
-    if let Some(ChronuxResult::Err(e)) = render_err {
-        Err(e)
-    } else {
-        Ok(())
+    match render_result {
+        Ok(total_time) => {
+            log::info!(
+                "Average frame time: {:.2} ms",
+                total_time / (frame_end - frame_start) as f32 / 1000.0
+            );
+            Ok(())
+        }
+        Err(e) => Err(e),
     }
 }
