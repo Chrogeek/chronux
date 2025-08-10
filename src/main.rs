@@ -127,7 +127,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     }
 
     // 计算镜头路径跟踪动画
-    conf.calc_viewport_tracks(&objs)?;
+    let viewport_sequence = conf.calc_viewport_tracks(&objs)?;
 
     let mut timeline = conf.calc_timeline()?;
 
@@ -196,7 +196,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         let t = f as f32 / conf.output.fps as f32;
 
         // 计算当前镜头位置
-        let vb = conf.interpolate_vp(t)?;
+        let vb = viewport_sequence.interpolate_vp(t)?;
 
         let (cx, cy, vw, vh) = (
             vb.0,
