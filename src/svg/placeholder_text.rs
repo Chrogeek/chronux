@@ -17,8 +17,8 @@ impl PlaceholderText {
             let parts: Vec<&str> = inner.split(',').map(|p| p.trim()).collect();
             if parts.len() == 3 {
                 let counter = parts[0].to_string();
-                let max_significant = parts[1].parse::<usize>().ok()?;
-                let max_decimals = parts[2].parse::<usize>().ok()?;
+                let max_significant = parts[1].parse().ok()?;
+                let max_decimals = parts[2].parse().ok()?;
                 return Some(PlaceholderText::Counter {
                     counter,
                     max_significant,
@@ -36,10 +36,10 @@ impl PlaceholderText {
                 max_significant,
                 max_decimals,
             } => {
-                let value = counters.get(counter).cloned().unwrap_or(0.0);
+                let value = *counters.get(counter).unwrap_or(&0.0);
 
                 if *max_decimals == 0 {
-                    return format!("{:.0}", value.to_string());
+                    return format!("{:.0}", value);
                 }
 
                 let formatted = format!("{:.1$}", value, *max_decimals);
@@ -52,7 +52,11 @@ impl PlaceholderText {
                 } else if frac.len() <= *max_significant - int.len() {
                     formatted
                 } else {
-                    format!("{}.{}", int, frac[0..(*max_significant - int.len())].to_string())
+                    format!(
+                        "{}.{}",
+                        int,
+                        frac[0..(*max_significant - int.len())].to_string()
+                    )
                 }
             }
         }

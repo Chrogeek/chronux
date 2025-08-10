@@ -10,8 +10,11 @@ pub fn update_counters(counters: &mut Counters, key: &str, inc: f32) {
     }
 }
 
-pub fn add_sum_counter_item(counters: &mut Counters, key: &str, subkeys: &[&str]) {
-    let sum = subkeys.iter().map(|k| counters.get(*k).unwrap_or(&0.0)).sum::<f32>();
+pub fn add_sum_counter_item(counters: &mut Counters, key: &str, subkeys: &[String]) {
+    let sum = subkeys
+        .iter()
+        .map(|k| counters.get(k).unwrap_or(&0.0))
+        .sum::<f32>();
     counters.insert(key.to_string(), sum);
 }
 

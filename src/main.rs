@@ -10,6 +10,7 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use skia_safe::utils::text_utils::Align;
 use skia_safe::{AlphaType, ColorSpace, ColorType, ImageInfo, SurfaceProps, surfaces};
 
+use crate::config::counter::add_sum_counter_item;
 use crate::util::fontmgr::get_font;
 use crate::util::timecode_rt;
 use crate::util::version::CHRONUX_VERSION;
@@ -222,7 +223,12 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         let t = f as f32 / conf.output.fps as f32;
 
         // 计算计数器
-        let counters = conf.get_counters(t);
+        let mut counters = conf.get_counters(t);
+
+        // 添加求和计数器
+        for (sum_counter, sub_counters) in &conf.drawing.sum_counters {
+            add_sum_counter_item(&mut counters, &sum_counter, &sub_counters);
+        }
 
         // 计算当前镜头位置
         let vb = viewport_sequence.interpolate_vp(t)?;

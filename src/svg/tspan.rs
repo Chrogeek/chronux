@@ -40,7 +40,7 @@ impl Tspan {
             y: f32,
             base_style: Properties,
             result: &mut Vec<Tspan>,
-        placeholder: &Option<PlaceholderText>,
+            placeholder: &Option<PlaceholderText>,
         ) -> ChronuxResult<()> {
             let base_style = match attribute_str(node, "style") {
                 Ok(style) => Properties::from_style(&style, mat, base_style)?,

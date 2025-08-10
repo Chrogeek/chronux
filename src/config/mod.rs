@@ -45,6 +45,8 @@ pub struct DrawingConfig {
     pub debug_timecode: bool,
     #[serde(rename = "ascii-font", default = "default_ascii_font")]
     pub ascii_font: String,
+    #[serde(rename = "sum-counters", default)]
+    pub sum_counters: HashMap<String, Vec<String>>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
