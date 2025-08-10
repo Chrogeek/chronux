@@ -34,6 +34,11 @@ pub enum Animation {
     FadeIn,
     #[serde(rename = "fade-out")]
     FadeOut,
+    #[serde(rename = "move")]
+    Move {
+        dx: f32,
+        dy: f32,
+    }
 }
 
 #[derive(Debug, Deserialize, Clone)]

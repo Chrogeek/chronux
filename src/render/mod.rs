@@ -3,7 +3,7 @@ use skia_safe::{Canvas, Paint, PaintStyle, Rect, Vector};
 use crate::{
     animation::properties::Properties,
     svg::element::Shape,
-    util::{sort_paints, ChronuxError, ChronuxResult},
+    util::{ChronuxError, ChronuxResult, sort_paints},
 };
 
 pub fn draw(
@@ -20,9 +20,7 @@ pub fn draw(
     let min_stroke_width = mat
         .invert()
         .ok_or_else(|| {
-            log::error!(
-                "Non-invertible viewport transform: {:?}", mat
-            );
+            log::error!("Non-invertible viewport transform: {:?}", mat);
             log::error!("min_stroke_width: {}", min_stroke_width);
             ChronuxError::ArgError("Viewport transform must be invertible".to_string())
         })?
@@ -44,11 +42,20 @@ pub fn draw(
                 paints[1].set_path_effect(e);
             }
 
+            let restore_handle = canvas.save_count();
+            canvas.translate(Vector::new(properties.translate_x, properties.translate_y));
+
             canvas.draw_path(&d, &paints[0]);
             canvas.draw_path(&d, &paints[1]);
+
+            canvas.restore_to_count(restore_handle);
         }
         Shape::Circle { cx, cy, r } => {
-            let (cx, cy, r) = (*cx, *cy, *r);
+            let (cx, cy, r) = (
+                *cx + properties.translate_x,
+                *cy + properties.translate_y,
+                *r,
+            );
             let (sweep_start, sweep_end) = properties.sweep;
             for paint in paints {
                 canvas.draw_arc(
@@ -101,7 +108,12 @@ pub fn draw(
             canvas.draw_image_rect(
                 skia_img,
                 None,
-                Rect::new(*x, *y, x + width, y + height),
+                Rect::new(
+                    *x + properties.translate_x,
+                    *y + properties.translate_y,
+                    x + width + properties.translate_x,
+                    y + height + properties.translate_y,
+                ),
                 &paint,
             );
         }

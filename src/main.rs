@@ -179,7 +179,8 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                     | Animation::SweepOut
                     | Animation::Tween(_)
                     | Animation::FadeOut
-                    | Animation::TrimPathOut { .. } => {}
+                    | Animation::TrimPathOut { .. }
+                    | Animation::Move { .. } => {}
                 }
             }
         }

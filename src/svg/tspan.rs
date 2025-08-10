@@ -118,6 +118,8 @@ impl Tspan {
         let tl = tl.max(0.0);
         let tr = tr.min(self.length);
 
+        let (tx, ty) = (properties.translate_x, properties.translate_y);
+
         let color_style = if properties.tweening {
             properties
         } else {
@@ -143,14 +145,14 @@ impl Tspan {
             let (x, y) = (self.x, self.y);
             canvas.draw_text_align(
                 &self.text,
-                (x, y),
+                (x + tx, y + ty),
                 &font,
                 &paints[0],
                 self.style.text_anchor,
             );
             canvas.draw_text_align(
                 &self.text,
-                (x, y),
+                (x + tx, y + ty),
                 &font,
                 &paints[1],
                 self.style.text_anchor,
@@ -173,7 +175,7 @@ impl Tspan {
                     for paint in new_paints.iter_mut() {
                         // paint.set_path_effect(self.style.get_path_effect());
                         paint.set_alpha((alpha * paint.alpha() as f32) as u8);
-                        canvas.draw_text_align(g, (x, y), &font, &paint, Align::Left);
+                        canvas.draw_text_align(g, (x + tx, y + ty), &font, &paint, Align::Left);
                     }
                 }
 

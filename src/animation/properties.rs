@@ -26,8 +26,8 @@ pub struct Properties {
     pub stroke_linecap: PaintCap,
     pub stroke_linejoin: PaintJoin,
     pub paint_order: PaintOrder,
-    // pub translate_x: f32,
-    // pub translate_y: f32,
+    pub translate_x: f32,
+    pub translate_y: f32,
     // pub scale_x: f32,
     // pub scale_y: f32,
     // pub rotate: f32,
@@ -54,8 +54,8 @@ impl Default for Properties {
             stroke_linecap: PaintCap::Round,   // default to butt cap
             stroke_linejoin: PaintJoin::Round, // default to miter join
             paint_order: Default::default(),
-            // translate_x: 0.0,
-            // translate_y: 0.0,
+            translate_x: 0.0,
+            translate_y: 0.0,
             // scale_x: 1.0,
             // scale_y: 1.0,
             // rotate: 0.0,
@@ -133,6 +133,11 @@ impl Properties {
                 opacity: 1.0 - t,
                 ..self.clone()
             },
+            Animation::Move { dx, dy } => Properties {
+                translate_x: self.translate_x + t * dx,
+                translate_y: self.translate_y + t * dy,
+                ..self.clone()
+            }
         }
     }
 
