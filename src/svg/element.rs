@@ -5,7 +5,7 @@ use skia_safe::{Data, Image, Matrix, Path, Point, Vector};
 
 use crate::{
     animation::properties::Properties,
-    svg::{self, tspan::Tspan},
+    svg::{self, attribute_label, attribute_transform, tspan::Tspan},
     util::{ChronuxError, ChronuxResult},
 };
 
@@ -39,6 +39,9 @@ pub enum Shape {
         height: f32,
         skia_img: Image,
     },
+    Group {
+        objects: Vec<Object>,
+    },
 }
 
 impl Object {
@@ -50,7 +53,7 @@ impl Object {
         apply_transform: bool,
     ) -> ChronuxResult<Object> {
         let style =
-            Properties::from_style(&svg::attribute_str(node, "style")?, mat, Default::default())?;
+            Properties::from_style(&svg::attribute_str(node, "style").unwrap_or(String::new()), mat, Default::default())?;
         let shape = match node.tag_name().name() {
             "path" => Shape::Path {
                 d: svg::path::svg_to_path(&svg::attribute_str(node, "d")?, mat)?,
@@ -113,6 +116,11 @@ impl Object {
                     skia_img: img,
                 }
             }
+            "g" => {
+                let mut objects = Vec::new();
+                flatten_group_dfs(node, &mut objects, mat, base.clone(), &id, apply_transform)?;
+                Shape::Group { objects }
+            },
             _ => unreachable!("unexpected SVG element: {}", node.tag_name().name()),
         };
         Ok(Object {
@@ -139,6 +147,46 @@ impl Object {
                 log::warn!("position may not be accurate for image elements");
                 (*x, *y)
             }
+            Shape::Group { objects } => {
+                log::warn!("position may not be accurate for image elements");
+                if let Some(first) = objects.first() {
+                    first.get_position()
+                } else {
+                    (0.0, 0.0)
+                }
+            }
         }
     }
+}
+
+fn flatten_group_dfs(
+    node: &Node,
+    results: &mut Vec<Object>,
+    matrix: Matrix,
+    base: PathBuf,
+    base_id: &String,
+    apply_transform: bool,
+) -> ChronuxResult<()> {
+    if node.is_element() {
+        match node.tag_name().name() {
+            "path" | "circle" | "text" | "image" => {
+                results.push(Object::from_node(
+                    node,
+                    format!("group-element-{}/{}", base_id, attribute_label(node).unwrap_or("unknown".to_string())),
+                    matrix,
+                    base.clone(),
+                    apply_transform,
+                )?);
+            }
+            "g" => (),
+            _ => (),
+        }
+    }
+
+    for child in node.children() {
+        let mat = matrix * attribute_transform(&child);
+        flatten_group_dfs(&child, results, mat, base.clone(), base_id, apply_transform)?;
+    }
+
+    Ok(())
 }

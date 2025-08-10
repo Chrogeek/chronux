@@ -42,7 +42,7 @@ pub fn draw(
                 paints[1].set_path_effect(e);
             }
 
-            let restore_handle = canvas.save_count();
+            let restore_handle = canvas.save();
             canvas.translate(Vector::new(properties.translate_x, properties.translate_y));
 
             canvas.draw_path(&d, &paints[0]);
@@ -116,6 +116,11 @@ pub fn draw(
                 ),
                 &paint,
             );
+        }
+        Shape::Group { objects } => {
+            for obj in objects {
+                draw(canvas, &obj.shape, &Properties::merge(&obj.style, &properties), min_stroke_width)?;
+            }
         }
     }
 

@@ -1,8 +1,6 @@
 use std::str::FromStr;
 
-use skia_safe::{
-    Color, Font, Matrix, PaintCap, PaintJoin, Vector, utils::text_utils::Align,
-};
+use skia_safe::{Color, Font, Matrix, PaintCap, PaintJoin, Vector, utils::text_utils::Align};
 use svgtypes::PaintOrder;
 
 use crate::{
@@ -137,7 +135,7 @@ impl Properties {
                 translate_x: self.translate_x + t * dx,
                 translate_y: self.translate_y + t * dy,
                 ..self.clone()
-            }
+            },
         }
     }
 
@@ -304,6 +302,47 @@ impl Properties {
         let font = self.get_font()?;
         let (width, _rect) = font.measure_str(text, None);
         Ok(width)
+    }
+
+    pub fn merge(child: &Properties, parent: &Properties) -> Properties {
+        Properties {
+            visible: child.visible && parent.visible,
+            opacity: child.opacity * parent.opacity,
+            font_family: if child.font_family.is_empty() {
+                parent.font_family.clone()
+            } else {
+                child.font_family.clone()
+            },
+            translate_x: parent.translate_x + child.translate_x,
+            translate_y: parent.translate_y + child.translate_y,
+            // scale_x: parent.scale_x * child.scale_x,
+            // scale_y: parent.scale_y * child.scale_y,
+            // rotate: parent.rotate + child.rotate,
+            trim: (
+                parent.trim.0.max(child.trim.0),
+                parent.trim.1.min(child.trim.1),
+            ),
+            typewriter: (
+                parent.typewriter.0.max(child.typewriter.0),
+                parent.typewriter.1.min(child.typewriter.1),
+            ),
+            sweep: (
+                parent.sweep.0.max(child.sweep.0),
+                parent.sweep.1.min(child.sweep.1),
+            ),
+            tweening: false, // TODO handle tweening properly
+            dash_offset: if !child.dash_array.is_empty() {
+                child.dash_offset
+            } else {
+                parent.dash_offset
+            },
+            dash_array: if !child.dash_array.is_empty() {
+                child.dash_array.clone()
+            } else {
+                parent.dash_array.clone()
+            },
+            ..child.clone()
+        }
     }
 }
 
