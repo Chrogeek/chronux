@@ -14,6 +14,7 @@ pub struct Object {
     pub id: String,
     pub style: Properties,
     pub shape: Shape,
+    pub apply_transform: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -41,7 +42,13 @@ pub enum Shape {
 }
 
 impl Object {
-    pub fn from_node(node: &Node, id: String, mat: Matrix, base: PathBuf) -> ChronuxResult<Object> {
+    pub fn from_node(
+        node: &Node,
+        id: String,
+        mat: Matrix,
+        base: PathBuf,
+        apply_transform: bool,
+    ) -> ChronuxResult<Object> {
         let style =
             Properties::from_style(&svg::attribute_str(node, "style")?, mat, Default::default())?;
         let shape = match node.tag_name().name() {
@@ -108,7 +115,12 @@ impl Object {
             }
             _ => unreachable!("unexpected SVG element: {}", node.tag_name().name()),
         };
-        Ok(Object { id, style, shape })
+        Ok(Object {
+            id,
+            style,
+            shape,
+            apply_transform,
+        })
     }
 
     pub fn get_position(&self) -> (f32, f32) {

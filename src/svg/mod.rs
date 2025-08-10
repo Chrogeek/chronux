@@ -78,6 +78,7 @@ impl Svg {
         &self,
         labels: &HashSet<String>,
         base: PathBuf,
+        apply_transform: bool,
     ) -> ChronuxResult<Vec<Object>> {
         fn search_labels_dfs(
             node: &Node,
@@ -86,6 +87,7 @@ impl Svg {
             results: &mut Vec<Object>,
             matrix: Matrix,
             base: PathBuf,
+            apply_transform: bool,
         ) -> ChronuxResult<()> {
             let this_label = attribute_label(node);
 
@@ -93,19 +95,39 @@ impl Svg {
 
             if let Some(ref label) = this_label {
                 if labels.contains(label) {
-                    results.push(Object::from_node(node, label.clone(), mat, base.clone())?);
+                    results.push(Object::from_node(
+                        node,
+                        label.clone(),
+                        mat,
+                        base.clone(),
+                        apply_transform,
+                    )?);
                 }
 
                 if let Some(parent_label) = parent {
                     let full_name = format!("{}/{}", parent_label, label);
                     if labels.contains(&full_name) {
-                        results.push(Object::from_node(node, full_name, mat, base.clone())?);
+                        results.push(Object::from_node(
+                            node,
+                            full_name,
+                            mat,
+                            base.clone(),
+                            apply_transform,
+                        )?);
                     }
                 }
             }
 
             for child in node.children() {
-                search_labels_dfs(&child, labels, &this_label, results, mat, base.clone())?;
+                search_labels_dfs(
+                    &child,
+                    labels,
+                    &this_label,
+                    results,
+                    mat,
+                    base.clone(),
+                    apply_transform,
+                )?;
             }
 
             Ok(())
@@ -119,6 +141,7 @@ impl Svg {
             &mut results,
             self.transform,
             base,
+            apply_transform,
         )?;
 
         Ok(results)

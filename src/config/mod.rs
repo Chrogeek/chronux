@@ -208,6 +208,7 @@ impl Config {
         Ok(timeline)
     }
 
+    /// 提取所有出现在 events 和 viewport_tracks 中的对象 ID
     pub fn extract_objects(&self) -> ChronuxResult<HashSet<String>> {
         let mut objects = HashSet::new();
 
@@ -224,6 +225,8 @@ impl Config {
                 objects.insert(vp_tracks.tracked_path.clone());
             }
         }
+
+        objects.extend(self.input.pinned.iter().cloned());
 
         Ok(objects)
     }

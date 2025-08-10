@@ -77,16 +77,41 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     log::info!("Loaded SVG from file `{}`", conf.input.svg);
 
     // 读取 SVG 中的路径、圆形和文本
-    let mut ids = ids;
-    ids.extend(conf.input.pinned.iter().cloned());
-    let objs = svg.search_labels(
+    let mut objs = svg.search_labels(
         &ids,
         svg_file
             .parent()
             .ok_or(ChronuxError::HrefError("incorrect href".to_string()))?
             .to_path_buf(),
+        true,
     )?;
     log::info!("Extracted {} objects in SVG", objs.len());
+
+    // 解析包装SVG
+    if let Some(overlay_svg) = &conf.input.overlay_svg {
+        let overlay_svg_file = PathBuf::from_str(&input)
+            .unwrap()
+            .parent()
+            .unwrap()
+            .join(overlay_svg);
+        let osvg = Svg::from_file(overlay_svg_file.clone())?;
+        log::info!(
+            "Loaded overlay SVG from file `{}`",
+            overlay_svg_file.display()
+        );
+
+        // 读取 osvg 中的图形元素
+        let osvg_objs = osvg.search_labels(
+            &ids,
+            overlay_svg_file
+                .parent()
+                .ok_or(ChronuxError::HrefError("incorrect href".to_string()))?
+                .to_path_buf(),
+            false,
+        )?;
+
+        objs.extend(osvg_objs);
+    }
 
     // 计算每个动画的起始时间
     conf.calc_start_times(&objs)?;
@@ -227,9 +252,11 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         // 应用镜头变换
         surface.canvas().scale((sx, sy)).translate((-vx, -vy));
 
-        // 绘制每个图形
+        // 绘制每个图形（动态部分，要求 apply_transform = true）
         for o in objs.iter() {
-            if let Some(tl) = timeline.get(&o.id) {
+            if !o.apply_transform {
+                continue;
+            } else if let Some(tl) = timeline.get(&o.id) {
                 let properties = tl.interpolate(t);
                 render::draw(&surface.canvas(), &o.shape, &properties, 0.0)?;
             } else if conf.input.pinned.contains(&o.id) {
@@ -244,15 +271,23 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             conf.output.height as f32 / WIDGET_CANVAS_HEIGHT,
         ));
 
+        // 绘制包装部分的图形元素（要求 apply_transform = false）
+        // TODO: 目前要求包装 svg 的画幅大小为 1920x1080，暂不支持其他比例（会导致位置错乱）
+        for o in objs.iter() {
+            if o.apply_transform {
+                continue;
+            } else if let Some(tl) = timeline.get(&o.id) {
+                let properties = tl.interpolate(t);
+                render::draw(&surface.canvas(), &o.shape, &properties, 0.0)?;
+            } else if conf.input.pinned.contains(&o.id) {
+                // 如果是固定的对象，直接绘制
+                render::draw(&surface.canvas(), &o.shape, &o.style, 0.0)?;
+            }
+        }
+
         // 绘制小地图
         if let Some(minimap) = conf.drawing.minimap.as_ref() {
-            widget::minimap::draw(
-                &surface.canvas(),
-                minimap,
-                &timeline,
-                &objs,
-                t,
-            )?;
+            widget::minimap::draw(&surface.canvas(), minimap, &timeline, &objs, t)?;
         }
 
         // 绘制比例尺
