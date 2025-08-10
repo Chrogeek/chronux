@@ -12,6 +12,7 @@ use crate::{
 pub mod element;
 pub mod path;
 pub mod tspan;
+pub mod placeholder_text;
 
 pub struct Svg {
     tree: Document<'static>,

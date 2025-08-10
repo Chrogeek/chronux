@@ -4,10 +4,10 @@ use skia_safe::{Canvas, Rect};
 
 use crate::{
     animation::timeline::Timeline,
-    config::MinimapConfig,
+    config::{counter::Counters, MinimapConfig},
     render::{self, get_bounding_box},
     svg::element::Object,
-    util::{ChronuxResult, parse_css_color},
+    util::{parse_css_color, ChronuxResult},
     widget::{PANEL_BACKGROUND_COLOR, PANEL_BORDER_COLOR, PANEL_BORDER_WIDTH, WIDGET_CANVAS_WIDTH},
 };
 
@@ -17,6 +17,7 @@ pub fn draw(
     timeline: &HashMap<String, Timeline>,
     objs: &Vec<Object>,
     t: f32,
+    counters: &Counters,
 ) -> ChronuxResult<()> {
     let mut bounding_box: Option<(f32, f32, f32, f32)> = None;
     for o in objs.iter() {
@@ -103,7 +104,7 @@ pub fn draw(
                 Some(tl) => tl.interpolate(t),
                 None => o.style.clone(),
             };
-            render::draw(canvas, &o.shape, &properties, minimap.min_stroke_width)?;
+            render::draw(canvas, &o.shape, &properties, minimap.min_stroke_width, counters)?;
         }
     }
 

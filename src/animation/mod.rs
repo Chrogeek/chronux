@@ -3,7 +3,7 @@ use skia_safe::{Path, PathMeasure};
 
 use crate::{
     animation::{easing::Easing, tween::Tween},
-    config::event::Event,
+    config::{counter::Counters, event::Event},
     svg::element::{Object, Shape},
     util::{ChronuxError, ChronuxResult},
 };
@@ -47,6 +47,8 @@ pub struct TaggedAnimation {
     pub obj_id: String,
     #[serde(flatten)]
     pub animation: Animation,
+    #[serde(default)]
+    pub counters: Counters,
 }
 
 pub fn track(obj: &Object, event: &Event, x: f32, y: f32) -> ChronuxResult<f32> {

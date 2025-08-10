@@ -221,6 +221,9 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         // 当前时间点（秒数）
         let t = f as f32 / conf.output.fps as f32;
 
+        // 计算计数器
+        let counters = conf.get_counters(t);
+
         // 计算当前镜头位置
         let vb = viewport_sequence.interpolate_vp(t)?;
 
@@ -259,10 +262,10 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                 continue;
             } else if let Some(tl) = timeline.get(&o.id) {
                 let properties = tl.interpolate(t);
-                render::draw(&surface.canvas(), &o.shape, &properties, 0.0)?;
+                render::draw(&surface.canvas(), &o.shape, &properties, 0.0, &counters)?;
             } else if conf.input.pinned.contains(&o.id) {
                 // 如果是固定的对象，直接绘制
-                render::draw(&surface.canvas(), &o.shape, &o.style, 0.0)?;
+                render::draw(&surface.canvas(), &o.shape, &o.style, 0.0, &counters)?;
             }
         }
 
@@ -279,16 +282,16 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                 continue;
             } else if let Some(tl) = timeline.get(&o.id) {
                 let properties = tl.interpolate(t);
-                render::draw(&surface.canvas(), &o.shape, &properties, 0.0)?;
+                render::draw(&surface.canvas(), &o.shape, &properties, 0.0, &counters)?;
             } else if conf.input.pinned.contains(&o.id) {
                 // 如果是固定的对象，直接绘制
-                render::draw(&surface.canvas(), &o.shape, &o.style, 0.0)?;
+                render::draw(&surface.canvas(), &o.shape, &o.style, 0.0, &counters)?;
             }
         }
 
         // 绘制小地图
         if let Some(minimap) = conf.drawing.minimap.as_ref() {
-            widget::minimap::draw(&surface.canvas(), minimap, &timeline, &objs, t)?;
+            widget::minimap::draw(&surface.canvas(), minimap, &timeline, &objs, t, &counters)?;
         }
 
         // 绘制比例尺

@@ -7,16 +7,11 @@ use skia_safe::{Color, PathMeasure};
 use crate::{
     animation::{easing::Easing, properties::Properties, timeline::Timeline, track, track_on_path},
     config::{
-        event::Event,
-        group::Group,
-        input::InputConfig,
-        output::OutputConfig,
-        viewport::{TimeKey, ViewportSequence, ViewportTrack},
+        counter::{update_counters, Counters}, event::Event, group::Group, input::InputConfig, output::OutputConfig, viewport::{TimeKey, ViewportSequence, ViewportTrack}
     },
     svg::element::{Object, Shape},
     util::{
-        COLOR_DICT, ChronuxError, ChronuxResult, interpolator::PchipInterpolator,
-        version::is_compatible,
+        interpolator::PchipInterpolator, version::is_compatible, ChronuxError, ChronuxResult, COLOR_DICT
     },
 };
 
@@ -25,6 +20,7 @@ pub mod group;
 pub mod input;
 pub mod output;
 pub mod viewport;
+pub mod counter;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Config {
@@ -376,6 +372,23 @@ impl Config {
             }
         }
         Ok(seq)
+    }
+
+    pub fn get_counters(&self, time: f32) -> Counters {
+        let mut cnt = Counters::default();
+        for event in self.events.values() {
+            if time > event.start + event.duration {
+                for (k, v) in &event.counters {
+                    update_counters(&mut cnt, k, *v);
+                }
+            } else if time > event.start {
+                let t = (time - event.start) / event.duration;
+                for (k, v) in &event.counters {
+                    update_counters(&mut cnt, k, v * event.easing.evaluate(t, event.duration));
+                }
+            }
+        }
+        cnt
     }
 }
 

@@ -4,7 +4,8 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
     animation::properties::Properties,
-    svg::{attribute_f32, attribute_str, attribute_transform},
+    config::counter::Counters,
+    svg::{attribute_f32, attribute_str, attribute_transform, placeholder_text::PlaceholderText},
     util::{ChronuxResult, sort_paints},
 };
 
@@ -12,9 +13,15 @@ use crate::{
 pub struct Tspan {
     pub x: f32,
     pub y: f32,
-    pub text: String,
+    pub text: TspanText,
     pub style: Properties,
     pub length: f32,
+}
+
+#[derive(Debug, Clone)]
+pub enum TspanText {
+    Text(String),
+    Placeholder(PlaceholderText),
 }
 
 impl Tspan {
@@ -24,6 +31,7 @@ impl Tspan {
         x: f32,
         y: f32,
         base_style: Properties,
+        placeholder: &Option<PlaceholderText>,
     ) -> ChronuxResult<Vec<Tspan>> {
         fn dfs_node(
             node: &Node,
@@ -32,6 +40,7 @@ impl Tspan {
             y: f32,
             base_style: Properties,
             result: &mut Vec<Tspan>,
+        placeholder: &Option<PlaceholderText>,
         ) -> ChronuxResult<()> {
             let base_style = match attribute_str(node, "style") {
                 Ok(style) => Properties::from_style(&style, mat, base_style)?,
@@ -50,14 +59,17 @@ impl Tspan {
                             y,
                             style: base_style.clone(),
                             length: base_style.measure_string(&text)?,
-                            text,
+                            text: match placeholder {
+                                Some(formatter) => TspanText::Placeholder(formatter.clone()),
+                                None => TspanText::Text(text),
+                            },
                         };
                         result.push(tspan);
                     }
                     continue;
                 } else {
                     let mat = mat * attribute_transform(&child);
-                    dfs_node(&child, mat, x, y, base_style.clone(), result)?;
+                    dfs_node(&child, mat, x, y, base_style.clone(), result, placeholder)?;
                 }
             }
             Ok(())
@@ -71,7 +83,7 @@ impl Tspan {
             Align::Right => 1.0,
         };
 
-        dfs_node(node, mat, x, y, base_style, &mut result)?;
+        dfs_node(node, mat, x, y, base_style, &mut result, placeholder)?;
 
         if result.is_empty() {
             return Ok(result);
@@ -114,6 +126,7 @@ impl Tspan {
         tl: f32,
         tr: f32,
         properties: Properties,
+        counters: &Counters,
     ) -> ChronuxResult<()> {
         let tl = tl.max(0.0);
         let tr = tr.min(self.length);
@@ -138,20 +151,25 @@ impl Tspan {
             Align::Right => self.length,
         };
 
+        let text = match &self.text {
+            TspanText::Text(text) => text.clone(),
+            TspanText::Placeholder(placeholder) => placeholder.format(counters),
+        };
+
         if tr - tl < 1e-3 {
             // Avoid drawing if the text length is too small
             // Do nothing here
         } else if tl < 1e-3 && tr > self.length - 1e-3 {
             let (x, y) = (self.x, self.y);
             canvas.draw_text_align(
-                &self.text,
+                &text,
                 (x + tx, y + ty),
                 &font,
                 &paints[0],
                 self.style.text_anchor,
             );
             canvas.draw_text_align(
-                &self.text,
+                &text,
                 (x + tx, y + ty),
                 &font,
                 &paints[1],
@@ -159,7 +177,7 @@ impl Tspan {
             );
         } else {
             let mut dlen = 0.0;
-            for g in self.text.graphemes(true) {
+            for g in text.graphemes(true) {
                 let c = self.style.measure_string(g)?;
 
                 if dlen + c < tl || dlen > tr {

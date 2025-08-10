@@ -2,6 +2,7 @@ use skia_safe::{Canvas, Paint, PaintStyle, Rect, Vector};
 
 use crate::{
     animation::properties::Properties,
+    config::counter::Counters,
     svg::element::Shape,
     util::{ChronuxError, ChronuxResult, sort_paints},
 };
@@ -11,6 +12,7 @@ pub fn draw(
     shape: &Shape,
     properties: &Properties,
     min_stroke_width: f32,
+    counters: &Counters,
 ) -> ChronuxResult<()> {
     if !properties.visible || properties.opacity <= 1e-3 {
         return Ok(());
@@ -91,6 +93,7 @@ pub fn draw(
                         l - drawn_length,
                         r - drawn_length,
                         properties.clone(),
+                        counters,
                     )?;
                 }
                 drawn_length += c.length;
@@ -119,7 +122,13 @@ pub fn draw(
         }
         Shape::Group { objects } => {
             for obj in objects {
-                draw(canvas, &obj.shape, &Properties::merge(&obj.style, &properties), min_stroke_width)?;
+                draw(
+                    canvas,
+                    &obj.shape,
+                    &Properties::merge(&obj.style, &properties),
+                    min_stroke_width,
+                    counters,
+                )?;
             }
         }
     }

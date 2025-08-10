@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use crate::animation::{Animation, easing::Easing};
+use crate::{animation::{easing::Easing, Animation}, config::counter::Counters};
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Event {
@@ -16,6 +16,8 @@ pub struct Event {
     pub duration: f32,
     #[serde(flatten)]
     pub animation: Animation,
+    #[serde(default)]
+    pub counters: Counters,
 }
 
 fn default_start() -> f32 {

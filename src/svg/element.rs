@@ -5,7 +5,9 @@ use skia_safe::{Data, Image, Matrix, Path, Point, Vector};
 
 use crate::{
     animation::properties::Properties,
-    svg::{self, attribute_label, attribute_transform, tspan::Tspan},
+    svg::{
+        self, attribute_label, attribute_transform, placeholder_text::PlaceholderText, tspan::Tspan,
+    },
     util::{ChronuxError, ChronuxResult},
 };
 
@@ -52,8 +54,11 @@ impl Object {
         base: PathBuf,
         apply_transform: bool,
     ) -> ChronuxResult<Object> {
-        let style =
-            Properties::from_style(&svg::attribute_str(node, "style").unwrap_or(String::new()), mat, Default::default())?;
+        let style = Properties::from_style(
+            &svg::attribute_str(node, "style").unwrap_or(String::new()),
+            mat,
+            Default::default(),
+        )?;
         let shape = match node.tag_name().name() {
             "path" => Shape::Path {
                 d: svg::path::svg_to_path(&svg::attribute_str(node, "d")?, mat)?,
@@ -74,7 +79,8 @@ impl Object {
                     svg::attribute_f32(node, "y")?,
                 );
                 let Point { x, y } = mat.map_point((x, y));
-                let children = Tspan::from_subtree(&node, mat, x, y, style.clone())?;
+                let placeholder = node.attribute("chronux-placeholder").and_then(|s| PlaceholderText::parse(s));
+                let children = Tspan::from_subtree(&node, mat, x, y, style.clone(), &placeholder)?;
                 Shape::Text { x, y, children }
             }
             "image" => {
@@ -120,7 +126,7 @@ impl Object {
                 let mut objects = Vec::new();
                 flatten_group_dfs(node, &mut objects, mat, base.clone(), &id, apply_transform)?;
                 Shape::Group { objects }
-            },
+            }
             _ => unreachable!("unexpected SVG element: {}", node.tag_name().name()),
         };
         Ok(Object {
@@ -172,7 +178,11 @@ fn flatten_group_dfs(
             "path" | "circle" | "text" | "image" => {
                 results.push(Object::from_node(
                     node,
-                    format!("group-element-{}/{}", base_id, attribute_label(node).unwrap_or("unknown".to_string())),
+                    format!(
+                        "group-element-{}/{}",
+                        base_id,
+                        attribute_label(node).unwrap_or("unknown".to_string())
+                    ),
                     matrix,
                     base.clone(),
                     apply_transform,
