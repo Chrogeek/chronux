@@ -32,7 +32,12 @@ mod writer;
 fn main() -> ExitCode {
     let args = Args::parse();
 
-    env_logger::init();
+    let log_level = match std::env::var("RUST_LOG") {
+        Ok(level) => log::LevelFilter::from_str(&level).expect("Invalid log level"),
+        Err(_) => log::LevelFilter::Info,
+    };
+
+    env_logger::builder().filter_level(log_level).init();
     log::info!("Welcome to Chronux!");
     log::info!("Version {CHRONUX_VERSION}");
 
@@ -368,7 +373,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     };
 
     let write_routine = |indexed_raw| {
-        
+
         match indexed_raw {
             Ok((f, raw, frame_time)) => {
                 writer.write_frame(f, raw)?;
