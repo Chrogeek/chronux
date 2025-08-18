@@ -51,7 +51,7 @@ impl Tspan {
                 let x = attribute_f32(&child, "x").unwrap_or(x);
                 let y = attribute_f32(&child, "y").unwrap_or(y);
                 if child.is_text() {
-                    let text = child.text().unwrap_or("").trim().to_string();
+                    let text = child.text().unwrap_or("").to_string();
                     let Point { x, y } = mat.map_point((x, y));
                     if !text.is_empty() {
                         let tspan = Tspan {
