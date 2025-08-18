@@ -34,6 +34,7 @@ impl Group {
                         obj_id,
                         animation,
                         counters,
+                        easing,
                     },
                 )| {
                     let track_follows = matches!(&self.offset, Offset::Track { .. }) && i != 0;
@@ -49,7 +50,7 @@ impl Group {
                             self.depends.clone()
                         },
                         object: obj_id.clone(),
-                        easing: self.easing.clone(),
+                        easing: easing.clone().unwrap_or(self.easing.clone()),
                         offset: {
                             if track_follows {
                                 Offset::WithPrevious { delay: 0.0 }

@@ -49,6 +49,8 @@ pub struct TaggedAnimation {
     pub animation: Animation,
     #[serde(default)]
     pub counters: Counters,
+    #[serde(default)]
+    pub easing: Option<Easing>,
 }
 
 pub fn track(obj: &Object, event: &Event, x: f32, y: f32) -> ChronuxResult<f32> {
