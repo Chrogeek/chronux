@@ -19,6 +19,7 @@ roots = "0.0.8"
 roxmltree = "0.20.0"
 semver = "1.0.26"
 serde = { version = "1.0.219", features = ["derive"] }
+serde_with = "3.14.0"
 simplecss = "0.2.2"
 skia-safe = { version = "0.87", features = ["default", "textlayout"] }
 svgtypes = "0.15.3"

@@ -1,11 +1,14 @@
 use serde::Deserialize;
+use serde_with::{serde_as, OneOrMany, formats::PreferOne};
 
 use crate::{animation::{easing::Easing, Animation}, config::counter::Counters};
 
+#[serde_as]
 #[derive(Debug, Deserialize, Clone)]
 pub struct Event {
     pub id: String,
     #[serde(default = "Vec::new")]
+    #[serde_as(as = "OneOrMany<_, PreferOne>")]
     pub depends: Vec<String>,
     pub object: String,
     pub easing: Easing,

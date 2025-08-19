@@ -1,4 +1,5 @@
 use serde::Deserialize;
+use serde_with::{serde_as, OneOrMany, formats::PreferOne};
 
 use crate::{
     animation::{TaggedAnimation, easing::Easing},
@@ -8,11 +9,14 @@ use crate::{
     },
 };
 
+#[serde_as]
 #[derive(Debug, Deserialize, Clone)]
 pub struct Group {
     pub id: String,
     #[serde(default = "Vec::new")]
+    #[serde_as(as = "OneOrMany<_, PreferOne>")]
     pub depends: Vec<String>,
+    #[serde_as(as = "OneOrMany<_, PreferOne>")]
     pub anilist: Vec<TaggedAnimation>,
     #[serde(flatten)]
     pub offset: Offset,
