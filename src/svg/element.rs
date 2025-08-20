@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use roxmltree::Node;
-use skia_safe::{Data, Image, Matrix, Path, Point, Vector};
+use skia_safe::{Data, Image, Matrix, Path, Point, Rect, Vector};
 
 use crate::{
     animation::properties::Properties,
@@ -79,7 +79,9 @@ impl Object {
                     svg::attribute_f32(node, "y")?,
                 );
                 let Point { x, y } = mat.map_point((x, y));
-                let placeholder = node.attribute("chronux-placeholder").and_then(PlaceholderText::parse);
+                let placeholder = node
+                    .attribute("chronux-placeholder")
+                    .and_then(PlaceholderText::parse);
                 let children = Tspan::from_subtree(node, mat, x, y, style.clone(), &placeholder)?;
                 Shape::Text { x, y, children }
             }
@@ -152,13 +154,43 @@ impl Object {
                 (*x, *y)
             }
             Shape::Group { objects } => {
-                log::warn!("position may not be accurate for image elements");
+                log::warn!("position may not be accurate for group elements");
                 if let Some(first) = objects.first() {
                     first.get_position()
                 } else {
                     (0.0, 0.0)
                 }
             }
+        }
+    }
+
+    pub fn get_bounds(&self) -> Rect {
+        match &self.shape {
+            Shape::Path { d } => d.bounds().clone(),
+            Shape::Circle { cx, cy, r } => Rect::new(*cx - *r, *cy - *r, *cx + *r, *cy + *r),
+            Shape::Text { x, y, children } => children
+                .iter()
+                .map(|c| c.bounds)
+                .reduce(|mut a, b| {
+                    a.join(b);
+                    a
+                })
+                .unwrap_or(Rect::new_empty()),
+            Shape::Image {
+                x,
+                y,
+                width,
+                height,
+                ..
+            } => Rect::from_xywh(*x, *y, *width, *height),
+            Shape::Group { objects } => objects
+                .iter()
+                .map(|c| c.get_bounds())
+                .reduce(|mut a, b| {
+                    a.join(b);
+                    a
+                })
+                .unwrap_or(Rect::new_empty()),
         }
     }
 }

@@ -79,12 +79,12 @@ pub fn parse_css_color(color: &str, opacity: f32) -> ChronuxResult<Color> {
     {
         return Ok(*c);
     }
-    let [r, g, b, _] = csscolorparser::parse(color)
+    let [r, g, b, a] = csscolorparser::parse(color)
         .map_err(|e| {
             ChronuxError::ColorParseError(format!("cannot parse color literal '{color}': {e}"))
         })?
         .to_rgba8();
-    let a = (opacity * 255.0).clamp(0.0, 255.0) as u8;
+    let a = (opacity * a as f32).clamp(0.0, 255.0) as u8;
     Ok(Color::from_argb(a, r, g, b))
 }
 

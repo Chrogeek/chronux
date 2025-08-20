@@ -2,25 +2,34 @@ use core::f32;
 use std::collections::{HashMap, HashSet};
 
 use serde::Deserialize;
+use serde_with::serde_as;
 use skia_safe::{Color, PathMeasure};
 
 use crate::{
     animation::{easing::Easing, properties::Properties, timeline::Timeline, track, track_on_path},
     config::{
-        counter::{update_counters, Counters}, event::Event, group::Group, input::InputConfig, output::OutputConfig, viewport::{TimeKey, ViewportSequence, ViewportTrack}
+        counter::{Counters, update_counters},
+        dates::DatesConfig,
+        event::Event,
+        group::Group,
+        input::InputConfig,
+        output::OutputConfig,
+        viewport::{TimeKey, ViewportSequence, ViewportTrack},
     },
     svg::element::{Object, Shape},
     util::{
-        interpolator::PchipInterpolator, version::is_compatible, ChronuxError, ChronuxResult, COLOR_DICT
+        COLOR_DICT, ChronuxError, ChronuxResult, interpolator::PchipInterpolator,
+        version::is_compatible,
     },
 };
 
+pub mod counter;
+pub mod dates;
 pub mod event;
 pub mod group;
 pub mod input;
 pub mod output;
 pub mod viewport;
-pub mod counter;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Config {
@@ -34,6 +43,7 @@ pub struct Config {
     pub viewport_tracks: Vec<ViewportTrack>,
 }
 
+#[serde_as]
 #[derive(Debug, Deserialize, Clone)]
 pub struct DrawingConfig {
     #[serde(rename = "colors")]
@@ -47,6 +57,9 @@ pub struct DrawingConfig {
     pub ascii_font: String,
     #[serde(rename = "sum-counters", default)]
     pub sum_counters: HashMap<String, Vec<String>>,
+    #[serde_with(as = "OneOrMany<_, PreferOne>")]
+    pub phantom: HashSet<String>,
+    pub dates: Option<DatesConfig>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -86,10 +99,8 @@ fn default_ascii_font() -> String {
 
 impl Config {
     pub fn load(filename: &str) -> ChronuxResult<Config> {
-        let config_data =
-            std::fs::read_to_string(filename).map_err(ChronuxError::IoError)?;
-        let config: Config =
-            toml::from_str(&config_data).map_err(ChronuxError::ConfigError)?;
+        let config_data = std::fs::read_to_string(filename).map_err(ChronuxError::IoError)?;
+        let config: Config = toml::from_str(&config_data).map_err(ChronuxError::ConfigError)?;
 
         if !is_compatible(&config.input.version) {
             return Err(ChronuxError::VersionError(config.input.version.clone()));
@@ -131,8 +142,12 @@ impl Config {
             with_start_time = with_start_time.max(t);
 
             if let event::Offset::Track { .. } = self.events[event_id].offset {
-                let nextobj = &objs[*objmap.get(&self.events[next].object).unwrap_or_else(|| panic!("Object for event {} not found ({}, failed for event tracking)",
-                    next, self.events[next].object))];
+                let nextobj = &objs[*objmap.get(&self.events[next].object).unwrap_or_else(|| {
+                    panic!(
+                        "Object for event {} not found ({}, failed for event tracking)",
+                        next, self.events[next].object
+                    )
+                })];
                 let obj = &objs[objmap[&self.events[event_id].object]];
                 let (x, y) = obj.get_position();
                 track_start_time = t + track(nextobj, &self.events[next], x, y)?;
@@ -204,22 +219,23 @@ impl Config {
         Ok(timeline)
     }
 
-    /// 提取所有出现在 events 和 viewport_tracks 中的对象 ID
+    /// 提取所有出现在 events、viewport_tracks 和 dates 中的对象 ID
     pub fn extract_objects(&self) -> ChronuxResult<HashSet<String>> {
         let mut objects = HashSet::new();
 
         for event_id in self.events.keys() {
-            let object_id = &self.events[event_id].object;
-
-            if !objects.contains(object_id) {
-                objects.insert(object_id.clone());
-            }
+            objects.insert(self.events[event_id].object.clone());
         }
 
         for vp_tracks in self.viewport_tracks.iter() {
-            if !objects.contains(&vp_tracks.tracked_path) {
-                objects.insert(vp_tracks.tracked_path.clone());
-            }
+            objects.insert(vp_tracks.tracked_path.clone());
+        }
+
+        if let Some(dates) = &self.drawing.dates {
+            objects.insert(dates.position_date.clone());
+            objects.insert(dates.position_year.clone());
+            objects.insert(dates.area_date.clone());
+            objects.insert(dates.area_year.clone());
         }
 
         objects.extend(self.input.pinned.iter().cloned());
@@ -330,12 +346,13 @@ impl Config {
                 .map(|(_, _, time)| *time)
                 .collect::<Vec<_>>();
 
-            let pos_pchip = PchipInterpolator::new(time_seq.clone(), pos_seq).inspect_err(|_e| {
-                log::error!(
-                    "Failed to create position PchipInterpolator for viewport track on {})",
-                    tracked_path.id,
-                );
-            })?;
+            let pos_pchip =
+                PchipInterpolator::new(time_seq.clone(), pos_seq).inspect_err(|_e| {
+                    log::error!(
+                        "Failed to create position PchipInterpolator for viewport track on {})",
+                        tracked_path.id,
+                    );
+                })?;
             let size_pchip = PchipInterpolator::new(time_seq, new_size_seq).inspect_err(|_e| {
                 log::error!(
                     "Failed to create size PchipInterpolator for viewport track on {}",
@@ -422,9 +439,7 @@ where
             Ok((k, Color::from_argb(a, r, g, b)))
         })
         .collect::<Result<HashMap<_, _>, _>>()
-        .map_err(|e| {
-            serde::de::Error::custom(format!("Failed to parse color dictionary: {e}"))
-        })?;
+        .map_err(|e| serde::de::Error::custom(format!("Failed to parse color dictionary: {e}")))?;
 
     COLOR_DICT
         .set(colors)

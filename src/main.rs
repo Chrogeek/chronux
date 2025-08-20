@@ -153,6 +153,14 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         return Ok(());
     }
 
+    // 计算日期时间
+    let dates_keyframes = conf
+        .drawing
+        .dates
+        .as_ref()
+        .map(|timeline| timeline.parse_timekeys(&conf.events))
+        .transpose()?;
+
     // 计算镜头路径跟踪动画
     let viewport_sequence = conf.calc_viewport_tracks(&objs)?;
 
@@ -253,10 +261,9 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             AlphaType::Premul,
             ColorSpace::new_srgb(),
         );
-        let mut surface = surfaces::raster(&ii, 0_usize, Some(&SurfaceProps::default()))
-            .ok_or(ChronuxError::SkiaError(
-                "failed to create Skia surface".into(),
-            ))?;
+        let mut surface = surfaces::raster(&ii, 0_usize, Some(&SurfaceProps::default())).ok_or(
+            ChronuxError::SkiaError("failed to create Skia surface".into()),
+        )?;
         surface.canvas().clear(conf.output.background_color); // 设置背景颜色
 
         let (sx, sy) = (
@@ -269,7 +276,10 @@ fn run(args: Args) -> Result<(), ChronuxError> {
 
         // 绘制每个图形（动态部分，要求 apply_transform = true）
         for o in objs.iter() {
-            if !o.apply_transform {
+            if conf.drawing.phantom.contains(&o.id) {
+                // 忽略 phantom 对象
+                continue;
+            } else if !o.apply_transform {
                 continue;
             } else if let Some(tl) = timeline.get(&o.id) {
                 let properties = tl.interpolate(t);
@@ -303,7 +313,10 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         // 绘制包装部分的图形元素（要求 apply_transform = false）
         // TODO: 目前要求包装 svg 的画幅大小为 1920x1080，暂不支持其他比例（会导致位置错乱）
         for o in objs.iter() {
-            if o.apply_transform {
+            if conf.drawing.phantom.contains(&o.id) {
+                // 忽略 phantom 对象
+                continue;
+            } else if o.apply_transform {
                 continue;
             } else if let Some(tl) = timeline.get(&o.id) {
                 let properties = tl.interpolate(t);
@@ -336,6 +349,63 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         // 绘制比例尺
         if let Some(scale) = conf.drawing.scale.as_ref() {
             widget::scale::draw(surface.canvas(), scale, vw, &conf.drawing.ascii_font)?;
+        }
+
+        // 绘制日期时间
+        if let Some(dates_config) = conf.drawing.dates.as_ref()
+            && let Some(dates_keyframes) = dates_keyframes.as_ref()
+        {
+            let position_date = objs
+                .iter()
+                .find(|o| o.id == dates_config.position_date)
+                .map_or(
+                    Err(ChronuxError::ArgError(format!(
+                        "Dates position 'date' object '{}' not found",
+                        dates_config.position_date
+                    ))),
+                    |o| Ok(o.get_position()),
+                )?;
+            let position_year = objs
+                .iter()
+                .find(|o| o.id == dates_config.position_year)
+                .map_or(
+                    Err(ChronuxError::ArgError(format!(
+                        "Dates position 'year' object '{}' not found",
+                        dates_config.position_date
+                    ))),
+                    |o| Ok(o.get_position()),
+                )?;
+            let area_year = objs
+                .iter()
+                .find(|o| o.id == dates_config.area_year)
+                .map_or(
+                    Err(ChronuxError::ArgError(format!(
+                        "Dates area 'year' object '{}' not found",
+                        dates_config.area_year
+                    ))),
+                    |o| Ok(o.get_bounds()),
+                )?;
+            let area_date = objs
+                .iter()
+                .find(|o| o.id == dates_config.area_date)
+                .map_or(
+                    Err(ChronuxError::ArgError(format!(
+                        "Dates area 'date' object '{}' not found",
+                        dates_config.area_date
+                    ))),
+                    |o| Ok(o.get_bounds()),
+                )?;
+            widget::dates::draw(
+                surface.canvas(),
+                dates_config,
+                dates_keyframes,
+                t,
+                position_date,
+                position_year,
+                &area_date,
+                &area_year,
+                &conf.drawing.ascii_font,
+            )?;
         }
 
         // 调试模式下输出时间码
@@ -372,15 +442,12 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         Ok((f, raw, render_time_us))
     };
 
-    let write_routine = |indexed_raw| {
-
-        match indexed_raw {
-            Ok((f, raw, frame_time)) => {
-                writer.write_frame(f, raw)?;
-                Ok(frame_time)
-            }
-            Err(e) => Err(e),
+    let write_routine = |indexed_raw| match indexed_raw {
+        Ok((f, raw, frame_time)) => {
+            writer.write_frame(f, raw)?;
+            Ok(frame_time)
         }
+        Err(e) => Err(e),
     };
 
     let render_err_fold = |acc, res| match (acc, res) {

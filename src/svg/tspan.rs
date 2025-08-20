@@ -1,5 +1,5 @@
 use roxmltree::Node;
-use skia_safe::{Canvas, Matrix, Point, utils::text_utils::Align};
+use skia_safe::{Canvas, Matrix, Point, Rect, utils::text_utils::Align};
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
@@ -16,6 +16,7 @@ pub struct Tspan {
     pub text: TspanText,
     pub style: Properties,
     pub length: f32,
+    pub bounds: Rect,
 }
 
 #[derive(Debug, Clone)]
@@ -54,15 +55,18 @@ impl Tspan {
                     let text = child.text().unwrap_or("").to_string();
                     let Point { x, y } = mat.map_point((x, y));
                     if !text.is_empty() {
+                        let font = base_style.get_font()?;
+                        let (width, bounds_rect) = font.measure_str(&text, None);
                         let tspan = Tspan {
                             x,
                             y,
                             style: base_style.clone(),
-                            length: base_style.measure_string(&text)?,
+                            length: width,
                             text: match placeholder {
                                 Some(formatter) => TspanText::Placeholder(formatter.clone()),
                                 None => TspanText::Text(text),
                             },
+                            bounds: bounds_rect,
                         };
                         result.push(tspan);
                     }
