@@ -168,7 +168,7 @@ impl Object {
         match &self.shape {
             Shape::Path { d } => d.bounds().clone(),
             Shape::Circle { cx, cy, r } => Rect::new(*cx - *r, *cy - *r, *cx + *r, *cy + *r),
-            Shape::Text { x, y, children } => children
+            Shape::Text { children, .. } => children
                 .iter()
                 .map(|c| c.bounds)
                 .reduce(|mut a, b| {

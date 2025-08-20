@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use serde::Deserialize;
 use serde_with::serde_as;
-use skia_safe::Rect;
 
 use crate::{
     animation::easing::Easing,
