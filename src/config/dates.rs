@@ -64,30 +64,22 @@ impl DatesConfig {
             .map(|kf| {
                 let time = match &kf.time {
                     TimeKey::WithPrevious { depends, delay } => {
-                        let dep = events.get(depends).map_or(
-                            Err(ChronuxError::ArgError(format!(
-                                "Timeline keyframe dependency {} is broken",
-                                depends
-                            ))),
-                            |o| Ok(o),
-                        )?;
+                        let dep = events.get(depends).ok_or(ChronuxError::ArgError(format!(
+                                "Timeline keyframe dependency {depends} is broken"
+                            )))?;
                         dep.start + delay
                     }
                     TimeKey::AfterPrevious { depends, offset } => {
-                        let dep = events.get(depends).map_or(
-                            Err(ChronuxError::ArgError(format!(
-                                "Timeline keyframe dependency {} is broken",
-                                depends
-                            ))),
-                            |o| Ok(o),
-                        )?;
+                        let dep = events.get(depends).ok_or(ChronuxError::ArgError(format!(
+                                "Timeline keyframe dependency {depends} is broken"
+                            )))?;
                         dep.start + dep.duration + offset
                     }
                 };
                 Ok((
                     time,
-                    kf.year.clone().unwrap_or(String::new()),
-                    kf.date.clone().unwrap_or(String::new()),
+                    kf.year.clone().unwrap_or_default(),
+                    kf.date.clone().unwrap_or_default(),
                 ))
             })
             .collect()

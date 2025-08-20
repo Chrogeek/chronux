@@ -166,7 +166,7 @@ impl Object {
 
     pub fn get_bounds(&self) -> Rect {
         match &self.shape {
-            Shape::Path { d } => d.bounds().clone(),
+            Shape::Path { d } => *d.bounds(),
             Shape::Circle { cx, cy, r } => Rect::new(*cx - *r, *cy - *r, *cx + *r, *cy + *r),
             Shape::Text { children, .. } => children
                 .iter()

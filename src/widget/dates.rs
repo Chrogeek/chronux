@@ -160,9 +160,7 @@ pub fn draw(
                 let c1 = year_start[i];
                 let c2 = year_end[i];
                 dur[i] = if c1 != c2 {
-                    if !c1.is_ascii_digit() || !c2.is_ascii_digit() {
-                        DURATION_SHORT
-                    } else if (10 + u32::from(c2) - u32::from(c1)) % 10 == 1 {
+                    if !c1.is_ascii_digit() || !c2.is_ascii_digit() || (10 + u32::from(c2) - u32::from(c1)) % 10 == 1 {
                         DURATION_SHORT
                     } else {
                         DURATION_LONG
@@ -256,8 +254,8 @@ fn draw_centered_text(canvas: &Canvas, text: &str, p: (f32, f32), font: &Font, p
     canvas.draw_text_align(
         text,
         (p.0, p.1 - (rect.bottom + rect.top) * 0.5),
-        &font,
-        &paint,
+        font,
+        paint,
         Align::Center,
     );
 }
