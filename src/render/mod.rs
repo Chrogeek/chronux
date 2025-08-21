@@ -4,7 +4,7 @@ use crate::{
     animation::properties::Properties,
     config::{counter::Counters, extra_stroke::ExtraStrokeConfig},
     svg::element::Shape,
-    util::{ChronuxError, ChronuxResult, parse_css_color, sort_paints},
+    util::{ChronuxError, ChronuxResult, sort_paints},
 };
 
 pub fn draw(
@@ -42,9 +42,9 @@ pub fn draw(
         Shape::Path { d } => {
             let effects = properties.get_effects();
             let mut paints = paints;
-            for e in effects.iter() {
+            for e in effects.into_iter() {
                 paints[0].set_path_effect(e.clone());
-                paints[1].set_path_effect(e.clone());
+                paints[1].set_path_effect(e);
             }
 
             let restore_handle = canvas.save();
@@ -52,19 +52,6 @@ pub fn draw(
 
             canvas.draw_path(d, &paints[0]);
             canvas.draw_path(d, &paints[1]);
-
-            if let Some(extra_stroke) = extra_stroke {
-                if extra_stroke.paths.contains(id) {
-                    let mut extra_paint = properties.get_stroke_paint();
-                    extra_paint
-                        .set_color(parse_css_color(&extra_stroke.stroke_color, 1.0)?)
-                        .set_stroke_width(extra_stroke.stroke_width);
-                    for e in effects.into_iter() {
-                        extra_paint.set_path_effect(e);
-                    }
-                    canvas.draw_path(d, &extra_paint);
-                }
-            }
 
             canvas.restore_to_count(restore_handle);
         }

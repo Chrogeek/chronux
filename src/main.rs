@@ -1,3 +1,4 @@
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::Write;
 use std::process::ExitCode;
@@ -12,9 +13,10 @@ use skia_safe::utils::text_utils::Align;
 use skia_safe::{AlphaType, ColorSpace, ColorType, ImageInfo, Rect, SurfaceProps, surfaces};
 
 use crate::config::counter::add_sum_counter_item;
+use crate::svg::element::Shape;
 use crate::util::fontmgr::get_font;
-use crate::util::timecode_rt;
 use crate::util::version::CHRONUX_VERSION;
+use crate::util::{parse_css_color, timecode_rt};
 use crate::widget::{WIDGET_CANVAS_HEIGHT, WIDGET_CANVAS_WIDTH};
 use crate::{
     animation::Animation, args::Args, config::Config, svg::Svg, util::ChronuxError, writer::Writer,
@@ -200,9 +202,9 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     // 渲染动画
     let frame_start = (animation_start * conf.output.fps as f32) as usize;
     let frame_end = (animation_end * conf.output.fps as f32) as usize;
-    log::info!("Frames rendered: {frame_start} - {frame_end}");
+    log::info!("Frames to render: {frame_start} - {frame_end}");
 
-    log::info!("Start rendering frames...");
+    log::info!("Start rendering...");
 
     let writer = match args.encoder {
         args::OutputWriter::Ffmpeg => Writer::new_ffmpeg(
@@ -226,6 +228,32 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         (frame_end - frame_start).to_string().len()
     ))
     .unwrap();
+
+    if let Some(es) = conf.drawing.extra_stroke.as_ref() {
+        // 根据 es 中指定的路径组，将 objs 重排顺序，使得每个路径组的对象都在一起
+        // 首先给每个对象指定一个编号：如果不在任何一个路径组中则编号等于 objs 中的下标，否则编号指定为该路径组中所有对象的最小下标
+        let obj_id = objs
+            .iter()
+            .enumerate()
+            .map(|(i, o)| {
+                let group_index = es
+                    .path_groups
+                    .iter()
+                    .position(|g| g.contains(&o.id))
+                    .unwrap_or(i);
+                (o.id.clone(), group_index)
+            })
+            .collect::<HashMap<_, _>>();
+
+        // 按照路径组编号排序
+        objs.sort_by_key(|o| obj_id[&o.id]);
+    }
+
+    let obj_map = objs
+        .iter()
+        .enumerate()
+        .map(|(i, o)| (o.id.clone(), i))
+        .collect::<HashMap<_, _>>();
 
     let render_routine = move |f| {
         // 获取当前时间戳
@@ -274,6 +302,26 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         // 应用镜头变换
         surface.canvas().scale((sx, sy)).translate((-vx, -vy));
 
+        // 为 extra-stroke 准备数据结构
+        let mut es = if let Some(es) = &conf.drawing.extra_stroke {
+            let mut counts = es
+                .path_groups
+                .iter()
+                .map(|g| (HashSet::<String>::from_iter(g.iter().cloned()), g.len()))
+                .collect::<Vec<_>>();
+
+            // 有些路径需要绘制 extra-stroke，但没有出现在路径组中，它们自成一组，需要由此扩充 es
+            for path in es.paths.iter() {
+                if !counts.iter().any(|(paths, _)| paths.contains(path)) {
+                    counts.push((HashSet::from([path.clone()]), 1));
+                }
+            }
+
+            Some(counts)
+        } else {
+            None
+        };
+
         // 绘制每个图形（动态部分，要求 apply_transform = true）
         for o in objs.iter() {
             if conf.drawing.phantom.contains(&o.id) {
@@ -305,6 +353,31 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                     &viewport_rect,
                     &conf.drawing.extra_stroke,
                 )?;
+            }
+            if let Some(extra_stroke) = conf.drawing.extra_stroke.as_ref() {
+                for (paths, count) in es.as_mut().unwrap() {
+                    if paths.contains(&o.id) {
+                        *count -= 1;
+                        if *count == 0 {
+                            for path in paths.iter() {
+                                let properties = timeline[path].interpolate(t);
+                                let mut extra_paint = properties.get_stroke_paint();
+                                extra_paint
+                                    .set_color(parse_css_color(&extra_stroke.stroke_color, 1.0)?)
+                                    .set_stroke_width(extra_stroke.stroke_width);
+                                for e in properties.get_effects().into_iter() {
+                                    extra_paint.set_path_effect(e);
+                                }
+                                match &objs[obj_map[path]].shape {
+                                    Shape::Path { d } => {
+                                        surface.canvas().draw_path(d, &extra_paint);
+                                    }
+                                    _ => unreachable!("extra stroke only supports paths"),
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
