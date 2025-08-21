@@ -8,7 +8,7 @@ use skia_safe::{Color, PathMeasure};
 use crate::{
     animation::{easing::Easing, properties::Properties, timeline::Timeline, track, track_on_path},
     config::{
-        counter::{update_counters, Counters}, dates::DatesConfig, event::Event, extra_stroke::ExtraStrokeConfig, group::Group, input::InputConfig, output::OutputConfig, viewport::{TimeKey, ViewportSequence, ViewportTrack}
+        counter::{update_counters, Counters}, dates::DatesConfig, elevated::ElevatedConfig, event::Event, extra_stroke::ExtraStrokeConfig, group::Group, input::InputConfig, output::OutputConfig, viewport::{TimeKey, ViewportSequence, ViewportTrack}
     },
     svg::element::{Object, Shape},
     util::{
@@ -24,6 +24,7 @@ pub mod input;
 pub mod output;
 pub mod viewport;
 pub mod extra_stroke;
+pub mod elevated;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Config {
@@ -56,6 +57,7 @@ pub struct DrawingConfig {
     pub dates: Option<DatesConfig>,
     #[serde(rename = "extra-stroke")]
     pub extra_stroke: Option<ExtraStrokeConfig>,
+    pub elevated: Option<ElevatedConfig>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -232,6 +234,16 @@ impl Config {
             objects.insert(dates.position_year.clone());
             objects.insert(dates.area_date.clone());
             objects.insert(dates.area_year.clone());
+        }
+
+        if let Some(elevated) = &self.drawing.elevated {
+            for points in elevated.points.values() {
+                for point in points {
+                    if point != "" {
+                        objects.insert(point.to_string());
+                    }
+                }
+            }
         }
 
         objects.extend(self.input.pinned.iter().cloned());

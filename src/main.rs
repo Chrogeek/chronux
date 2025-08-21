@@ -10,7 +10,10 @@ use indicatif::{ParallelProgressIterator, ProgressFinish, ProgressIterator, Prog
 use pariter::IteratorExt;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use skia_safe::utils::text_utils::Align;
-use skia_safe::{AlphaType, ColorSpace, ColorType, ImageInfo, Rect, SurfaceProps, surfaces};
+use skia_safe::{
+    AlphaType, ColorSpace, ColorType, ImageInfo, Rect, SurfaceProps, surfaces,
+    trim_path_effect,
+};
 
 use crate::config::counter::add_sum_counter_item;
 use crate::svg::element::Shape;
@@ -166,7 +169,15 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     // 计算镜头路径跟踪动画
     let viewport_sequence = conf.calc_viewport_tracks(&objs)?;
 
+    // 计算每个对象的时间线
     let mut timeline = conf.calc_timeline()?;
+
+    // 计算线路的地上段
+    let elevated = if let Some(e) = conf.drawing.elevated.as_ref() {
+        Some(e.parse_points(&objs)?)
+    } else {
+        None
+    };
 
     // 设置每个对象时间线的起始属性，如有出现(appear)动画则将起始状态置为默认值（未开始）
     for o in objs.iter() {
@@ -322,6 +333,101 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             None
         };
 
+        // 固定对象直接绘制
+        for o in objs.iter() {
+            if o.apply_transform && conf.input.pinned.contains(&o.id) {
+                let properties = o.style.clone();
+                render::draw(
+                    surface.canvas(),
+                    &o.id,
+                    &o.shape,
+                    &properties,
+                    0.0,
+                    &counters,
+                    &viewport_rect,
+                    &conf.drawing.extra_stroke,
+                )?;
+            }
+        }
+
+        // 绘制地上段（elevated）路径
+        if let Some(elevated) = &elevated {
+            let elevated_config = conf.drawing.elevated.as_ref().unwrap();
+            for (path, intervals) in elevated.iter() {
+                if let Some(o) = objs.iter().find(|o| o.id == *path) {
+                    let d = match &o.shape {
+                        Shape::Path { d } => d,
+                        _ => {
+                            return Err(ChronuxError::ArgError(format!(
+                                "Invalid shape for elevated point: {}, must be a path",
+                                o.id
+                            )));
+                        }
+                    };
+
+                    let path_props = timeline[&o.id].interpolate(t);
+                    let (ps, pe) = path_props.trim;
+
+                    let mut paint_line = path_props.get_stroke_paint();
+                    paint_line.set_stroke_width(
+                        path_props.stroke_width
+                            + (elevated_config.gap + elevated_config.stroke_width) * 2.0,
+                    );
+
+                    for (is, ie) in intervals {
+                        let start = ps.max(*is);
+                        let end = pe.min(*ie);
+                        let effect =
+                            trim_path_effect::new(start, end, trim_path_effect::Mode::Normal);
+
+                        let mut paint_line = paint_line.clone();
+                        paint_line.set_path_effect(effect);
+
+                        if end - start > 1e-3 {
+                            surface.canvas().draw_path(d, &paint_line);
+                        }
+                    }
+                }
+            }
+
+            for (path, intervals) in elevated.iter() {
+                if let Some(o) = objs.iter().find(|o| o.id == *path) {
+                    let d = match &o.shape {
+                        Shape::Path { d } => d,
+                        _ => {
+                            return Err(ChronuxError::ArgError(format!(
+                                "Invalid shape for elevated point: {}, must be a path",
+                                o.id
+                            )));
+                        }
+                    };
+
+                    let path_props = timeline[&o.id].interpolate(t);
+                    let (ps, pe) = path_props.trim;
+
+                    let mut paint_gap = path_props.get_stroke_paint();
+
+                    paint_gap
+                        .set_color(parse_css_color(&elevated_config.gap_color, 1.0)?)
+                        .set_stroke_width(path_props.stroke_width + elevated_config.gap * 2.0);
+
+                    for (is, ie) in intervals {
+                        let start = ps.max(*is);
+                        let end = pe.min(*ie);
+                        let effect =
+                            trim_path_effect::new(start, end, trim_path_effect::Mode::Normal);
+
+                        let mut paint_gap = paint_gap.clone();
+                        paint_gap.set_path_effect(effect.clone());
+
+                        if end - start > 1e-3 {
+                            surface.canvas().draw_path(d, &paint_gap);
+                        }
+                    }
+                }
+            }
+        }
+
         // 绘制每个图形（动态部分，要求 apply_transform = true）
         for o in objs.iter() {
             if conf.drawing.phantom.contains(&o.id) {
@@ -336,18 +442,6 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                     &o.id,
                     &o.shape,
                     &properties,
-                    0.0,
-                    &counters,
-                    &viewport_rect,
-                    &conf.drawing.extra_stroke,
-                )?;
-            } else if conf.input.pinned.contains(&o.id) {
-                // 如果是固定的对象，直接绘制
-                render::draw(
-                    surface.canvas(),
-                    &o.id,
-                    &o.shape,
-                    &o.style,
                     0.0,
                     &counters,
                     &viewport_rect,
@@ -390,6 +484,22 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         // 绘制包装部分的图形元素（要求 apply_transform = false）
         // TODO: 目前要求包装 svg 的画幅大小为 1920x1080，暂不支持其他比例（会导致位置错乱）
         for o in objs.iter() {
+            if !o.apply_transform && conf.input.pinned.contains(&o.id) {
+                let properties = o.style.clone();
+                render::draw(
+                    surface.canvas(),
+                    &o.id,
+                    &o.shape,
+                    &properties,
+                    0.0,
+                    &counters,
+                    &viewport_rect,
+                    &conf.drawing.extra_stroke,
+                )?;
+            }
+        }
+
+        for o in objs.iter() {
             if conf.drawing.phantom.contains(&o.id) {
                 // 忽略 phantom 对象
                 continue;
@@ -402,18 +512,6 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                     &o.id,
                     &o.shape,
                     &properties,
-                    0.0,
-                    &counters,
-                    &viewport_rect,
-                    &conf.drawing.extra_stroke,
-                )?;
-            } else if conf.input.pinned.contains(&o.id) {
-                // 如果是固定的对象，直接绘制
-                render::draw(
-                    surface.canvas(),
-                    &o.id,
-                    &o.shape,
-                    &o.style,
                     0.0,
                     &counters,
                     &viewport_rect,
