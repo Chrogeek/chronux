@@ -2,18 +2,20 @@ use skia_safe::{Canvas, Paint, PaintStyle, Rect, Vector};
 
 use crate::{
     animation::properties::Properties,
-    config::counter::Counters,
+    config::{counter::Counters, extra_stroke::ExtraStrokeConfig},
     svg::element::Shape,
-    util::{ChronuxError, ChronuxResult, sort_paints},
+    util::{ChronuxError, ChronuxResult, parse_css_color, sort_paints},
 };
 
 pub fn draw(
     canvas: &Canvas,
+    id: &str,
     shape: &Shape,
     properties: &Properties,
     min_stroke_width: f32,
     counters: &Counters,
     viewport_rect: &Rect,
+    extra_stroke: &Option<ExtraStrokeConfig>,
 ) -> ChronuxResult<()> {
     if !properties.visible || properties.opacity <= 1e-3 {
         return Ok(());
@@ -40,9 +42,9 @@ pub fn draw(
         Shape::Path { d } => {
             let effects = properties.get_effects();
             let mut paints = paints;
-            for e in effects.into_iter() {
+            for e in effects.iter() {
                 paints[0].set_path_effect(e.clone());
-                paints[1].set_path_effect(e);
+                paints[1].set_path_effect(e.clone());
             }
 
             let restore_handle = canvas.save();
@@ -50,6 +52,19 @@ pub fn draw(
 
             canvas.draw_path(d, &paints[0]);
             canvas.draw_path(d, &paints[1]);
+
+            if let Some(extra_stroke) = extra_stroke {
+                if extra_stroke.paths.contains(id) {
+                    let mut extra_paint = properties.get_stroke_paint();
+                    extra_paint
+                        .set_color(parse_css_color(&extra_stroke.stroke_color, 1.0)?)
+                        .set_stroke_width(extra_stroke.stroke_width);
+                    for e in effects.into_iter() {
+                        extra_paint.set_path_effect(e);
+                    }
+                    canvas.draw_path(d, &extra_paint);
+                }
+            }
 
             canvas.restore_to_count(restore_handle);
         }
@@ -118,22 +133,19 @@ pub fn draw(
             }
             let mut paint = Paint::default();
             paint.set_alpha((properties.opacity * 255.0) as u8);
-            canvas.draw_image_rect(
-                skia_img,
-                None,
-                dst_rect,
-                &paint,
-            );
+            canvas.draw_image_rect(skia_img, None, dst_rect, &paint);
         }
         Shape::Group { objects } => {
             for obj in objects {
                 draw(
                     canvas,
+                    id,
                     &obj.shape,
                     &Properties::merge(&obj.style, properties),
                     min_stroke_width,
                     counters,
                     viewport_rect,
+                    extra_stroke,
                 )?;
             }
         }
@@ -165,9 +177,7 @@ pub fn get_bounding_box(shape: &Shape, properties: &Properties) -> Option<(f32, 
             rect
         }
         _ => {
-            log::warn!(
-                "Bounding box calculation for {shape:?} is not implemented"
-            );
+            log::warn!("Bounding box calculation for {shape:?} is not implemented");
             None
         }
     }

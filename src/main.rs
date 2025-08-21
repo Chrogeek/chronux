@@ -285,21 +285,25 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                 let properties = tl.interpolate(t);
                 render::draw(
                     surface.canvas(),
+                    &o.id,
                     &o.shape,
                     &properties,
                     0.0,
                     &counters,
                     &viewport_rect,
+                    &conf.drawing.extra_stroke,
                 )?;
             } else if conf.input.pinned.contains(&o.id) {
                 // 如果是固定的对象，直接绘制
                 render::draw(
                     surface.canvas(),
+                    &o.id,
                     &o.shape,
                     &o.style,
                     0.0,
                     &counters,
                     &viewport_rect,
+                    &conf.drawing.extra_stroke,
                 )?;
             }
         }
@@ -322,21 +326,25 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                 let properties = tl.interpolate(t);
                 render::draw(
                     surface.canvas(),
+                    &o.id,
                     &o.shape,
                     &properties,
                     0.0,
                     &counters,
                     &viewport_rect,
+                    &conf.drawing.extra_stroke,
                 )?;
             } else if conf.input.pinned.contains(&o.id) {
                 // 如果是固定的对象，直接绘制
                 render::draw(
                     surface.canvas(),
+                    &o.id,
                     &o.shape,
                     &o.style,
                     0.0,
                     &counters,
                     &viewport_rect,
+                    &conf.drawing.extra_stroke,
                 )?;
             }
         }

@@ -8,18 +8,11 @@ use skia_safe::{Color, PathMeasure};
 use crate::{
     animation::{easing::Easing, properties::Properties, timeline::Timeline, track, track_on_path},
     config::{
-        counter::{Counters, update_counters},
-        dates::DatesConfig,
-        event::Event,
-        group::Group,
-        input::InputConfig,
-        output::OutputConfig,
-        viewport::{TimeKey, ViewportSequence, ViewportTrack},
+        counter::{update_counters, Counters}, dates::DatesConfig, event::Event, extra_stroke::ExtraStrokeConfig, group::Group, input::InputConfig, output::OutputConfig, viewport::{TimeKey, ViewportSequence, ViewportTrack}
     },
     svg::element::{Object, Shape},
     util::{
-        COLOR_DICT, ChronuxError, ChronuxResult, interpolator::PchipInterpolator,
-        version::is_compatible,
+        interpolator::PchipInterpolator, version::is_compatible, ChronuxError, ChronuxResult, COLOR_DICT
     },
 };
 
@@ -30,6 +23,7 @@ pub mod group;
 pub mod input;
 pub mod output;
 pub mod viewport;
+pub mod extra_stroke;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Config {
@@ -60,6 +54,8 @@ pub struct DrawingConfig {
     #[serde_with(as = "OneOrMany<_, PreferOne>")]
     pub phantom: HashSet<String>,
     pub dates: Option<DatesConfig>,
+    #[serde(rename = "extra-stroke")]
+    pub extra_stroke: Option<ExtraStrokeConfig>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
