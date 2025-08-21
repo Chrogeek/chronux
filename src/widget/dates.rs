@@ -6,8 +6,8 @@ use crate::{
 };
 
 const DURATION_IN_OUT_SCALE: f32 = 2.0;
-const DURATION_SHORT: f32 = 0.5;
-const DURATION_LONG: f32 = 1.0;
+const DURATION_SHORT: f32 = 1.0;
+const DURATION_LONG: f32 = 2.0;
 const DURATION_OFFSET_UNIT: f32 = 5.0 / 60.0;
 
 pub fn draw(
@@ -53,13 +53,19 @@ pub fn draw(
             canvas.clip_rect(clip_date, ClipOp::Intersect, true);
 
             // 5.2. 动画插值
+            let date_duration = if start.is_none() || end.is_none() {
+                DURATION_SHORT * DURATION_IN_OUT_SCALE
+            } else {
+                DURATION_SHORT
+            };
+
             let t_dates = if let Some((end_time, _, _)) = end {
-                (1.0 - (end_time - t) / DURATION_SHORT).clamp(0.0, 1.0)
+                (1.0 - (end_time - t) / date_duration).clamp(0.0, 1.0)
             } else {
                 0.0
             };
 
-            let t_dates = config.easing.evaluate(t_dates, DURATION_SHORT);
+            let t_dates = config.easing.evaluate(t_dates, date_duration);
 
             let y_start = date_y - t_dates * config.line_height * config.font_size_date;
             let y_end = y_start + config.line_height * config.font_size_date;
@@ -76,11 +82,18 @@ pub fn draw(
                 config.font_size_date,
                 config.font_weight_date as i32,
             )?;
-            if let Some((_, _, date_start)) = &start {
-                draw_centered_text(canvas, date_start, (date_x, y_start), &font, &paint);
-            }
-            if let Some((_, _, date_end)) = &end {
-                draw_centered_text(canvas, date_end, (date_x, y_end), &font, &paint);
+            let date_start = start.as_ref().map(|(_, _, date)| date);
+            let date_end = end.as_ref().map(|(_, _, date)| date);
+
+            if date_start != date_end {
+                if let Some(date_start) = &date_start {
+                    draw_centered_text(canvas, date_start, (date_x, y_start), &font, &paint);
+                }
+                if let Some(date_end) = &date_end {
+                    draw_centered_text(canvas, date_end, (date_x, y_end), &font, &paint);
+                }
+            } else if let Some(date_start) = &date_start {
+                draw_centered_text(canvas, date_start, (date_x, date_y), &font, &paint);
             }
 
             canvas.restore_to_count(clip_token); // 恢复裁剪区
@@ -160,7 +173,10 @@ pub fn draw(
                 let c1 = year_start[i];
                 let c2 = year_end[i];
                 dur[i] = if c1 != c2 {
-                    if !c1.is_ascii_digit() || !c2.is_ascii_digit() || (10 + u32::from(c2) - u32::from(c1)) % 10 == 1 {
+                    if !c1.is_ascii_digit()
+                        || !c2.is_ascii_digit()
+                        || (10 + u32::from(c2) - u32::from(c1)) % 10 == 1
+                    {
                         DURATION_SHORT
                     } else {
                         DURATION_LONG
