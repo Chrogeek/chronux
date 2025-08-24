@@ -11,8 +11,7 @@ use pariter::IteratorExt;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use skia_safe::utils::text_utils::Align;
 use skia_safe::{
-    AlphaType, ColorSpace, ColorType, ImageInfo, Rect, SurfaceProps, surfaces,
-    trim_path_effect,
+    AlphaType, ColorSpace, ColorType, ImageInfo, Rect, SurfaceProps, surfaces, trim_path_effect,
 };
 
 use crate::config::counter::add_sum_counter_item;
@@ -408,7 +407,10 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                     let mut paint_gap = path_props.get_stroke_paint();
 
                     paint_gap
-                        .set_color(parse_css_color(&elevated_config.gap_color, 1.0)?)
+                        .set_color(parse_css_color(
+                            &elevated_config.gap_color,
+                            path_props.opacity,
+                        )?)
                         .set_stroke_width(path_props.stroke_width + elevated_config.gap * 2.0);
 
                     for (is, ie) in intervals {
@@ -554,6 +556,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                     ))),
                     |o| Ok(o.get_position()),
                 )?;
+            let area_year_props = timeline[&dates_config.area_year].interpolate(t);
             let area_year = objs
                 .iter()
                 .find(|o| o.id == dates_config.area_year)
@@ -562,8 +565,9 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                         "Dates area 'year' object '{}' not found",
                         dates_config.area_year
                     ))),
-                    |o| Ok(o.get_bounds()),
+                    |o| Ok(o.get_bounds(&area_year_props)),
                 )?;
+            let area_date_props = timeline[&dates_config.area_date].interpolate(t);
             let area_date = objs
                 .iter()
                 .find(|o| o.id == dates_config.area_date)
@@ -572,7 +576,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                         "Dates area 'date' object '{}' not found",
                         dates_config.area_date
                     ))),
-                    |o| Ok(o.get_bounds()),
+                    |o| Ok(o.get_bounds(&area_date_props)),
                 )?;
             widget::dates::draw(
                 surface.canvas(),

@@ -164,28 +164,36 @@ impl Object {
         }
     }
 
-    pub fn get_bounds(&self) -> Rect {
+    pub fn get_bounds(&self, properties: &Properties) -> Rect {
         match &self.shape {
-            Shape::Path { d } => *d.bounds(),
-            Shape::Circle { cx, cy, r } => Rect::new(*cx - *r, *cy - *r, *cx + *r, *cy + *r),
-            Shape::Text { children, .. } => children
+            Shape::Path { d } => {
+                let mut bounds = *d.bounds();
+                bounds.offset((properties.translate_x, properties.translate_y));
+                bounds
+            }
+            Shape::Circle { cx, cy, r } => Rect::new(*cx - *r + properties.translate_x, *cy - *r + properties.translate_y, *cx + *r, *cy + *r),
+            Shape::Text { children, .. } => {
+                let mut bounds = children
                 .iter()
                 .map(|c| c.bounds)
                 .reduce(|mut a, b| {
                     a.join(b);
                     a
                 })
-                .unwrap_or(Rect::new_empty()),
+                .unwrap_or(Rect::new_empty());
+                bounds.offset((properties.translate_x, properties.translate_y));
+                bounds
+            },
             Shape::Image {
                 x,
                 y,
                 width,
                 height,
                 ..
-            } => Rect::from_xywh(*x, *y, *width, *height),
+            } => Rect::from_xywh(*x + properties.translate_x, *y + properties.translate_y, *width, *height),
             Shape::Group { objects } => objects
                 .iter()
-                .map(|c| c.get_bounds())
+                .map(|c| c.get_bounds(properties))
                 .reduce(|mut a, b| {
                     a.join(b);
                     a

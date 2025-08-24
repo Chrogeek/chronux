@@ -23,29 +23,38 @@ impl ElevatedConfig {
         let obj_map: HashMap<String, &Object> = objs.iter().map(|o| (o.id.clone(), o)).collect();
         self.points
             .iter()
-            .map(|(key, values)| match &obj_map[key].shape {
-                Shape::Path { d } => {
-                    let mut points = values
-                        .iter()
-                        .map(|p| {
-                            if p == "" {
-                                0.0
-                            } else {
-                                let (x, y) = obj_map[p].get_position();
-                                track_on_path(d, x, y, &Easing::Linear, 1.0).0
-                            }
-                        })
-                        .collect::<Vec<_>>();
-                    if points.len() % 2 == 1 {
-                        points.push(1.0);
+            .map(|(key, values)| {
+                match &obj_map
+                    .get(key)
+                    .ok_or(ChronuxError::ArgError(format!(
+                        "No entry found for key '{key}' in [drawing.elevated]"
+                    )))?
+                    .shape
+                {
+                    Shape::Path { d } => {
+                        let mut points = values
+                            .iter()
+                            .map(|p| {
+                                if p == "" {
+                                    0.0
+                                } else {
+                                    let (x, y) = obj_map[p].get_position();
+                                    track_on_path(d, x, y, &Easing::Linear, 1.0).0
+                                }
+                            })
+                            .collect::<Vec<_>>();
+                        if points.len() % 2 == 1 {
+                            points.push(1.0);
+                        }
+                        let intervals =
+                            points.chunks(2).map(|chunk| (chunk[0], chunk[1])).collect();
+                        Ok((key.clone(), intervals))
                     }
-                    let intervals = points.chunks(2).map(|chunk| (chunk[0], chunk[1])).collect();
-                    Ok((key.clone(), intervals))
+                    _ => Err(ChronuxError::ArgError(format!(
+                        "Invalid shape for elevated point: {}, must be a path",
+                        key
+                    ))),
                 }
-                _ => Err(ChronuxError::ArgError(format!(
-                    "Invalid shape for elevated point: {}, must be a path",
-                    key
-                ))),
             })
             .collect()
     }
