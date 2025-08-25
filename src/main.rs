@@ -132,12 +132,12 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     let animation_start = if conf.output.time_start.is_nan() {
         0.0
     } else {
-        conf.output.time_start
+        conf.output.time_start.max(0.0)
     };
     let animation_end = if conf.output.time_end.is_nan() {
         time_end
     } else {
-        conf.output.time_end
+        conf.output.time_end.min(time_end)
     };
 
     if args.encoder == args::OutputWriter::Timeline {
