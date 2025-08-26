@@ -14,6 +14,7 @@ use skia_safe::{
     AlphaType, ColorSpace, ColorType, ImageInfo, Rect, SurfaceProps, surfaces, trim_path_effect,
 };
 
+use crate::args::OutputWriter;
 use crate::config::counter::add_sum_counter_item;
 use crate::svg::element::Shape;
 use crate::util::fontmgr::get_font;
@@ -140,7 +141,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         conf.output.time_end.min(time_end)
     };
 
-    if args.encoder == args::OutputWriter::Timeline {
+    if args.encoder == OutputWriter::Timeline {
         // 只需要计算时间线而不渲染帧
         let mut events = conf
             .events
@@ -170,6 +171,17 @@ fn run(args: Args) -> Result<(), ChronuxError> {
 
     // 计算每个对象的时间线
     let mut timeline = conf.calc_timeline()?;
+
+    if args.encoder == OutputWriter::Objects {
+        // 只输出对象列表
+        let mut file = File::create(&output).map_err(ChronuxError::IoError)?;
+        for (o, t) in timeline.iter() {
+            writeln!(file, "[objects]\n{}", o).map_err(ChronuxError::IoError)?;
+            writeln!(file, "start = {:?}", t.start).map_err(ChronuxError::IoError)?;
+            writeln!(file, "events = [{:?}]\n", t.events).map_err(ChronuxError::IoError)?;
+        }
+        return Ok(());
+    }
 
     // 计算线路的地上段
     let elevated = if let Some(e) = conf.drawing.elevated.as_ref() {
@@ -217,19 +229,19 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     log::info!("Start rendering...");
 
     let writer = match args.encoder {
-        args::OutputWriter::Ffmpeg => Writer::new_ffmpeg(
+        OutputWriter::Ffmpeg => Writer::new_ffmpeg(
             &output,
             conf.output.width as usize,
             conf.output.height as usize,
             conf.output.fps as usize,
         )?,
-        args::OutputWriter::PngSequence => Writer::new_png_sequence(
+        OutputWriter::PngSequence => Writer::new_png_sequence(
             &output,
             conf.output.width as usize,
             conf.output.height as usize,
         )?,
-        args::OutputWriter::Timeline => {
-            unreachable!("Timeline writer should not be used here")
+        OutputWriter::Timeline | OutputWriter::Objects => {
+            unreachable!("Timeline / Objects writer should not be used here")
         }
     };
 

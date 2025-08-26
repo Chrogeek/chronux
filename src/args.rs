@@ -21,4 +21,6 @@ pub enum OutputWriter {
     PngSequence,
     #[clap(name = "timeline")]
     Timeline,
+    #[clap(name = "objects")]
+    Objects,
 }
