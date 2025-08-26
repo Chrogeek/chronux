@@ -141,7 +141,7 @@ impl Tspan {
         let color_style = if properties.tweening {
             properties
         } else {
-            self.style.clone()
+            Properties::merge(&self.style, &properties)
         };
 
         let font = self.style.get_font()?;
