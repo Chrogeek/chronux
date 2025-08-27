@@ -552,6 +552,8 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         if let Some(dates_config) = conf.drawing.dates.as_ref()
             && let Some(dates_keyframes) = dates_keyframes.as_ref()
         {
+            let position_year_props = timeline[&dates_config.position_year].interpolate(t);
+            let position_date_props = timeline[&dates_config.position_date].interpolate(t);
             let position_date = objs
                 .iter()
                 .find(|o| o.id == dates_config.position_date)
@@ -560,7 +562,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                         "Dates position 'date' object '{}' not found",
                         dates_config.position_date
                     ))),
-                    |o| Ok(o.get_position()),
+                    |o| Ok(o.get_position(&position_date_props)),
                 )?;
             let position_year = objs
                 .iter()
@@ -570,7 +572,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                         "Dates position 'year' object '{}' not found",
                         dates_config.position_date
                     ))),
-                    |o| Ok(o.get_position()),
+                    |o| Ok(o.get_position(&position_year_props)),
                 )?;
             let area_year_props = timeline[&dates_config.area_year].interpolate(t);
             let area_year = objs

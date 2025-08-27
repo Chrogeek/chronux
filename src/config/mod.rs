@@ -147,7 +147,7 @@ impl Config {
                     )
                 })];
                 let obj = &objs[objmap[&self.events[event_id].object]];
-                let (x, y) = obj.get_position();
+                let (x, y) = obj.get_position(&Properties::default());
                 track_start_time = t + track(nextobj, &self.events[next], x, y)?;
             }
         }

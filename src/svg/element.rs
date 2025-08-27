@@ -137,26 +137,27 @@ impl Object {
         })
     }
 
-    pub fn get_position(&self) -> (f32, f32) {
+    pub fn get_position(&self, properties: &Properties) -> (f32, f32) {
+        let (tx, ty) = (properties.translate_x, properties.translate_y);
         match &self.shape {
             Shape::Path { d } => {
                 log::warn!("position may not be accurate for path elements");
                 let Point { x, y } = d.bounds().center();
-                (x, y)
+                (x + tx, y + ty)
             }
-            Shape::Circle { cx, cy, .. } => (*cx, *cy),
+            Shape::Circle { cx, cy, .. } => (*cx + tx, *cy + ty),
             Shape::Text { x, y, .. } => {
                 log::warn!("position may not be accurate for text elements");
-                (*x, *y)
+                (*x + tx, *y + ty)
             }
             Shape::Image { x, y, .. } => {
                 log::warn!("position may not be accurate for image elements");
-                (*x, *y)
+                (*x + tx, *y + ty)
             }
             Shape::Group { objects } => {
                 log::warn!("position may not be accurate for group elements");
                 if let Some(first) = objects.first() {
-                    first.get_position()
+                    first.get_position(properties)
                 } else {
                     (0.0, 0.0)
                 }
@@ -171,26 +172,36 @@ impl Object {
                 bounds.offset((properties.translate_x, properties.translate_y));
                 bounds
             }
-            Shape::Circle { cx, cy, r } => Rect::new(*cx - *r + properties.translate_x, *cy - *r + properties.translate_y, *cx + *r, *cy + *r),
+            Shape::Circle { cx, cy, r } => Rect::new(
+                *cx - *r + properties.translate_x,
+                *cy - *r + properties.translate_y,
+                *cx + *r,
+                *cy + *r,
+            ),
             Shape::Text { children, .. } => {
                 let mut bounds = children
-                .iter()
-                .map(|c| c.bounds)
-                .reduce(|mut a, b| {
-                    a.join(b);
-                    a
-                })
-                .unwrap_or(Rect::new_empty());
+                    .iter()
+                    .map(|c| c.bounds)
+                    .reduce(|mut a, b| {
+                        a.join(b);
+                        a
+                    })
+                    .unwrap_or(Rect::new_empty());
                 bounds.offset((properties.translate_x, properties.translate_y));
                 bounds
-            },
+            }
             Shape::Image {
                 x,
                 y,
                 width,
                 height,
                 ..
-            } => Rect::from_xywh(*x + properties.translate_x, *y + properties.translate_y, *width, *height),
+            } => Rect::from_xywh(
+                *x + properties.translate_x,
+                *y + properties.translate_y,
+                *width,
+                *height,
+            ),
             Shape::Group { objects } => objects
                 .iter()
                 .map(|c| c.get_bounds(properties))

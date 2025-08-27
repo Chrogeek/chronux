@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use serde::Deserialize;
 
 use crate::{
-    animation::{easing::Easing, track_on_path},
+    animation::{easing::Easing, properties::Properties, track_on_path},
     svg::element::{Object, Shape},
     util::{ChronuxError, ChronuxResult},
 };
@@ -38,7 +38,7 @@ impl ElevatedConfig {
                                 if p == "" {
                                     0.0
                                 } else {
-                                    let (x, y) = obj_map[p].get_position();
+                                    let (x, y) = obj_map[p].get_position(&Properties::default());
                                     track_on_path(d, x, y, &Easing::Linear, 1.0).0
                                 }
                             })
