@@ -198,15 +198,19 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                 match e.animation {
                     Animation::TrimPath { .. } => {
                         tl.start.trim = (0.0, 0.0);
+                        break;
                     }
                     Animation::Typewriter => {
                         tl.start.typewriter = (0.0, 0.0);
+                        break;
                     }
                     Animation::Sweep => {
                         tl.start.sweep = (0.0, 0.0);
+                        break;
                     }
                     Animation::FadeIn => {
                         tl.start.opacity = 0.0;
+                        break;
                     }
                     // 下面这些不是出现动画，什么都不用做
                     Animation::TypewriterOut
