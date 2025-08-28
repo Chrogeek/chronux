@@ -29,6 +29,14 @@ pub enum Shape {
         cy: f32,
         r: f32,
     },
+    Rect {
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+        rx: f32,
+        ry: f32,
+    },
     Text {
         x: f32,
         y: f32,
@@ -70,8 +78,39 @@ impl Object {
                     svg::attribute_f32(node, "r")?,
                 );
                 let Point { x: cx, y: cy } = mat.map_point((cx, cy));
-                let Vector { x: r, y: _ } = mat.map_vector((r, 0.0));
+                let r = mat.map_vector((r, 0.0)).length();
                 Shape::Circle { cx, cy, r }
+            }
+            "rect" => {
+                let (x, y, width, height, rx, ry) = (
+                    svg::attribute_f32(node, "x")?,
+                    svg::attribute_f32(node, "y")?,
+                    svg::attribute_f32(node, "width")?,
+                    svg::attribute_f32(node, "height")?,
+                    match svg::attribute_f32(node, "rx") {
+                        Ok(v) => v,
+                        Err(ChronuxError::AttributeNotFound { .. }) => 0.0,
+                        Err(e) => return Err(e),
+                    },
+                    match svg::attribute_f32(node, "ry") {
+                        Ok(v) => v,
+                        Err(ChronuxError::AttributeNotFound { .. }) => 0.0,
+                        Err(e) => return Err(e),
+                    },
+                );
+                let Point { x, y } = mat.map_point((x, y));
+                let width = mat.map_vector((width, 0.0)).length();
+                let height = mat.map_vector((0.0, height)).length();
+                let rx = mat.map_vector((rx, 0.0)).length();
+                let ry = mat.map_vector((0.0, ry)).length();
+                Shape::Rect {
+                    x,
+                    y,
+                    width,
+                    height,
+                    rx,
+                    ry,
+                }
             }
             "text" => {
                 let (x, y) = (
@@ -146,6 +185,13 @@ impl Object {
                 (x + tx, y + ty)
             }
             Shape::Circle { cx, cy, .. } => (*cx + tx, *cy + ty),
+            Shape::Rect {
+                x,
+                y,
+                width,
+                height,
+                ..
+            } => (*x + width / 2.0 + tx, *y + height / 2.0 + ty),
             Shape::Text { x, y, .. } => {
                 log::warn!("position may not be accurate for text elements");
                 (*x + tx, *y + ty)
@@ -177,6 +223,18 @@ impl Object {
                 *cy - *r + properties.translate_y,
                 *cx + *r,
                 *cy + *r,
+            ),
+            Shape::Rect {
+                x,
+                y,
+                width,
+                height,
+                ..
+            } => Rect::from_xywh(
+                *x + properties.translate_x,
+                *y + properties.translate_y,
+                *width,
+                *height,
             ),
             Shape::Text { children, .. } => {
                 let mut bounds = children
@@ -224,7 +282,7 @@ fn flatten_group_dfs(
 ) -> ChronuxResult<()> {
     if node.is_element() {
         match node.tag_name().name() {
-            "path" | "circle" | "text" | "image" => {
+            "path" | "circle" | "text" | "image" | "rect" => {
                 results.push(Object::from_node(
                     node,
                     format!(

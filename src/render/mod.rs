@@ -75,6 +75,18 @@ pub fn draw(
                 );
             }
         }
+        Shape::Rect { x, y, width, height, rx, ry}  => {
+            let (x, y) = (x + properties.translate_x, y + properties.translate_y);
+            let (rx, ry) = (*rx, *ry);
+            let rect = Rect::new(x, y, x + width, y + height);
+            for paint in paints {
+                if rx > 1e-3 || ry > 1e-3 {
+                    canvas.draw_round_rect(rect, rx, ry, &paint);
+                } else {
+                    canvas.draw_rect(rect, &paint);
+                }
+            }
+        }
         Shape::Text { children, .. } => {
             let (start, end) = properties.typewriter;
             let total_len = children.iter().map(|s| s.length).sum::<f32>();
