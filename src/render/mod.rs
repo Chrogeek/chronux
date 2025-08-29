@@ -44,9 +44,8 @@ pub fn draw(
 
     match shape {
         Shape::Path { d } => {
-            let effects = properties.get_effects();
             let mut paints = paints;
-            for e in effects.into_iter() {
+            if let Some(e) = properties.get_effects() {
                 paints[0].set_path_effect(e.clone());
                 paints[1].set_path_effect(e);
             }

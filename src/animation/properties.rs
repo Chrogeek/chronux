@@ -1,7 +1,8 @@
 use std::{collections::HashMap, str::FromStr};
 
 use skia_safe::{
-    Color, Font, Matrix, PaintCap, PaintJoin, Vector, gradient_shader, utils::text_utils::Align,
+    Color, Font, Matrix, PaintCap, PaintJoin, PathEffect, gradient_shader,
+    utils::text_utils::Align,
 };
 use svgtypes::PaintOrder;
 
@@ -183,14 +184,12 @@ impl Properties {
 
         if let Some(width) = rules.get("stroke-width") {
             let w = parse_unit_value(width)?;
-            let Vector { x: w, y: _ } = mat.map_vector((w, 0.0));
-            result.stroke_width = w;
+            result.stroke_width = mat.map_vector((w, 0.0)).length();
         }
 
         if let Some(size) = rules.get("font-size") {
             let s = parse_unit_value(size)?;
-            let Vector { x: s, y: _ } = mat.map_vector((s, 0.0));
-            result.font_size = s;
+            result.font_size = mat.map_vector((s, 0.0)).length();
         }
 
         if let Some(weight) = rules.get("font-weight") {
@@ -244,7 +243,8 @@ impl Properties {
         }
 
         if let Some(dash_offset) = rules.get("stroke-dashoffset") {
-            result.dash_offset = parse_unit_value(dash_offset)?;
+            let o = parse_unit_value(dash_offset)?;
+            result.dash_offset = mat.map_vector((o, 0.0)).length();
         }
 
         if let Some(dash_array) = rules.get("stroke-dasharray") {
@@ -254,7 +254,10 @@ impl Properties {
                 let mut array = dash_array
                     .split(',')
                     .map(|s| parse_unit_value(s.trim()))
-                    .collect::<ChronuxResult<Vec<_>>>()?;
+                    .collect::<ChronuxResult<Vec<_>>>()?
+                    .into_iter()
+                    .map(|v| mat.map_vector((v, 0.0)).length())
+                    .collect::<Vec<_>>();
                 if array.len() % 2 != 0 {
                     let dup = array.clone();
                     array.extend(&dup);
@@ -383,12 +386,30 @@ impl Properties {
         paint
     }
 
-    pub fn get_effects(&self) -> Vec<Option<skia_safe::PathEffect>> {
-        vec![skia_safe::trim_path_effect::new(
-            self.trim.0,
-            self.trim.1,
-            skia_safe::trim_path_effect::Mode::Normal, // reverse
-        )]
+    pub fn get_effects(&self) -> Option<skia_safe::PathEffect> {
+        let mut effects = vec![];
+
+        if self.trim.0 > 1e-3 || self.trim.1 < 1.0 - 1e-3 {
+            effects.push(skia_safe::trim_path_effect::new(
+                self.trim.0,
+                self.trim.1,
+                skia_safe::trim_path_effect::Mode::Normal,
+            ));
+        }
+
+        if self.dash_array.len() > 0 && self.stroke_width > 1e-3 {
+            // println!("dash array: {:?}", self.dash_array);
+            let dash_effect = skia_safe::dash_path_effect::new(&self.dash_array, self.dash_offset);
+            effects.push(dash_effect);
+        }
+
+        let effect = effects.into_iter().fold(None, |a, b| match (a, b) {
+            (None, b) => b,
+            (a, None) => a,
+            (Some(a), Some(b)) => Some(PathEffect::compose(a, b)),
+        });
+
+        effect
     }
 
     pub fn get_font(&self) -> ChronuxResult<Font> {

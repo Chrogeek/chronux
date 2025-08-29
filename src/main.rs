@@ -488,7 +488,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                                 extra_paint
                                     .set_color(parse_css_color(&extra_stroke.stroke_color, 1.0)?)
                                     .set_stroke_width(extra_stroke.stroke_width);
-                                for e in properties.get_effects().into_iter() {
+                                if let Some(e) = properties.get_effects() {
                                     extra_paint.set_path_effect(e);
                                 }
                                 match &objs[obj_map[path]].shape {
