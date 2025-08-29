@@ -95,7 +95,8 @@ impl Svg {
         ) -> ChronuxResult<()> {
             let this_label = attribute_label(node);
 
-            let mat = matrix * attribute_transform(node);
+            let element_mat = attribute_transform(node);
+            let mat = matrix * element_mat;
 
             if let Some(ref label) = this_label {
                 if labels.contains(label) {
@@ -105,6 +106,7 @@ impl Svg {
                         mat,
                         base.clone(),
                         apply_transform,
+                        element_mat,
                     )?);
                 }
 
@@ -117,6 +119,7 @@ impl Svg {
                             mat,
                             base.clone(),
                             apply_transform,
+                            element_mat,
                         )?);
                     }
                 }
@@ -170,53 +173,57 @@ impl Svg {
             }
         }
 
-        get_defs_dfs(&self.tree.root(), &mut defs, Matrix::new_identity());
+        get_defs_dfs(&self.tree.root(), &mut defs, self.transform);
 
         // 遍历所有 defs, 处理 href
         let mut new_defs = HashMap::new();
         for (id, def) in defs.iter() {
-            if let SvgDef::LinearGradient {
-                p1: _,
-                p2: _,
-                stops,
-                href,
-            } = def
-            {
-                if let Some(href) = href {
-                    let href_id = href.trim_start_matches('#');
-                    if let Some(base_def) = defs.get(href_id) {
-                        if let SvgDef::LinearGradient {
-                            p1,
-                            p2,
-                            stops: b_stops,
-                            href: b_href,
-                        } = base_def
-                        {
-                            let new_stops = if stops.is_empty() {
-                                b_stops.clone()
-                            } else {
-                                stops.clone()
-                            };
-                            new_defs.insert(
-                                id.clone(),
-                                SvgDef::LinearGradient {
-                                    p1: *p1,
-                                    p2: *p2,
-                                    stops: new_stops,
-                                    href: b_href.clone(),
-                                },
-                            );
-                        } else {
-                            // href 指向的不是线性渐变，直接插入原始定义
-                            new_defs.insert(id.clone(), def.clone());
+            match def {
+                SvgDef::LinearGradient {
+                    p1,
+                    p2,
+                    stops,
+                    href,
+                    gradient_transform,
+                } => {
+                    if let Some(href) = href {
+                        let href_id = href.trim_start_matches('#');
+                        if let Some(base_def) = defs.get(href_id) {
+                            if let SvgDef::LinearGradient {
+                                p1: _,
+                                p2: _,
+                                stops: b_stops,
+                                href: b_href,
+                                ..
+                            } = base_def
+                            {
+                                let new_stops = if stops.is_empty() {
+                                    b_stops.clone()
+                                } else {
+                                    stops.clone()
+                                };
+                                new_defs.insert(
+                                    id.clone(),
+                                    SvgDef::LinearGradient {
+                                        p1: *p1,
+                                        p2: *p2,
+                                        stops: new_stops,
+                                        href: b_href.clone(),
+                                        gradient_transform: *gradient_transform,
+                                    },
+                                );
+                                continue;
+                            }
                         }
-                    } else {
-                        // href 指向的 id 不存在，直接插入原始定义
-                        new_defs.insert(id.clone(), def.clone());
                     }
+                    // href 指向的不是线性渐变，或
+                    // href 指向的 id 不存在，或
+                    // 自己没有 href，直接插入原始定义
+                    new_defs.insert(id.clone(), def.clone());
                 }
-            } else {
-                new_defs.insert(id.clone(), def.clone());
+                _ => {
+                    new_defs.insert(id.clone(), def.clone());
+                }
             }
         }
         new_defs
@@ -264,29 +271,32 @@ pub fn attribute_label(node: &Node) -> Option<String> {
 
 pub fn attribute_transform(node: &Node) -> Matrix {
     node.attribute("transform")
-        .iter()
-        .flat_map(|s| {
-            TransformListParser::from(*s).map(|t| {
-                if let Ok(transform) = t {
-                    Some(match transform {
-                        TransformListToken::Translate { tx, ty } => {
-                            Matrix::translate((tx as f32, ty as f32))
-                        }
-                        TransformListToken::Scale { sx, sy } => {
-                            Matrix::scale((sx as f32, sy as f32))
-                        }
-                        TransformListToken::Rotate { angle } => Matrix::rotate_deg(angle as f32),
-                        TransformListToken::SkewX { angle } => Matrix::skew((angle as f32, 0.0)),
-                        TransformListToken::SkewY { angle } => Matrix::skew((0.0, angle as f32)),
-                        TransformListToken::Matrix { a, b, c, d, e, f } => Matrix::from_affine(&[
-                            a as f32, b as f32, c as f32, d as f32, e as f32, f as f32,
-                        ]),
-                    })
-                } else {
-                    None
-                }
+        .map(|s| {
+            parse_transform(s).unwrap_or_else(|e| {
+                log::warn!("Failed to parse transform '{}': {}", s, e);
+                Matrix::new_identity()
             })
         })
-        .flatten()
-        .fold(Matrix::new_identity(), |acc, t| acc * t)
+        .unwrap_or_else(|| Matrix::new_identity())
+}
+
+pub fn parse_transform(transform: &str) -> ChronuxResult<Matrix> {
+    let mut mat = Matrix::new_identity();
+    for t in TransformListParser::from(transform) {
+        let transform = t.map_err(|e| {
+            ChronuxError::SvgError(format!("failed to parse transform '{transform}': {e}"))
+        })?;
+        let t = match transform {
+            TransformListToken::Translate { tx, ty } => Matrix::translate((tx as f32, ty as f32)),
+            TransformListToken::Scale { sx, sy } => Matrix::scale((sx as f32, sy as f32)),
+            TransformListToken::Rotate { angle } => Matrix::rotate_deg(angle as f32),
+            TransformListToken::SkewX { angle } => Matrix::skew((angle as f32, 0.0)),
+            TransformListToken::SkewY { angle } => Matrix::skew((0.0, angle as f32)),
+            TransformListToken::Matrix { a, b, c, d, e, f } => {
+                Matrix::from_affine(&[a as f32, b as f32, c as f32, d as f32, e as f32, f as f32])
+            }
+        };
+        mat = mat * t;
+    }
+    Ok(mat)
 }

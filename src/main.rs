@@ -367,6 +367,8 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                     &counters,
                     &viewport_rect,
                     &conf.drawing.extra_stroke,
+                    &defs,
+                    o.transform,
                 )?;
             }
         }
@@ -389,7 +391,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                     let path_props = timeline[&o.id].interpolate(t);
                     let (ps, pe) = path_props.trim;
 
-                    let mut paint_line = path_props.get_stroke_paint();
+                    let mut paint_line = path_props.get_stroke_paint(&defs, o.transform);
                     paint_line.set_stroke_width(
                         path_props.stroke_width
                             + (elevated_config.gap + elevated_config.stroke_width) * 2.0,
@@ -426,7 +428,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                     let path_props = timeline[&o.id].interpolate(t);
                     let (ps, pe) = path_props.trim;
 
-                    let mut paint_gap = path_props.get_stroke_paint();
+                    let mut paint_gap = path_props.get_stroke_paint(&defs, o.transform);
 
                     paint_gap
                         .set_color(parse_css_color(
@@ -470,6 +472,8 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                     &counters,
                     &viewport_rect,
                     &conf.drawing.extra_stroke,
+                    &defs,
+                    o.transform,
                 )?;
             }
             if let Some(extra_stroke) = conf.drawing.extra_stroke.as_ref() {
@@ -479,7 +483,8 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                         if *count == 0 {
                             for path in paths.iter() {
                                 let properties = timeline[path].interpolate(t);
-                                let mut extra_paint = properties.get_stroke_paint();
+                                let mut extra_paint =
+                                    properties.get_stroke_paint(&defs, o.transform);
                                 extra_paint
                                     .set_color(parse_css_color(&extra_stroke.stroke_color, 1.0)?)
                                     .set_stroke_width(extra_stroke.stroke_width);
@@ -519,6 +524,8 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                     &counters,
                     &viewport_rect,
                     &conf.drawing.extra_stroke,
+                    &defs,
+                    o.transform,
                 )?;
             }
         }
@@ -540,13 +547,23 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                     &counters,
                     &viewport_rect,
                     &conf.drawing.extra_stroke,
+                    &defs,
+                    o.transform,
                 )?;
             }
         }
 
         // 绘制小地图
         if let Some(minimap) = conf.drawing.minimap.as_ref() {
-            widget::minimap::draw(surface.canvas(), minimap, &timeline, &objs, t, &counters)?;
+            widget::minimap::draw(
+                surface.canvas(),
+                minimap,
+                &timeline,
+                &objs,
+                t,
+                &counters,
+                &defs,
+            )?;
         }
 
         // 绘制比例尺

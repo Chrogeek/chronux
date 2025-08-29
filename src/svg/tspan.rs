@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use roxmltree::Node;
 use skia_safe::{Canvas, Matrix, Point, Rect, utils::text_utils::Align};
 use unicode_segmentation::UnicodeSegmentation;
@@ -5,8 +7,8 @@ use unicode_segmentation::UnicodeSegmentation;
 use crate::{
     animation::properties::Properties,
     config::counter::Counters,
-    svg::{attribute_f32, attribute_str, attribute_transform, placeholder_text::PlaceholderText},
-    util::{ChronuxResult, sort_paints},
+    svg::{attribute_f32, attribute_str, attribute_transform, defs::SvgDef, placeholder_text::PlaceholderText},
+    util::{sort_paints, ChronuxResult},
 };
 
 #[derive(Debug, Clone)]
@@ -132,6 +134,8 @@ impl Tspan {
         tr: f32,
         properties: Properties,
         counters: &Counters,
+        defs: &HashMap<String, SvgDef>,
+        element_transform: Matrix,
     ) -> ChronuxResult<()> {
         let tl = tl.max(0.0);
         let tr = tr.min(self.length);
@@ -145,8 +149,8 @@ impl Tspan {
         };
 
         let font = self.style.get_font()?;
-        let fill = color_style.get_fill_paint();
-        let stroke = color_style.get_stroke_paint();
+        let fill = color_style.get_fill_paint(defs, element_transform);
+        let stroke = color_style.get_stroke_paint(defs, element_transform);
 
         let paints = sort_paints(color_style.paint_order, stroke, fill);
 

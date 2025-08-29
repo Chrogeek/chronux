@@ -5,8 +5,11 @@ use serde::Deserialize;
 use skia_safe::{Color, Paint};
 use svgtypes::PaintOrder;
 
+use crate::util::paint::ColorPaint;
+
 pub mod fontmgr;
 pub mod interpolator;
+pub mod paint;
 pub mod vector;
 pub mod version;
 
@@ -86,6 +89,14 @@ pub fn parse_css_color(color: &str, opacity: f32) -> ChronuxResult<Color> {
         .to_rgba8();
     let a = (opacity * a as f32).clamp(0.0, 255.0) as u8;
     Ok(Color::from_argb(a, r, g, b))
+}
+
+pub fn parse_color_or_image(color: &str, opacity: f32) -> ChronuxResult<ColorPaint> {
+    if color.starts_with("url(#") && color.ends_with(')') {
+        let id = &color[5..color.len() - 1];
+        return Ok(ColorPaint::Href(id.to_string()));
+    }
+    parse_css_color(color, opacity).map(ColorPaint::Color)
 }
 
 pub fn timecode(f: u32, fps: u32) -> String {

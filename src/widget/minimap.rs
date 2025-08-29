@@ -6,7 +6,7 @@ use crate::{
     animation::timeline::Timeline,
     config::{MinimapConfig, counter::Counters},
     render::{self, get_bounding_box},
-    svg::element::Object,
+    svg::{defs::SvgDef, element::Object},
     util::{ChronuxResult, parse_css_color},
     widget::{PANEL_BACKGROUND_COLOR, PANEL_BORDER_COLOR, PANEL_BORDER_WIDTH, WIDGET_CANVAS_WIDTH},
 };
@@ -18,6 +18,7 @@ pub fn draw(
     objs: &[Object],
     t: f32,
     counters: &Counters,
+    defs: &HashMap<String, SvgDef>,
 ) -> ChronuxResult<()> {
     let mut bounding_box: Option<(f32, f32, f32, f32)> = None;
     for o in objs.iter() {
@@ -118,6 +119,8 @@ pub fn draw(
                 counters,
                 &Rect::new(bl, bt, bl + bw, bt + bh),
                 &None,
+                defs,
+                o.transform,
             )?;
         }
     }

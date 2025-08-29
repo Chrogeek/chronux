@@ -6,7 +6,8 @@ use skia_safe::{Data, Image, Matrix, Path, Point, Rect, Vector};
 use crate::{
     animation::properties::Properties,
     svg::{
-        self, attribute_label, attribute_transform, placeholder_text::PlaceholderText, tspan::Tspan,
+        self, attribute_label, attribute_transform, placeholder_text::PlaceholderText,
+        tspan::Tspan,
     },
     util::{ChronuxError, ChronuxResult},
 };
@@ -17,6 +18,7 @@ pub struct Object {
     pub style: Properties,
     pub shape: Shape,
     pub apply_transform: bool,
+    pub transform: Matrix,
 }
 
 #[derive(Debug, Clone)]
@@ -61,6 +63,7 @@ impl Object {
         mat: Matrix,
         base: PathBuf,
         apply_transform: bool,
+        element_transform: Matrix,
     ) -> ChronuxResult<Object> {
         let style = Properties::from_style(
             &svg::attribute_str(node, "style").unwrap_or_default(),
@@ -163,7 +166,7 @@ impl Object {
             }
             "g" => {
                 let mut objects = Vec::new();
-                flatten_group_dfs(node, &mut objects, mat, base.clone(), &id, apply_transform)?;
+                flatten_group_dfs(node, &mut objects, mat, base.clone(), &id, apply_transform, element_transform)?;
                 Shape::Group { objects }
             }
             _ => unreachable!("unexpected SVG element: {}", node.tag_name().name()),
@@ -173,6 +176,7 @@ impl Object {
             style,
             shape,
             apply_transform,
+            transform: element_transform,
         })
     }
 
@@ -279,6 +283,7 @@ fn flatten_group_dfs(
     base: PathBuf,
     base_id: &String,
     apply_transform: bool,
+    element_transform: Matrix,
 ) -> ChronuxResult<()> {
     if node.is_element() {
         match node.tag_name().name() {
@@ -293,6 +298,7 @@ fn flatten_group_dfs(
                     matrix,
                     base.clone(),
                     apply_transform,
+                    element_transform,
                 )?);
             }
             "g" => (),
@@ -301,8 +307,17 @@ fn flatten_group_dfs(
     }
 
     for child in node.children() {
-        let mat = matrix * attribute_transform(&child);
-        flatten_group_dfs(&child, results, mat, base.clone(), base_id, apply_transform)?;
+        let element_mat = attribute_transform(&child);
+        let mat = matrix * element_mat;
+        flatten_group_dfs(
+            &child,
+            results,
+            mat,
+            base.clone(),
+            base_id,
+            apply_transform,
+            element_mat,
+        )?;
     }
 
     Ok(())

@@ -2,7 +2,7 @@ use roxmltree::Node;
 use skia_safe::{Color, Matrix, Point};
 
 use crate::{
-    svg::{attribute_f32, attribute_namespace_str, attribute_str},
+    svg::{attribute_f32, attribute_namespace_str, attribute_str, parse_transform},
     util::parse_css_color,
 };
 
@@ -13,6 +13,7 @@ pub enum SvgDef {
         p2: Option<Point>,
         stops: Vec<SvgGradientStop>,
         href: Option<String>,
+        gradient_transform: Matrix,
     },
     GaussianBlur {
         std_deviation: f32,
@@ -34,12 +35,19 @@ pub fn get_def_node(node: &Node, matrix: &Matrix) -> Option<(String, SvgDef)> {
             let y1 = attribute_f32(node, "y1").ok();
             let x2 = attribute_f32(node, "x2").ok();
             let y2 = attribute_f32(node, "y2").ok();
-            let href = attribute_namespace_str(node, "xlink", "href").ok();
+            let href = attribute_namespace_str(node, "http://www.w3.org/1999/xlink", "href").ok();
+
+            let gradient_transform = attribute_str(node, "gradientTransform").unwrap_or_default();
+            let matrix = if !gradient_transform.is_empty() {
+                *matrix * parse_transform(&gradient_transform).unwrap_or(Matrix::new_identity())
+            } else {
+                *matrix
+            };
 
             let p1 = if let Some(x1) = x1
                 && let Some(y1) = y1
             {
-                Some(matrix.map_point((x1, y1)))
+                Some(Point::new(x1, y1))
             } else {
                 None
             };
@@ -47,7 +55,7 @@ pub fn get_def_node(node: &Node, matrix: &Matrix) -> Option<(String, SvgDef)> {
             let p2 = if let Some(x2) = x2
                 && let Some(y2) = y2
             {
-                Some(matrix.map_point((x2, y2)))
+                Some(Point::new(x2, y2))
             } else {
                 None
             };
@@ -88,6 +96,7 @@ pub fn get_def_node(node: &Node, matrix: &Matrix) -> Option<(String, SvgDef)> {
                     p2,
                     stops,
                     href,
+                    gradient_transform: matrix,
                 },
             ))
         }

@@ -1,12 +1,16 @@
-use std::str::FromStr;
+use std::{collections::HashMap, str::FromStr};
 
-use skia_safe::{Color, Font, Matrix, PaintCap, PaintJoin, Vector, utils::text_utils::Align};
+use skia_safe::{
+    Color, Font, Matrix, PaintCap, PaintJoin, Vector, gradient_shader, utils::text_utils::Align,
+};
 use svgtypes::PaintOrder;
 
 use crate::{
     animation::Animation,
+    svg::defs::SvgDef,
     util::{
-        self, ChronuxError, ChronuxResult, parse_css_color, parse_font_weight, parse_unit_value,
+        self, ChronuxError, ChronuxResult, paint::ColorPaint, parse_color_or_image,
+        parse_font_weight, parse_unit_value,
     },
 };
 
@@ -18,8 +22,8 @@ pub struct Properties {
     pub font_size: f32,
     pub font_weight: f32,
     pub text_anchor: Align,
-    pub fill_color: Color,
-    pub stroke_color: Color,
+    pub fill_color: ColorPaint,
+    pub stroke_color: ColorPaint,
     pub stroke_width: f32,
     pub stroke_linecap: PaintCap,
     pub stroke_linejoin: PaintJoin,
@@ -45,9 +49,9 @@ impl Default for Properties {
             font_family: "Arial".to_string(),
             font_size: 16.0,
             font_weight: 400.0,
-            text_anchor: Align::Left,         // default to left alignment
-            fill_color: Color::TRANSPARENT,   // transparent
-            stroke_color: Color::TRANSPARENT, // transparent
+            text_anchor: Align::Left,            // default to left alignment
+            fill_color: ColorPaint::default(),   // transparent
+            stroke_color: ColorPaint::default(), // transparent
             stroke_width: 0.0,
             stroke_linecap: PaintCap::Round,   // default to butt cap
             stroke_linejoin: PaintJoin::Round, // default to miter join
@@ -109,10 +113,15 @@ impl Properties {
                     new_props.font_weight += t * (weight - self.font_weight);
                 }
                 if let Some(color) = tween.fill_color {
-                    new_props.fill_color = tween_color(self.fill_color, color, t);
+                    new_props.fill_color =
+                        tween_color_or_image(self.fill_color.clone(), ColorPaint::Color(color), t);
                 }
                 if let Some(color) = tween.stroke_color {
-                    new_props.stroke_color = tween_color(self.stroke_color, color, t);
+                    new_props.stroke_color = tween_color_or_image(
+                        self.stroke_color.clone(),
+                        ColorPaint::Color(color),
+                        t,
+                    );
                 }
                 if let Some(width) = tween.stroke_width {
                     new_props.stroke_width += t * (width - self.stroke_width);
@@ -153,7 +162,7 @@ impl Properties {
         let mut result = base_style;
 
         if let Some(color) = rules.get("fill") {
-            result.fill_color = parse_css_color(
+            result.fill_color = parse_color_or_image(
                 color,
                 rules
                     .get("fill-opacity")
@@ -163,7 +172,7 @@ impl Properties {
         }
 
         if let Some(color) = rules.get("stroke") {
-            result.stroke_color = parse_css_color(
+            result.stroke_color = parse_color_or_image(
                 color,
                 rules
                     .get("stroke-opacity")
@@ -218,7 +227,9 @@ impl Properties {
         if let Some(font_family) = rules.get("font-family") {
             let ff = font_family.to_string();
             // dequote ff
-            let ff = if (ff.starts_with('"') && ff.ends_with('"')) || (ff.starts_with('\'') && ff.ends_with('\'')) {
+            let ff = if (ff.starts_with('"') && ff.ends_with('"'))
+                || (ff.starts_with('\'') && ff.ends_with('\''))
+            {
                 ff[1..ff.len() - 1].to_string()
             } else {
                 ff
@@ -255,28 +266,120 @@ impl Properties {
         Ok(result)
     }
 
-    pub fn get_stroke_paint(&self) -> skia_safe::Paint {
+    pub fn get_stroke_paint(
+        &self,
+        defs: &HashMap<String, SvgDef>,
+        element_transform: Matrix,
+    ) -> skia_safe::Paint {
         let mut paint = skia_safe::Paint::default();
         paint.set_anti_alias(true);
         paint.set_style(skia_safe::paint::Style::Stroke);
-        let sc = self
-            .stroke_color
-            .with_a((self.stroke_color.a() as f32 * self.opacity) as u8);
-        paint.set_color(sc);
         paint.set_stroke_width(self.stroke_width);
         paint.set_stroke_cap(self.stroke_linecap);
         paint.set_stroke_join(self.stroke_linejoin);
+
+        match self.stroke_color {
+            ColorPaint::Href(ref href) => {
+                let def = defs.get(href);
+
+                if let Some(SvgDef::LinearGradient {
+                    p1,
+                    p2,
+                    stops,
+                    gradient_transform,
+                    ..
+                }) = def
+                {
+                    if let (Some(p1), Some(p2)) = (p1, p2) {
+                        let p1 = (*gradient_transform * element_transform).map_point(*p1);
+                        let p2 = (*gradient_transform * element_transform).map_point(*p2);
+                        let shader = gradient_shader::linear(
+                            (p1, p2),
+                            stops.iter().map(|s| s.color).collect::<Vec<_>>().as_slice(),
+                            stops
+                                .iter()
+                                .map(|s| s.offset)
+                                .collect::<Vec<_>>()
+                                .as_slice(),
+                            skia_safe::TileMode::Clamp,
+                            None,
+                            None,
+                        );
+                        paint.set_shader(shader);
+                        return paint;
+                    }
+                    log::warn!(
+                        "Linear gradient url(href) has incomplete properties: p1 = {p1:?}, p2 = {p2:?}"
+                    );
+                    paint.set_color(Color::TRANSPARENT);
+                } else {
+                    log::warn!("Linear gradient url(href) not found: {href}");
+                    paint.set_color(Color::TRANSPARENT);
+                }
+            }
+            ColorPaint::Color(c) => {
+                let sc = c.with_a((c.a() as f32 * self.opacity) as u8);
+                paint.set_color(sc);
+            }
+        }
+
         paint
     }
 
-    pub fn get_fill_paint(&self) -> skia_safe::Paint {
+    pub fn get_fill_paint(
+        &self,
+        defs: &HashMap<String, SvgDef>,
+        element_transform: Matrix,
+    ) -> skia_safe::Paint {
         let mut paint = skia_safe::Paint::default();
         paint.set_anti_alias(true);
         paint.set_style(skia_safe::paint::Style::Fill);
-        let fc = self
-            .fill_color
-            .with_a((self.fill_color.a() as f32 * self.opacity) as u8);
-        paint.set_color(fc);
+
+        match self.fill_color {
+            ColorPaint::Href(ref href) => {
+                let def = defs.get(href);
+
+                if let Some(SvgDef::LinearGradient {
+                    p1,
+                    p2,
+                    stops,
+                    gradient_transform,
+                    ..
+                }) = def
+                {
+                    if let (Some(p1), Some(p2)) = (p1, p2) {
+                        let p1 = (*gradient_transform * element_transform).map_point(*p1);
+                        let p2 = (*gradient_transform * element_transform).map_point(*p2);
+                        let shader = gradient_shader::linear(
+                            (p1, p2),
+                            stops.iter().map(|s| s.color).collect::<Vec<_>>().as_slice(),
+                            stops
+                                .iter()
+                                .map(|s| s.offset)
+                                .collect::<Vec<_>>()
+                                .as_slice(),
+                            skia_safe::TileMode::Clamp,
+                            None,
+                            None,
+                        );
+                        paint.set_shader(shader);
+                        return paint;
+                    }
+                    log::warn!(
+                        "Linear gradient url(href) has incomplete properties: p1 = {p1:?}, p2 = {p2:?}"
+                    );
+                    paint.set_color(Color::TRANSPARENT);
+                } else {
+                    log::warn!("Linear gradient url(href) not found: {href}");
+                    paint.set_color(Color::TRANSPARENT);
+                }
+            }
+            ColorPaint::Color(c) => {
+                let fc = c.with_a((c.a() as f32 * self.opacity) as u8);
+                paint.set_color(fc);
+            }
+        }
+
         paint
     }
 
@@ -346,4 +449,12 @@ fn tween_color(start: Color, end: Color, t: f32) -> Color {
     let g = (start.g() as f32 + t * (end.g() as f32 - start.g() as f32)) as u8;
     let b = (start.b() as f32 + t * (end.b() as f32 - start.b() as f32)) as u8;
     Color::from_argb(a, r, g, b)
+}
+
+fn tween_color_or_image(start: ColorPaint, end: ColorPaint, t: f32) -> ColorPaint {
+    match (start, end) {
+        (ColorPaint::Color(s), ColorPaint::Color(e)) => ColorPaint::Color(tween_color(s, e, t)),
+        // If either is an image reference, just return the end value
+        (_, e) => e,
+    }
 }

@@ -1,9 +1,11 @@
-use skia_safe::{Canvas, Paint, PaintStyle, Rect, Vector};
+use std::collections::HashMap;
+
+use skia_safe::{Canvas, Matrix, Paint, PaintStyle, Rect, Vector};
 
 use crate::{
     animation::properties::Properties,
     config::{counter::Counters, extra_stroke::ExtraStrokeConfig},
-    svg::element::Shape,
+    svg::{defs::SvgDef, element::Shape},
     util::{ChronuxError, ChronuxResult, sort_paints},
 };
 
@@ -16,6 +18,8 @@ pub fn draw(
     counters: &Counters,
     viewport_rect: &Rect,
     extra_stroke: &Option<ExtraStrokeConfig>,
+    defs: &HashMap<String, SvgDef>,
+    element_transform: Matrix,
 ) -> ChronuxResult<()> {
     if !properties.visible || properties.opacity <= 1e-3 {
         return Ok(());
@@ -32,8 +36,8 @@ pub fn draw(
         .map_vector(Vector::new(min_stroke_width, 0.0))
         .length();
 
-    let fill = properties.get_fill_paint();
-    let mut stroke = properties.get_stroke_paint();
+    let fill = properties.get_fill_paint(defs, element_transform);
+    let mut stroke = properties.get_stroke_paint(defs, element_transform);
     stroke.set_stroke_width(stroke.stroke_width().max(min_stroke_width));
 
     let paints = sort_paints(properties.paint_order, stroke, fill);
@@ -75,7 +79,14 @@ pub fn draw(
                 );
             }
         }
-        Shape::Rect { x, y, width, height, rx, ry}  => {
+        Shape::Rect {
+            x,
+            y,
+            width,
+            height,
+            rx,
+            ry,
+        } => {
             let (x, y) = (x + properties.translate_x, y + properties.translate_y);
             let (rx, ry) = (*rx, *ry);
             let rect = Rect::new(x, y, x + width, y + height);
@@ -109,6 +120,8 @@ pub fn draw(
                         r - drawn_length,
                         properties.clone(),
                         counters,
+                        defs,
+                        element_transform,
                     )?;
                 }
                 drawn_length += c.length;
@@ -145,6 +158,8 @@ pub fn draw(
                     counters,
                     viewport_rect,
                     extra_stroke,
+                    defs,
+                    element_transform
                 )?;
             }
         }
