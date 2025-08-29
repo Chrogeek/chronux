@@ -94,6 +94,9 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     )?;
     log::info!("Extracted {} objects in SVG", objs.len());
 
+    // 解析所有 defs
+    let mut defs = svg.get_defs();
+
     // 解析包装SVG
     if let Some(overlay_svg) = &conf.input.overlay_svg {
         let overlay_svg_file = PathBuf::from_str(&input)
@@ -118,6 +121,9 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         )?;
 
         objs.extend(osvg_objs);
+
+        // 解析包装SVG中的 defs
+        defs.extend(osvg.get_defs());
     }
 
     // 计算每个动画的起始时间

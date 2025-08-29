@@ -1,18 +1,25 @@
-use std::{collections::HashSet, path::PathBuf};
+use std::{
+    collections::{HashMap, HashSet},
+    path::PathBuf,
+};
 
 use roxmltree::{Document, Node};
 use skia_safe::Matrix;
 use svgtypes::{TransformListParser, TransformListToken};
 
 use crate::{
-    svg::element::Object,
+    svg::{
+        defs::{SvgDef, get_def_node},
+        element::Object,
+    },
     util::{ChronuxError, ChronuxResult},
 };
 
+pub mod defs;
 pub mod element;
 pub mod path;
-pub mod tspan;
 pub mod placeholder_text;
+pub mod tspan;
 
 pub struct Svg {
     tree: Document<'static>,
@@ -142,6 +149,77 @@ impl Svg {
         )?;
 
         Ok(results)
+    }
+
+    pub fn get_defs(&self) -> HashMap<String, SvgDef> {
+        let mut defs = HashMap::new();
+
+        fn get_defs_dfs(node: &Node, defs: &mut HashMap<String, SvgDef>, matrix: Matrix) {
+            let mat = matrix * attribute_transform(node);
+
+            if node.has_tag_name("defs") {
+                for child in node.children().filter(|n| n.is_element()) {
+                    if let Some((id, def)) = get_def_node(&child, &mat) {
+                        defs.insert(id, def);
+                    }
+                }
+            }
+
+            for child in node.children() {
+                get_defs_dfs(&child, defs, mat);
+            }
+        }
+
+        get_defs_dfs(&self.tree.root(), &mut defs, Matrix::new_identity());
+
+        // 遍历所有 defs, 处理 href
+        let mut new_defs = HashMap::new();
+        for (id, def) in defs.iter() {
+            if let SvgDef::LinearGradient {
+                p1: _,
+                p2: _,
+                stops,
+                href,
+            } = def
+            {
+                if let Some(href) = href {
+                    let href_id = href.trim_start_matches('#');
+                    if let Some(base_def) = defs.get(href_id) {
+                        if let SvgDef::LinearGradient {
+                            p1,
+                            p2,
+                            stops: b_stops,
+                            href: b_href,
+                        } = base_def
+                        {
+                            let new_stops = if stops.is_empty() {
+                                b_stops.clone()
+                            } else {
+                                stops.clone()
+                            };
+                            new_defs.insert(
+                                id.clone(),
+                                SvgDef::LinearGradient {
+                                    p1: *p1,
+                                    p2: *p2,
+                                    stops: new_stops,
+                                    href: b_href.clone(),
+                                },
+                            );
+                        } else {
+                            // href 指向的不是线性渐变，直接插入原始定义
+                            new_defs.insert(id.clone(), def.clone());
+                        }
+                    } else {
+                        // href 指向的 id 不存在，直接插入原始定义
+                        new_defs.insert(id.clone(), def.clone());
+                    }
+                }
+            } else {
+                new_defs.insert(id.clone(), def.clone());
+            }
+        }
+        new_defs
     }
 }
 
