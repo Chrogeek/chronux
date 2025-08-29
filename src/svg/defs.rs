@@ -24,7 +24,6 @@ pub enum SvgDef {
 pub struct SvgGradientStop {
     pub offset: f32,
     pub color: Color,
-    pub opacity: f32,
 }
 
 pub fn get_def_node(node: &Node, matrix: &Matrix) -> Option<(String, SvgDef)> {
@@ -83,8 +82,7 @@ pub fn get_def_node(node: &Node, matrix: &Matrix) -> Option<(String, SvgDef)> {
 
                     stops.push(SvgGradientStop {
                         offset,
-                        color: parse_css_color(&color, 1.0).ok()?,
-                        opacity,
+                        color: parse_css_color(&color, opacity).ok()?,
                     });
                 }
             }
