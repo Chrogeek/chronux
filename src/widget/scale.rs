@@ -53,7 +53,7 @@ pub fn draw(
         .enumerate()
         .find(|(_, r)| {
             let px = size / (*r / resolution);
-            (1.5..=3.0).contains(&px)
+            (1.5..=4.0).contains(&px)
         })
         .map(|(i, _)| (options[i], suboptions[i]));
 
@@ -66,7 +66,7 @@ pub fn draw(
     let maj_len = major / resolution;
     let min_len = minor / resolution;
 
-    let font = get_font(font_family, 20.0, 400)?;
+    let font = get_font(font_family, 10.0, 400)?;
     let height = font.measure_str("0", Some(&fill)).1.height();
 
     // 在画布的指定位置绘制比例尺
@@ -85,7 +85,7 @@ pub fn draw(
             break;
         }
 
-        canvas.draw_line((current_x, y), (current_x, y - height), &stroke_scale);
+        canvas.draw_line((current_x, y), (current_x, y - height * 0.6), &stroke_scale);
 
         // 在刻度下方绘制文本，居中对齐
         let text = match major * loops as f32 {
@@ -129,7 +129,7 @@ pub fn draw(
         }
 
         // 绘制次要刻度线
-        canvas.draw_line((minor_x, y), (minor_x, y - height / 2.0), &stroke_scale);
+        canvas.draw_line((minor_x, y), (minor_x, y - height * 0.4), &stroke_scale);
     }
 
     // 绘制比例尺线段
