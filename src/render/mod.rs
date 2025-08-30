@@ -168,6 +168,9 @@ pub fn draw(
 }
 
 pub fn get_bounding_box(shape: &Shape, properties: &Properties) -> Option<(f32, f32, f32, f32)> {
+    if properties.opacity < 1e-3 || !properties.visible {
+        return None; // 不可见，无边界框
+    }
     match shape {
         Shape::Path { d } => {
             const SEGMENTS: usize = 20;

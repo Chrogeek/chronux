@@ -66,10 +66,26 @@ pub struct MinimapConfig {
     pub padding: f32,
     #[serde(rename = "corner-radius", default = "default_zero")]
     pub corner_radius: f32,
-    #[serde(rename = "minimap-size")]
-    pub size: f32,
     #[serde(rename = "min-stroke-width", default = "default_stroke_width")]
     pub min_stroke_width: f32,
+    pub position: String,
+    pub anchor: MinimapAnchor,
+    #[serde(rename = "min-scale")]
+    pub min_scale: f32,
+    #[serde(rename = "max-size")]
+    pub max_size: f32,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub enum MinimapAnchor {
+    #[serde(rename = "top-left")]
+    TopLeft,
+    #[serde(rename = "top-right")]
+    TopRight,
+    #[serde(rename = "bottom-left")]
+    BottomLeft,
+    #[serde(rename = "bottom-right")]
+    BottomRight,
 }
 
 fn default_stroke_width() -> f32 {
@@ -244,6 +260,10 @@ impl Config {
                     }
                 }
             }
+        }
+
+        if let Some(minimap) = &self.drawing.minimap {
+            objects.insert(minimap.position.clone());
         }
 
         objects.extend(self.input.pinned.iter().cloned());

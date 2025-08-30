@@ -20,7 +20,7 @@ use crate::svg::element::Shape;
 use crate::util::fontmgr::get_font;
 use crate::util::version::CHRONUX_VERSION;
 use crate::util::{parse_css_color, timecode_rt};
-use crate::widget::{WIDGET_CANVAS_HEIGHT, WIDGET_CANVAS_WIDTH};
+use crate::widget::WIDGET_CANVAS_WIDTH;
 use crate::{
     animation::Animation, args::Args, config::Config, svg::Svg, util::ChronuxError, writer::Writer,
 };
@@ -504,10 +504,14 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             }
         }
 
+        let canvas_width = WIDGET_CANVAS_WIDTH;
+        let canvas_height =
+            WIDGET_CANVAS_WIDTH * conf.output.height as f32 / conf.output.width as f32;
+
         // 绘制包装前，需要重置 viewbox 变换，然后按照 1920x1080 大小重新缩放
         surface.canvas().reset_matrix().scale((
-            conf.output.width as f32 / WIDGET_CANVAS_WIDTH,
-            conf.output.height as f32 / WIDGET_CANVAS_HEIGHT,
+            conf.output.width as f32 / canvas_width,
+            conf.output.height as f32 / canvas_height,
         ));
 
         // 绘制包装部分的图形元素（要求 apply_transform = false）
@@ -555,6 +559,10 @@ fn run(args: Args) -> Result<(), ChronuxError> {
 
         // 绘制小地图
         if let Some(minimap) = conf.drawing.minimap.as_ref() {
+            let minimap_props = timeline[&minimap.position].interpolate(t);
+            let (x, y) = objs.iter().find(|o| o.id == minimap.position).expect(
+                "Minimap position object not found in SVG. Please ensure the object exists and is included in the input SVG.",
+            ).get_position(&minimap_props);
             widget::minimap::draw(
                 surface.canvas(),
                 minimap,
@@ -563,6 +571,8 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                 t,
                 &counters,
                 &defs,
+                x,
+                y,
             )?;
         }
 

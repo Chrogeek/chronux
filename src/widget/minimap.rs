@@ -4,11 +4,11 @@ use skia_safe::{Canvas, Rect};
 
 use crate::{
     animation::timeline::Timeline,
-    config::{MinimapConfig, counter::Counters},
+    config::{counter::Counters, MinimapAnchor, MinimapConfig},
     render::{self, get_bounding_box},
     svg::{defs::SvgDef, element::Object},
-    util::{ChronuxResult, parse_css_color},
-    widget::{PANEL_BACKGROUND_COLOR, PANEL_BORDER_COLOR, PANEL_BORDER_WIDTH, WIDGET_CANVAS_WIDTH},
+    util::{parse_css_color, ChronuxError, ChronuxResult},
+    widget::{PANEL_BACKGROUND_COLOR, PANEL_BORDER_COLOR, PANEL_BORDER_WIDTH},
 };
 
 pub fn draw(
@@ -19,13 +19,16 @@ pub fn draw(
     t: f32,
     counters: &Counters,
     defs: &HashMap<String, SvgDef>,
+    x: f32,
+    y: f32,
 ) -> ChronuxResult<()> {
+    // 计算所有需要显示在小地图中的对象的边界框
     let mut bounding_box: Option<(f32, f32, f32, f32)> = None;
     for o in objs.iter() {
         if minimap.paths.contains(&o.id) {
             let properties = match timeline.get(&o.id) {
                 Some(tl) => tl.interpolate(t),
-                None => o.style.clone(),
+                None => return Err(ChronuxError::ArgError(format!("Object '{}' in minimap.paths not in timeline", o.id))),
             };
             let ret_bb = get_bounding_box(&o.shape, &properties);
             if let Some((bl, bt, br, bb)) = bounding_box
@@ -51,18 +54,54 @@ pub fn draw(
     let canvas_restore_count = canvas.save();
 
     let bb = bounding_box.unwrap();
-
     let (bw, bh) = (bb.2 - bb.0, bb.3 - bb.1);
 
-    let b_size = bw.max(bh);
+    let padding = minimap.padding;
 
-    let minimap_size = minimap.size - minimap.padding * 2.0; // 小地图的大小
-    let scale = minimap_size / b_size;
+    // 计算小地图绘制时每个像素应代表底图的多少像素
+    // 要求不得少于 min_scale，且整个地图的尺寸不得大于 max_size
+    let scale = bw / minimap.max_size.min(bw / minimap.min_scale);
+    let scale = scale.max(bh / minimap.max_size.min(bh / minimap.min_scale));
 
-    let (bl, bt) = if bw > bh {
-        (bb.0, bb.1 - (bw - bh) / 2.0)
-    } else {
-        (bb.0 - (bh - bw) / 2.0, bb.1)
+    let mw = bw / scale; // minimap width
+    let mh = bh / scale; // minimap height
+
+    // 计算小地图实际内容区的位置（不算 padding）
+    let (x1, y1, x2, y2) = match minimap.anchor {
+        MinimapAnchor::TopLeft => (x + padding, y + padding, x + mw + padding, y + mh + padding),
+        MinimapAnchor::TopRight => (x - mw - padding, y + padding, x - padding, y + mh + padding),
+        MinimapAnchor::BottomLeft => (x + padding, y - mh - padding, x + mw + padding, y - padding),
+        MinimapAnchor::BottomRight => {
+            (x - mw - padding, y - mh - padding, x - padding, y - padding)
+        }
+    };
+
+    // 计算小地图的实际尺寸（含 padding）
+    let (rx1, ry1, rx2, ry2) = match minimap.anchor {
+        MinimapAnchor::TopLeft => (
+            x1 - 2.0 * padding,
+            y1 - 2.0 * padding,
+            x2 + padding,
+            y2 + padding,
+        ),
+        MinimapAnchor::TopRight => (
+            x1 - padding,
+            y1 - 2.0 * padding,
+            x2 + 2.0 * padding,
+            y2 + padding,
+        ),
+        MinimapAnchor::BottomLeft => (
+            x1 - 2.0 * padding,
+            y1 - padding,
+            x2 + padding,
+            y2 + 2.0 * padding,
+        ),
+        MinimapAnchor::BottomRight => (
+            x1 - padding,
+            y1 - padding,
+            x2 + 2.0 * padding,
+            y2 + 2.0 * padding,
+        ),
     };
 
     let mut fill = skia_safe::Paint::default();
@@ -76,12 +115,7 @@ pub fn draw(
     stroke.set_stroke_width(PANEL_BORDER_WIDTH);
     stroke.set_style(skia_safe::PaintStyle::Stroke);
 
-    let minimap_rect = Rect::from_xywh(
-        WIDGET_CANVAS_WIDTH - minimap_size - minimap.padding * 2.0,
-        -minimap.corner_radius * 2.0, // 稍微多一点，避免圆角边缘在画面可见部分中露出
-        minimap_size + minimap.padding * 2.0 + minimap.corner_radius * 2.0,
-        minimap_size + minimap.padding * 2.0 + minimap.corner_radius * 2.0,
-    );
+    let minimap_rect = Rect::from_xywh(rx1, ry1, rx2 - rx1, ry2 - ry1);
 
     canvas.draw_round_rect(
         minimap_rect,
@@ -96,13 +130,7 @@ pub fn draw(
         &stroke,
     );
 
-    canvas
-        .translate((
-            WIDGET_CANVAS_WIDTH - minimap_size - minimap.padding,
-            minimap.padding,
-        ))
-        .scale((scale, scale))
-        .translate((-bl, -bt));
+    canvas.translate((x1, y1)).scale((scale.recip(), scale.recip())).translate((-bb.0, -bb.1));
 
     for o in objs.iter() {
         if minimap.paths.contains(&o.id) {
@@ -117,7 +145,7 @@ pub fn draw(
                 &properties,
                 minimap.min_stroke_width,
                 counters,
-                &Rect::new(bl, bt, bl + bw, bt + bh),
+                &Rect::new(bb.0, bb.1, bb.2, bb.3),
                 &None,
                 defs,
                 o.transform,
