@@ -377,78 +377,74 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         if let Some(elevated) = &elevated {
             let elevated_config = conf.drawing.elevated.as_ref().unwrap();
             for (path, intervals) in elevated.iter() {
-                if let Some(o) = objs.iter().find(|o| o.id == *path) {
-                    let d = match &o.shape {
-                        Shape::Path { d } => d,
-                        _ => {
-                            return Err(ChronuxError::ArgError(format!(
-                                "Invalid shape for elevated point: {}, must be a path",
-                                o.id
-                            )));
-                        }
-                    };
+                let o = &objs[obj_map[path]];
+                let d = match &o.shape {
+                    Shape::Path { d } => d,
+                    _ => {
+                        return Err(ChronuxError::ArgError(format!(
+                            "Invalid shape for elevated point: {}, must be a path",
+                            o.id
+                        )));
+                    }
+                };
 
-                    let path_props = timeline[&o.id].interpolate(t);
-                    let (ps, pe) = path_props.trim;
+                let path_props = timeline[&o.id].interpolate(t);
+                let (ps, pe) = path_props.trim;
 
-                    let mut paint_line = path_props.get_stroke_paint(&defs, o.transform);
-                    paint_line.set_stroke_width(
-                        path_props.stroke_width
-                            + (elevated_config.gap + elevated_config.stroke_width) * 2.0,
-                    );
+                let mut paint_line = path_props.get_stroke_paint(&defs, o.transform);
+                paint_line.set_stroke_width(
+                    path_props.stroke_width
+                        + (elevated_config.gap + elevated_config.stroke_width) * 2.0,
+                );
 
-                    for (is, ie) in intervals {
-                        let start = ps.max(*is);
-                        let end = pe.min(*ie);
-                        let effect =
-                            trim_path_effect::new(start, end, trim_path_effect::Mode::Normal);
+                for (is, ie) in intervals {
+                    let start = ps.max(*is);
+                    let end = pe.min(*ie);
+                    let effect = trim_path_effect::new(start, end, trim_path_effect::Mode::Normal);
 
-                        let mut paint_line = paint_line.clone();
-                        paint_line.set_path_effect(effect);
+                    let mut paint_line = paint_line.clone();
+                    paint_line.set_path_effect(effect);
 
-                        if end - start > 1e-3 {
-                            surface.canvas().draw_path(d, &paint_line);
-                        }
+                    if end - start > 1e-3 {
+                        surface.canvas().draw_path(d, &paint_line);
                     }
                 }
             }
 
             for (path, intervals) in elevated.iter() {
-                if let Some(o) = objs.iter().find(|o| o.id == *path) {
-                    let d = match &o.shape {
-                        Shape::Path { d } => d,
-                        _ => {
-                            return Err(ChronuxError::ArgError(format!(
-                                "Invalid shape for elevated point: {}, must be a path",
-                                o.id
-                            )));
-                        }
-                    };
+                let o = &objs[obj_map[path]];
+                let d = match &o.shape {
+                    Shape::Path { d } => d,
+                    _ => {
+                        return Err(ChronuxError::ArgError(format!(
+                            "Invalid shape for elevated point: {}, must be a path",
+                            o.id
+                        )));
+                    }
+                };
 
-                    let path_props = timeline[&o.id].interpolate(t);
-                    let (ps, pe) = path_props.trim;
+                let path_props = timeline[&o.id].interpolate(t);
+                let (ps, pe) = path_props.trim;
 
-                    let mut paint_gap = path_props.get_stroke_paint(&defs, o.transform);
+                let mut paint_gap = path_props.get_stroke_paint(&defs, o.transform);
 
-                    paint_gap
-                        .set_color(parse_css_color(
-                            &elevated_config.gap_color,
-                            path_props.opacity,
-                        )?)
-                        .set_stroke_width(path_props.stroke_width + elevated_config.gap * 2.0);
+                paint_gap
+                    .set_color(parse_css_color(
+                        &elevated_config.gap_color,
+                        path_props.opacity,
+                    )?)
+                    .set_stroke_width(path_props.stroke_width + elevated_config.gap * 2.0);
 
-                    for (is, ie) in intervals {
-                        let start = ps.max(*is);
-                        let end = pe.min(*ie);
-                        let effect =
-                            trim_path_effect::new(start, end, trim_path_effect::Mode::Normal);
+                for (is, ie) in intervals {
+                    let start = ps.max(*is);
+                    let end = pe.min(*ie);
+                    let effect = trim_path_effect::new(start, end, trim_path_effect::Mode::Normal);
 
-                        let mut paint_gap = paint_gap.clone();
-                        paint_gap.set_path_effect(effect.clone());
+                    let mut paint_gap = paint_gap.clone();
+                    paint_gap.set_path_effect(effect.clone());
 
-                        if end - start > 1e-3 {
-                            surface.canvas().draw_path(d, &paint_gap);
-                        }
+                    if end - start > 1e-3 {
+                        surface.canvas().draw_path(d, &paint_gap);
                     }
                 }
             }
@@ -560,9 +556,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         // 绘制小地图
         if let Some(minimap) = conf.drawing.minimap.as_ref() {
             let minimap_props = timeline[&minimap.position].interpolate(t);
-            let (x, y) = objs.iter().find(|o| o.id == minimap.position).expect(
-                "Minimap position object not found in SVG. Please ensure the object exists and is included in the input SVG.",
-            ).get_position(&minimap_props);
+            let (x, y) = objs[obj_map[&minimap.position]].get_position(&minimap_props);
             widget::minimap::draw(
                 surface.canvas(),
                 minimap,
@@ -578,7 +572,9 @@ fn run(args: Args) -> Result<(), ChronuxError> {
 
         // 绘制比例尺
         if let Some(scale) = conf.drawing.scale.as_ref() {
-            widget::scale::draw(surface.canvas(), scale, vw, &conf.drawing.ascii_font)?;
+            let scale_props = timeline[&scale.position].interpolate(t);
+            let (x, y) = objs[obj_map[&scale.position]].get_position(&scale_props);
+            widget::scale::draw(surface.canvas(), scale, vw, &conf.drawing.ascii_font, x, y)?;
         }
 
         // 绘制日期时间
@@ -587,48 +583,16 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         {
             let position_year_props = timeline[&dates_config.position_year].interpolate(t);
             let position_date_props = timeline[&dates_config.position_date].interpolate(t);
-            let position_date = objs
-                .iter()
-                .find(|o| o.id == dates_config.position_date)
-                .map_or(
-                    Err(ChronuxError::ArgError(format!(
-                        "Dates position 'date' object '{}' not found",
-                        dates_config.position_date
-                    ))),
-                    |o| Ok(o.get_position(&position_date_props)),
-                )?;
-            let position_year = objs
-                .iter()
-                .find(|o| o.id == dates_config.position_year)
-                .map_or(
-                    Err(ChronuxError::ArgError(format!(
-                        "Dates position 'year' object '{}' not found",
-                        dates_config.position_date
-                    ))),
-                    |o| Ok(o.get_position(&position_year_props)),
-                )?;
             let area_year_props = timeline[&dates_config.area_year].interpolate(t);
-            let area_year = objs
-                .iter()
-                .find(|o| o.id == dates_config.area_year)
-                .map_or(
-                    Err(ChronuxError::ArgError(format!(
-                        "Dates area 'year' object '{}' not found",
-                        dates_config.area_year
-                    ))),
-                    |o| Ok(o.get_bounds(&area_year_props)),
-                )?;
             let area_date_props = timeline[&dates_config.area_date].interpolate(t);
-            let area_date = objs
-                .iter()
-                .find(|o| o.id == dates_config.area_date)
-                .map_or(
-                    Err(ChronuxError::ArgError(format!(
-                        "Dates area 'date' object '{}' not found",
-                        dates_config.area_date
-                    ))),
-                    |o| Ok(o.get_bounds(&area_date_props)),
-                )?;
+
+            let position_year =
+                objs[obj_map[&dates_config.position_year]].get_position(&position_year_props);
+            let position_date =
+                objs[obj_map[&dates_config.position_date]].get_position(&position_date_props);
+            let area_year = objs[obj_map[&dates_config.area_year]].get_bounds(&area_year_props);
+            let area_date = objs[obj_map[&dates_config.area_date]].get_bounds(&area_date_props);
+
             widget::dates::draw(
                 surface.canvas(),
                 dates_config,

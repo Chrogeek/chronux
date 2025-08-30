@@ -7,8 +7,7 @@ use crate::{
     config::{counter::Counters, MinimapAnchor, MinimapConfig},
     render::{self, get_bounding_box},
     svg::{defs::SvgDef, element::Object},
-    util::{parse_css_color, ChronuxError, ChronuxResult},
-    widget::{PANEL_BACKGROUND_COLOR, PANEL_BORDER_COLOR, PANEL_BORDER_WIDTH},
+    util::{ChronuxError, ChronuxResult},
 };
 
 pub fn draw(
@@ -106,14 +105,8 @@ pub fn draw(
 
     let mut fill = skia_safe::Paint::default();
     fill.set_anti_alias(true);
-    fill.set_color(parse_css_color(PANEL_BACKGROUND_COLOR, 1.0)?);
+    fill.set_color(minimap.fill_color);
     fill.set_style(skia_safe::PaintStyle::Fill);
-
-    let mut stroke = skia_safe::Paint::default();
-    stroke.set_anti_alias(true);
-    stroke.set_color(parse_css_color(PANEL_BORDER_COLOR, 1.0)?);
-    stroke.set_stroke_width(PANEL_BORDER_WIDTH);
-    stroke.set_style(skia_safe::PaintStyle::Stroke);
 
     let minimap_rect = Rect::from_xywh(rx1, ry1, rx2 - rx1, ry2 - ry1);
 
@@ -122,12 +115,6 @@ pub fn draw(
         minimap.corner_radius,
         minimap.corner_radius,
         &fill,
-    );
-    canvas.draw_round_rect(
-        minimap_rect,
-        minimap.corner_radius,
-        minimap.corner_radius,
-        &stroke,
     );
 
     canvas.translate((x1, y1)).scale((scale.recip(), scale.recip())).translate((-bb.0, -bb.1));

@@ -8,23 +8,32 @@ use skia_safe::{Color, PathMeasure};
 use crate::{
     animation::{easing::Easing, properties::Properties, timeline::Timeline, track, track_on_path},
     config::{
-        counter::{update_counters, Counters}, dates::DatesConfig, elevated::ElevatedConfig, event::Event, extra_stroke::ExtraStrokeConfig, group::Group, input::InputConfig, output::OutputConfig, viewport::{TimeKey, ViewportSequence, ViewportTrack}
+        counter::{Counters, update_counters},
+        dates::DatesConfig,
+        elevated::ElevatedConfig,
+        event::Event,
+        extra_stroke::ExtraStrokeConfig,
+        group::Group,
+        input::InputConfig,
+        output::OutputConfig,
+        viewport::{TimeKey, ViewportSequence, ViewportTrack},
     },
     svg::element::{Object, Shape},
     util::{
-        interpolator::PchipInterpolator, version::is_compatible, ChronuxError, ChronuxResult, COLOR_DICT
+        COLOR_DICT, ChronuxError, ChronuxResult, interpolator::PchipInterpolator,
+        version::is_compatible,
     },
 };
 
 pub mod counter;
 pub mod dates;
+pub mod elevated;
 pub mod event;
+pub mod extra_stroke;
 pub mod group;
 pub mod input;
 pub mod output;
 pub mod viewport;
-pub mod extra_stroke;
-pub mod elevated;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Config {
@@ -74,6 +83,9 @@ pub struct MinimapConfig {
     pub min_scale: f32,
     #[serde(rename = "max-size")]
     pub max_size: f32,
+    #[serde(rename = "fill-color")]
+    #[serde(deserialize_with = "crate::util::deserialize_hex_color")]
+    pub fill_color: Color,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -101,6 +113,17 @@ pub struct ScaleConfig {
     /// If the scale is drawn, both `zoom` and `lat` must be set.
     pub lat: f32,
     pub padding: f32,
+    pub position: String,
+    pub anchor: ScaleAnchor,
+    pub size: f32,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub enum ScaleAnchor {
+    #[serde(rename = "left")]
+    Left,
+    #[serde(rename = "right")]
+    Right,
 }
 
 fn default_zero() -> f32 {
@@ -264,6 +287,10 @@ impl Config {
 
         if let Some(minimap) = &self.drawing.minimap {
             objects.insert(minimap.position.clone());
+        }
+
+        if let Some(scale) = &self.drawing.scale {
+            objects.insert(scale.position.clone());
         }
 
         objects.extend(self.input.pinned.iter().cloned());
