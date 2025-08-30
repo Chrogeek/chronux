@@ -238,6 +238,8 @@ fn run(args: Args) -> Result<(), ChronuxError> {
 
     log::info!("Start rendering...");
 
+    let max_frames = (time_end * conf.output.fps as f32) as usize;
+
     let writer = match args.encoder {
         OutputWriter::Ffmpeg => Writer::new_ffmpeg(
             &output,
@@ -249,6 +251,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             &output,
             conf.output.width as usize,
             conf.output.height as usize,
+            max_frames,
         )?,
         OutputWriter::Timeline | OutputWriter::Objects => {
             unreachable!("Timeline / Objects writer should not be used here")

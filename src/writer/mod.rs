@@ -15,6 +15,7 @@ pub enum Writer {
         width: usize,
         height: usize,
         path: String,
+        max_frame_length: usize,
     },
 }
 
@@ -59,6 +60,7 @@ impl Writer {
         output_dir: &str,
         width: usize,
         height: usize,
+        max_possible_frames: usize,
     ) -> ChronuxResult<Writer> {
         std::fs::create_dir_all(output_dir).map_err(ChronuxError::IoError)?;
         log::info!("Created output directory `{output_dir}`");
@@ -67,6 +69,7 @@ impl Writer {
             width,
             height,
             path: output_dir.to_string(),
+            max_frame_length: max_possible_frames.to_string().len(),
         })
     }
 
@@ -84,10 +87,11 @@ impl Writer {
                 width,
                 height,
                 path,
+                max_frame_length,
             } => {
-                let output = std::path::Path::new(path).join(format!("frame_{f:04}.png"));
-                let mut file =
-                    std::fs::File::create(output).map_err(ChronuxError::IoError)?;
+                let output =
+                    std::path::Path::new(path).join(format!("frame_{f:0>0$}.png", max_frame_length));
+                let mut file = std::fs::File::create(output).map_err(ChronuxError::IoError)?;
 
                 PngEncoder::new(&mut file)
                     .write_image(
@@ -97,9 +101,9 @@ impl Writer {
                         ExtendedColorType::Rgba8,
                     )
                     .map_err(|e| {
-                        ChronuxError::IoError(std::io::Error::other(
-                            format!("Failed to encode PNG: {e}"),
-                        ))
+                        ChronuxError::IoError(std::io::Error::other(format!(
+                            "Failed to encode PNG: {e}"
+                        )))
                     })?;
             }
         }
