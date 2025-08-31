@@ -127,7 +127,6 @@ pub fn draw(
             };
             render::draw(
                 canvas,
-                &o.id,
                 &o.shape,
                 &properties,
                 minimap.min_stroke_width,

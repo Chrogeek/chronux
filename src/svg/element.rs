@@ -128,12 +128,19 @@ impl Object {
                 Shape::Text { x, y, children }
             }
             "image" => {
+                let href =
+                    svg::attribute_namespace_str(node, "http://www.w3.org/1999/xlink", "href")?;
                 let href = base
-                    .join(svg::attribute_namespace_str(
-                        node,
-                        "http://www.w3.org/1999/xlink",
-                        "href",
-                    )?)
+                    .join(
+                        decode(&href)
+                            .map_err(|e| {
+                                ChronuxError::HrefError(format!(
+                                    "Failed to decode URL {}: {}",
+                                    href, e
+                                ))
+                            })?
+                            .to_string(),
+                    )
                     .to_string_lossy()
                     .into_owned();
                 let (x, y) = (
@@ -150,14 +157,7 @@ impl Object {
                     y: height,
                 } = mat.map_vector((width, height));
 
-                let data = Data::from_filename(
-                    decode(&href)
-                        .map_err(|e| {
-                            ChronuxError::HrefError(format!("Failed to decode URL {}: {}", href, e))
-                        })?
-                        .to_string(),
-                )
-                .ok_or(ChronuxError::HrefError(format!(
+                let data = Data::from_filename(&href).ok_or(ChronuxError::HrefError(format!(
                     "Failed to load image data from {href}"
                 )))?;
                 let img = Image::from_encoded(data).ok_or(ChronuxError::HrefError(format!(

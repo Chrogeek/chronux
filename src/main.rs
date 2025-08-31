@@ -230,10 +230,8 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     if args.encoder == OutputWriter::Objects {
         // 只输出对象列表
         let mut file = File::create(&output).map_err(ChronuxError::IoError)?;
-        for (o, t) in timeline.iter() {
-            writeln!(file, "[objects]\n{}", o).map_err(ChronuxError::IoError)?;
-            writeln!(file, "start = {:?}", t.start).map_err(ChronuxError::IoError)?;
-            writeln!(file, "events = [{:?}]\n", t.events).map_err(ChronuxError::IoError)?;
+        for o in timeline.keys() {
+            writeln!(file, "{}", o).map_err(ChronuxError::IoError)?;
         }
         return Ok(());
     }
@@ -386,7 +384,6 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                 let properties = o.style.clone();
                 render::draw(
                     surface.canvas(),
-                    &o.id,
                     &o.shape,
                     &properties,
                     0.0,
@@ -506,7 +503,6 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                 let properties = tl.interpolate(t);
                 render::draw(
                     surface.canvas(),
-                    &o.id,
                     &o.shape,
                     &properties,
                     0.0,
@@ -562,7 +558,6 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                 let properties = o.style.clone();
                 render::draw(
                     surface.canvas(),
-                    &o.id,
                     &o.shape,
                     &properties,
                     0.0,
@@ -585,7 +580,6 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                 let properties = tl.interpolate(t);
                 render::draw(
                     surface.canvas(),
-                    &o.id,
                     &o.shape,
                     &properties,
                     0.0,

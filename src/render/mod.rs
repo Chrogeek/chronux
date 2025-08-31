@@ -11,7 +11,6 @@ use crate::{
 
 pub fn draw(
     canvas: &Canvas,
-    id: &str,
     shape: &Shape,
     properties: &Properties,
     min_stroke_width: f32,
@@ -21,7 +20,7 @@ pub fn draw(
     defs: &HashMap<String, SvgDef>,
     element_transform: Matrix,
 ) -> ChronuxResult<()> {
-    if !properties.visible || properties.opacity <= 1e-3 {
+    if !properties.visible || properties.opacity < 1e-3 {
         return Ok(());
     }
 
@@ -139,9 +138,6 @@ pub fn draw(
                 x + width + properties.translate_x,
                 y + height + properties.translate_y,
             );
-            if !viewport_rect.intersects(dst_rect) {
-                return Ok(()); // 不在视口内，跳过绘制
-            }
             let mut paint = Paint::default();
             paint.set_alpha((properties.opacity * 255.0) as u8);
             canvas.draw_image_rect(skia_img, None, dst_rect, &paint);
@@ -150,7 +146,6 @@ pub fn draw(
             for obj in objects {
                 draw(
                     canvas,
-                    id,
                     &obj.shape,
                     &Properties::merge(&obj.style, properties),
                     min_stroke_width,
