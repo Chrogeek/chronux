@@ -1,13 +1,12 @@
 use std::path::PathBuf;
 
 use roxmltree::Node;
-use skia_safe::{Data, Image, Matrix, Path, Point, Rect, Vector};
+use skia_safe::{Data, Image, Matrix, Path, PathMeasure, Point, Rect, Vector};
 
 use crate::{
     animation::properties::Properties,
     svg::{
-        self, attribute_label, attribute_transform, placeholder_text::PlaceholderText,
-        tspan::Tspan,
+        self, attribute_label, attribute_transform, placeholder_text::PlaceholderText, tspan::Tspan,
     },
     util::{ChronuxError, ChronuxResult},
 };
@@ -166,7 +165,15 @@ impl Object {
             }
             "g" => {
                 let mut objects = Vec::new();
-                flatten_group_dfs(node, &mut objects, mat, base.clone(), &id, apply_transform, element_transform)?;
+                flatten_group_dfs(
+                    node,
+                    &mut objects,
+                    mat,
+                    base.clone(),
+                    &id,
+                    apply_transform,
+                    element_transform,
+                )?;
                 Shape::Group { objects }
             }
             _ => unreachable!("unexpected SVG element: {}", node.tag_name().name()),
@@ -272,6 +279,16 @@ impl Object {
                     a
                 })
                 .unwrap_or(Rect::new_empty()),
+        }
+    }
+
+    pub fn get_length(&self) -> Option<f32> {
+        match &self.shape {
+            Shape::Path { d } => {
+                let mut pm = PathMeasure::new(d, false, Some(2.0));
+                Some(pm.length())
+            }
+            _ => None,
         }
     }
 }

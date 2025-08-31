@@ -147,19 +147,46 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         conf.output.time_end.min(time_end)
     };
 
+    let obj_map = objs
+        .iter()
+        .enumerate()
+        .map(|(i, o)| (o.id.clone(), i))
+        .collect::<HashMap<_, _>>();
+
     if args.encoder == OutputWriter::Timeline {
         // 只需要计算时间线而不渲染帧
         let mut events = conf
             .events
             .into_iter()
-            .map(|(id, e)| (id, e.start))
+            .map(|(id, e)| {
+                (
+                    e.start,
+                    e.duration,
+                    obj_map
+                        .get(&e.object)
+                        .map(|index| objs.get(*index))
+                        .flatten()
+                        .map(|o| o.get_length())
+                        .flatten(),
+                    id.clone(),
+                )
+            })
             .collect::<Vec<_>>();
-        events.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+        events.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
         let mut file = File::create(&output).map_err(ChronuxError::IoError)?;
-        writeln!(file, "id,start,").map_err(ChronuxError::IoError)?;
-        for (id, start) in events {
-            writeln!(file, "{},{}", id, timecode_rt(start, conf.output.fps),)
-                .map_err(ChronuxError::IoError)?;
+        writeln!(file, "id,start,duration,length,").map_err(ChronuxError::IoError)?;
+        for (start, duration, length, id) in events {
+            writeln!(
+                file,
+                "{},{},{},{}",
+                id,
+                timecode_rt(start, conf.output.fps),
+                duration,
+                length
+                    .map(|l| l.to_string())
+                    .unwrap_or_else(|| String::new()),
+            )
+            .map_err(ChronuxError::IoError)?;
         }
         return Ok(());
     }
@@ -283,12 +310,6 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         // 按照路径组编号排序
         objs.sort_by_key(|o| obj_id[&o.id]);
     }
-
-    let obj_map = objs
-        .iter()
-        .enumerate()
-        .map(|(i, o)| (o.id.clone(), i))
-        .collect::<HashMap<_, _>>();
 
     let render_routine = move |f| {
         // 获取当前时间戳
