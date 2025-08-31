@@ -25,3 +25,4 @@ skia-safe = { version = "0.87", features = ["default", "textlayout"] }
 svgtypes = "0.15.3"
 toml = "0.8.23"
 unicode-segmentation = "1.12.0"
+urlencoding = "2.1.3"

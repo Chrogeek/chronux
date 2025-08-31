@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use roxmltree::Node;
 use skia_safe::{Data, Image, Matrix, Path, PathMeasure, Point, Rect, Vector};
+use urlencoding::decode;
 
 use crate::{
     animation::properties::Properties,
@@ -149,7 +150,14 @@ impl Object {
                     y: height,
                 } = mat.map_vector((width, height));
 
-                let data = Data::from_filename(&href).ok_or(ChronuxError::HrefError(format!(
+                let data = Data::from_filename(
+                    decode(&href)
+                        .map_err(|e| {
+                            ChronuxError::HrefError(format!("Failed to decode URL {}: {}", href, e))
+                        })?
+                        .to_string(),
+                )
+                .ok_or(ChronuxError::HrefError(format!(
                     "Failed to load image data from {href}"
                 )))?;
                 let img = Image::from_encoded(data).ok_or(ChronuxError::HrefError(format!(
