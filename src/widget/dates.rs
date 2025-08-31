@@ -6,8 +6,8 @@ use crate::{
 };
 
 const DURATION_IN_OUT_SCALE: f32 = 2.0;
-const DURATION_SHORT: f32 = 1.0;
-const DURATION_LONG: f32 = 2.0;
+const DURATION_SHORT: f32 = 0.5;
+const DURATION_LONG: f32 = 1.0;
 const DURATION_OFFSET_UNIT: f32 = 5.0 / 60.0;
 
 pub fn draw(
