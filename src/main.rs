@@ -126,6 +126,28 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         defs.extend(osvg.get_defs());
     }
 
+    if let Some(es) = conf.drawing.extra_stroke.as_ref() {
+        // 根据 es 中指定的路径组，将 objs 重排顺序，使得每个路径组的对象都在一起
+        // 首先给每个对象指定一个编号：如果不在任何一个路径组中则编号等于 objs 中的下标，否则编号指定为该路径组中所有对象的最小下标
+        let obj_id = objs
+            .iter()
+            .enumerate()
+            .map(|(i, o)| {
+                let group_index = es
+                    .path_groups
+                    .iter()
+                    .position(|g| g.contains(&o.id))
+                    .unwrap_or(i);
+                (o.id.clone(), group_index)
+            })
+            .collect::<HashMap<_, _>>();
+
+        // 按照路径组编号排序
+        objs.sort_by_key(|o| obj_id[&o.id]);
+    }
+
+    let objs = objs;
+
     // 计算每个动画的起始时间
     conf.calc_start_times(&objs)?;
     log::info!("Calculated start times for objects");
@@ -291,26 +313,6 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     ))
     .unwrap();
 
-    if let Some(es) = conf.drawing.extra_stroke.as_ref() {
-        // 根据 es 中指定的路径组，将 objs 重排顺序，使得每个路径组的对象都在一起
-        // 首先给每个对象指定一个编号：如果不在任何一个路径组中则编号等于 objs 中的下标，否则编号指定为该路径组中所有对象的最小下标
-        let obj_id = objs
-            .iter()
-            .enumerate()
-            .map(|(i, o)| {
-                let group_index = es
-                    .path_groups
-                    .iter()
-                    .position(|g| g.contains(&o.id))
-                    .unwrap_or(i);
-                (o.id.clone(), group_index)
-            })
-            .collect::<HashMap<_, _>>();
-
-        // 按照路径组编号排序
-        objs.sort_by_key(|o| obj_id[&o.id]);
-    }
-
     let render_routine = move |f| {
         // 获取当前时间戳
         let render_start = Instant::now();
@@ -412,8 +414,13 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                     }
                 };
 
-                let path_props = timeline[&o.id].interpolate(t);
+                let path_props = timeline[path].interpolate(t);
                 let (ps, pe) = path_props.trim;
+
+                if path_props.stroke_width < 1e-3 || path_props.opacity < 1e-3 || pe - ps < 1e-3 {
+                    // 没有描边/不可见就不需要绘制地上段
+                    continue;
+                }
 
                 let mut paint_line = path_props.get_stroke_paint(&defs, o.transform);
                 paint_line.set_stroke_width(
@@ -424,12 +431,13 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                 for (is, ie) in intervals {
                     let start = ps.max(*is);
                     let end = pe.min(*ie);
-                    let effect = trim_path_effect::new(start, end, trim_path_effect::Mode::Normal);
-
-                    let mut paint_line = paint_line.clone();
-                    paint_line.set_path_effect(effect);
 
                     if end - start > 1e-3 {
+                        let effect =
+                            trim_path_effect::new(start, end, trim_path_effect::Mode::Normal);
+
+                        let mut paint_line = paint_line.clone();
+                        paint_line.set_path_effect(effect);
                         surface.canvas().draw_path(d, &paint_line);
                     }
                 }
@@ -447,8 +455,13 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                     }
                 };
 
-                let path_props = timeline[&o.id].interpolate(t);
+                let path_props = timeline[path].interpolate(t);
                 let (ps, pe) = path_props.trim;
+
+                if path_props.stroke_width < 1e-3 || path_props.opacity < 1e-3 || pe - ps < 1e-3 {
+                    // 没有描边/不可见就不需要绘制地上段
+                    continue;
+                }
 
                 let mut paint_gap = path_props.get_stroke_paint(&defs, o.transform);
 
@@ -462,12 +475,13 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                 for (is, ie) in intervals {
                     let start = ps.max(*is);
                     let end = pe.min(*ie);
-                    let effect = trim_path_effect::new(start, end, trim_path_effect::Mode::Normal);
-
-                    let mut paint_gap = paint_gap.clone();
-                    paint_gap.set_path_effect(effect.clone());
 
                     if end - start > 1e-3 {
+                        let effect =
+                            trim_path_effect::new(start, end, trim_path_effect::Mode::Normal);
+
+                        let mut paint_gap = paint_gap.clone();
+                        paint_gap.set_path_effect(effect.clone());
                         surface.canvas().draw_path(d, &paint_gap);
                     }
                 }
