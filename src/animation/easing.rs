@@ -56,7 +56,7 @@ pub enum Easing {
     EaseIn,
     EaseOut,
     EaseInOut,
-    // CubicBezier(f32, f32, f32, f32),
+    EaseInOutCubic,
 }
 
 impl<'de> Deserialize<'de> for Easing {
@@ -70,6 +70,7 @@ impl<'de> Deserialize<'de> for Easing {
             "ease-in" => Ok(Easing::EaseIn),
             "ease-out" => Ok(Easing::EaseOut),
             "ease-in-out" => Ok(Easing::EaseInOut),
+            "ease-in-out-cubic" => Ok(Easing::EaseInOutCubic),
             _ => Err(serde::de::Error::custom(format!(
                 "Unknown easing type: {s}"
             ))),
@@ -80,13 +81,17 @@ impl<'de> Deserialize<'de> for Easing {
 impl Easing {
     pub fn evaluate(&self, t_in: f32, total_time: f32) -> f32 {
         let t = t_in.clamp(0.0, 1.0); // Ensure t is within [0, 1]
-        let bez = if total_time < 4.0 { 0.42 } else { 1.68 / total_time };
+        let bez = if total_time < 4.0 {
+            0.42
+        } else {
+            1.68 / total_time
+        };
         match self {
             Easing::Linear => t,
             Easing::EaseIn => cubic_bezier(t, bez, 0.0, 1.0, 1.0),
             Easing::EaseOut => cubic_bezier(t, 0.0, 0.0, 1.0 - bez, 1.0),
             Easing::EaseInOut => cubic_bezier(t, bez, 0.0, 1.0 - bez, 1.0),
-            // Easing::CubicBezier(p1, p2, p3, p4) => cubic_bezier(t, *p1, *p2, *p3, *p4),
+            Easing::EaseInOutCubic => cubic_bezier(t, 0.65, 0.0, 0.35, 1.0),
         }
     }
 }
