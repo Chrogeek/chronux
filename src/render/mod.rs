@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use skia_safe::{Canvas, Matrix, Paint, PaintStyle, Rect, Vector};
+use skia_safe::{Canvas, Matrix, Paint, PaintStyle, Rect, TileMode, Vector, image_filters::blur};
 
 use crate::{
     animation::properties::Properties,
@@ -35,9 +35,20 @@ pub fn draw(
         .map_vector(Vector::new(min_stroke_width, 0.0))
         .length();
 
-    let fill = properties.get_fill_paint(defs, element_transform);
+    let mut fill = properties.get_fill_paint(defs, element_transform);
     let mut stroke = properties.get_stroke_paint(defs, element_transform);
     stroke.set_stroke_width(stroke.stroke_width().max(min_stroke_width));
+
+    if let Some(href) = &properties.filter {
+        let filter = defs
+            .get(href)
+            .ok_or_else(|| ChronuxError::HrefError(format!("Filter with id '{href}' not found")))?;
+        if let SvgDef::GaussianBlur { stddev_x, stddev_y } = filter {
+            let filter = blur((*stddev_x, *stddev_y), TileMode::Decal, None, None);
+            fill.set_image_filter(filter.clone());
+            stroke.set_image_filter(filter);
+        }
+    }
 
     let paints = sort_paints(properties.paint_order, stroke, fill);
 
@@ -153,7 +164,7 @@ pub fn draw(
                     viewport_rect,
                     extra_stroke,
                     defs,
-                    element_transform
+                    element_transform,
                 )?;
             }
         }

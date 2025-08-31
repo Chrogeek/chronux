@@ -92,11 +92,18 @@ pub fn parse_css_color(color: &str, opacity: f32) -> ChronuxResult<Color> {
 }
 
 pub fn parse_color_or_image(color: &str, opacity: f32) -> ChronuxResult<ColorPaint> {
-    if color.starts_with("url(#") && color.ends_with(')') {
-        let id = &color[5..color.len() - 1];
-        return Ok(ColorPaint::Href(id.to_string()));
+    if let Some(id) = parse_href(color) {
+        return Ok(ColorPaint::Href(id));
     }
     parse_css_color(color, opacity).map(ColorPaint::Color)
+}
+
+pub fn parse_href(literal: &str) -> Option<String> {
+    if literal.starts_with("url(#") && literal.ends_with(')') {
+        Some(literal[5..literal.len() - 1].to_string())
+    } else {
+        None
+    }
 }
 
 pub fn timecode(f: u32, fps: u32) -> String {

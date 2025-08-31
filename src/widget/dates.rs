@@ -100,7 +100,7 @@ pub fn draw(
 
             // 6. 绘制年份
 
-            // 6.1. 设置裁剪区域(TODO)
+            // 6.1. 设置裁剪区域
             canvas.clip_rect(clip_year, ClipOp::Intersect, true);
 
             let font = get_font(

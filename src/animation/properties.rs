@@ -9,8 +9,7 @@ use crate::{
     animation::Animation,
     svg::defs::SvgDef,
     util::{
-        self, ChronuxError, ChronuxResult, paint::ColorPaint, parse_color_or_image,
-        parse_font_weight, parse_unit_value,
+        self, paint::ColorPaint, parse_color_or_image, parse_font_weight, parse_href, parse_unit_value, ChronuxError, ChronuxResult
     },
 };
 
@@ -23,6 +22,7 @@ pub struct Properties {
     pub font_weight: f32,
     pub text_anchor: Align,
     pub fill_color: ColorPaint,
+    pub filter: Option<String>,
     pub stroke_color: ColorPaint,
     pub stroke_width: f32,
     pub stroke_linecap: PaintCap,
@@ -51,6 +51,7 @@ impl Default for Properties {
             font_weight: 400.0,
             text_anchor: Align::Left,            // default to left alignment
             fill_color: ColorPaint::default(),   // transparent
+            filter: None,
             stroke_color: ColorPaint::default(), // transparent
             stroke_width: 0.0,
             stroke_linecap: PaintCap::Round,   // default to butt cap
@@ -179,6 +180,10 @@ impl Properties {
                     .and_then(|v| v.parse::<f32>().ok())
                     .unwrap_or(1.0),
             )?;
+        }
+
+        if let Some(filter) = rules.get("filter") {
+            result.filter = parse_href(filter);
         }
 
         if let Some(width) = rules.get("stroke-width") {
