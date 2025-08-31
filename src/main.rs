@@ -255,7 +255,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                         tl.start.trim = (0.0, 0.0);
                         break;
                     }
-                    Animation::Typewriter => {
+                    Animation::Typewriter { .. } => {
                         tl.start.typewriter = (0.0, 0.0);
                         break;
                     }
@@ -268,7 +268,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                         break;
                     }
                     // 下面这些不是出现动画，什么都不用做
-                    Animation::TypewriterOut
+                    Animation::TypewriterOut { .. }
                     | Animation::SweepOut
                     | Animation::Tween(_)
                     | Animation::FadeOut

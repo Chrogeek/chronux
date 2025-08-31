@@ -17,13 +17,25 @@ pub mod tween;
 #[serde(tag = "animation")]
 pub enum Animation {
     #[serde(rename = "trim-path")]
-    TrimPath { reverse: bool },
+    TrimPath {
+        #[serde(default)]
+        reverse: bool,
+    },
     #[serde(rename = "trim-path-out")]
-    TrimPathOut { reverse: bool },
+    TrimPathOut {
+        #[serde(default)]
+        reverse: bool,
+    },
     #[serde(rename = "typewriter")]
-    Typewriter,
+    Typewriter {
+        #[serde(default)]
+        reverse: bool,
+    },
     #[serde(rename = "typewriter-out")]
-    TypewriterOut,
+    TypewriterOut {
+        #[serde(default)]
+        reverse: bool,
+    },
     #[serde(rename = "sweep")]
     Sweep,
     #[serde(rename = "sweep-out")]
@@ -35,10 +47,7 @@ pub enum Animation {
     #[serde(rename = "fade-out")]
     FadeOut,
     #[serde(rename = "move")]
-    Move {
-        dx: f32,
-        dy: f32,
-    }
+    Move { dx: f32, dy: f32 },
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -112,8 +121,14 @@ pub fn track_on_path(d: &Path, x: f32, y: f32, easing: &Easing, total_time: f32)
     for _ in 0..20 {
         let ml = tl + (tr - tl) / 3.0;
         let mr = tr - (tr - tl) / 3.0;
-        let dl = pm.pos_tan(easing.evaluate(ml, total_time) * length).unwrap().0;
-        let dr = pm.pos_tan(easing.evaluate(mr, total_time) * length).unwrap().0;
+        let dl = pm
+            .pos_tan(easing.evaluate(ml, total_time) * length)
+            .unwrap()
+            .0;
+        let dr = pm
+            .pos_tan(easing.evaluate(mr, total_time) * length)
+            .unwrap()
+            .0;
         let d1 = (dl.x - x).powi(2) + (dl.y - y).powi(2);
         let d2 = (dr.x - x).powi(2) + (dr.y - y).powi(2);
         if d1 < d2 {

@@ -1,8 +1,7 @@
 use std::{collections::HashMap, str::FromStr};
 
 use skia_safe::{
-    Color, Font, Matrix, PaintCap, PaintJoin, PathEffect, gradient_shader,
-    utils::text_utils::Align,
+    Color, Font, Matrix, PaintCap, PaintJoin, PathEffect, gradient_shader, utils::text_utils::Align,
 };
 use svgtypes::PaintOrder;
 
@@ -89,12 +88,12 @@ impl Properties {
                     ..self.clone()
                 }
             }
-            Animation::Typewriter => Properties {
-                typewriter: (0.0, t),
+            Animation::Typewriter { reverse } => Properties {
+                typewriter: if *reverse { (1.0 - t, 1.0) } else { (0.0, t) },
                 ..self.clone()
             },
-            Animation::TypewriterOut => Properties {
-                typewriter: (t, 1.0),
+            Animation::TypewriterOut { reverse } => Properties {
+                typewriter: if *reverse { (0.0, 1.0 - t) } else { (t, 1.0) },
                 ..self.clone()
             },
             Animation::Sweep => Properties {
