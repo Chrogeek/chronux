@@ -2,7 +2,7 @@ use skia_safe::{Canvas, Point, utils::text_utils::Align};
 
 use crate::{
     config::{ScaleAnchor, ScaleConfig},
-    util::{fontmgr::get_font, ChronuxResult},
+    util::{ChronuxResult, fontmgr::get_font},
     widget::WIDGET_CANVAS_WIDTH,
 };
 
@@ -31,6 +31,13 @@ pub fn draw(
     stroke_scale.set_stroke_width(2.0);
     stroke_scale.set_style(skia_safe::PaintStyle::Stroke);
     stroke_scale.set_stroke_cap(skia_safe::PaintCap::Round);
+
+    let mut stroke_scale_thicker = skia_safe::Paint::default();
+    stroke_scale_thicker.set_anti_alias(true);
+    stroke_scale_thicker.set_color(skia_safe::Color::WHITE);
+    stroke_scale_thicker.set_stroke_width(4.0);
+    stroke_scale_thicker.set_style(skia_safe::PaintStyle::Stroke);
+    stroke_scale_thicker.set_stroke_cap(skia_safe::PaintCap::Round);
 
     let resolution = 40_075.016 * 1000.0 / 512.0 * scale.lat.to_radians().cos()
         / (scale.zoom.exp2())
@@ -78,6 +85,8 @@ pub fn draw(
     let mut current_x = x1;
     let mut loops = 0;
 
+    let mut lines = Vec::new();
+
     // 绘制主要刻度
     loop {
         if (current_x - x2) * dir > 0.0 {
@@ -85,7 +94,7 @@ pub fn draw(
             break;
         }
 
-        canvas.draw_line((current_x, y), (current_x, y - height * 0.6), &stroke_scale);
+        lines.push((current_x, y, current_x, y - height * 0.7));
 
         // 在刻度下方绘制文本，居中对齐
         let text = match major * loops as f32 {
@@ -129,11 +138,19 @@ pub fn draw(
         }
 
         // 绘制次要刻度线
-        canvas.draw_line((minor_x, y), (minor_x, y - height * 0.4), &stroke_scale);
+        lines.push((minor_x, y, minor_x, y - height * 0.5));
     }
 
     // 绘制比例尺线段
-    canvas.draw_line((x1, y), (x2, y), &stroke_scale);
+    lines.push((x1, y, x2, y));
+
+    // 依次绘制所有线段
+    for (x1, y1, x2, y2) in lines.iter() {
+        canvas.draw_line((*x1, *y1), (*x2, *y2), &stroke_scale_thicker);
+    }
+    for (x1, y1, x2, y2) in lines.iter() {
+        canvas.draw_line((*x1, *y1), (*x2, *y2), &stroke_scale);
+    }
 
     Ok(())
 }
