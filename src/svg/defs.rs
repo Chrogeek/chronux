@@ -27,7 +27,7 @@ pub struct SvgGradientStop {
     pub color: Color,
 }
 
-pub fn get_def_node(node: &Node, matrix: &Matrix) -> Option<(String, SvgDef)> {
+pub fn get_def_node(node: &Node) -> Option<(String, SvgDef)> {
     match node.tag_name().name() {
         "linearGradient" => {
             let id = attribute_str(node, "id").unwrap_or_default();
@@ -38,11 +38,8 @@ pub fn get_def_node(node: &Node, matrix: &Matrix) -> Option<(String, SvgDef)> {
             let href = attribute_namespace_str(node, "http://www.w3.org/1999/xlink", "href").ok();
 
             let gradient_transform = attribute_str(node, "gradientTransform").unwrap_or_default();
-            let matrix = if !gradient_transform.is_empty() {
-                *matrix * parse_transform(&gradient_transform).unwrap_or(Matrix::new_identity())
-            } else {
-                *matrix
-            };
+            let gradient_transform =
+                parse_transform(&gradient_transform).unwrap_or(Matrix::new_identity());
 
             let p1 = if let Some(x1) = x1
                 && let Some(y1) = y1
@@ -95,9 +92,10 @@ pub fn get_def_node(node: &Node, matrix: &Matrix) -> Option<(String, SvgDef)> {
                     p2,
                     stops,
                     href,
-                    gradient_transform: matrix,
+                    gradient_transform,
                 },
             ))
+            .inspect(|g| println!("Parsed linearGradient: {:?}", g))
         }
         "filter" => {
             let id = attribute_str(node, "id").unwrap_or_default();
@@ -121,16 +119,8 @@ pub fn get_def_node(node: &Node, matrix: &Matrix) -> Option<(String, SvgDef)> {
                 }
             }
 
-            Some((
-                id,
-                SvgDef::GaussianBlur {
-                    stddev_x,
-                    stddev_y,
-                },
-            ))
+            Some((id, SvgDef::GaussianBlur { stddev_x, stddev_y }))
         }
-        _ => {
-            None
-        }
+        _ => None,
     }
 }

@@ -106,7 +106,6 @@ impl Svg {
                         mat,
                         base.clone(),
                         apply_transform,
-                        element_mat,
                     )?);
                 }
 
@@ -119,7 +118,6 @@ impl Svg {
                             mat,
                             base.clone(),
                             apply_transform,
-                            element_mat,
                         )?);
                     }
                 }
@@ -162,7 +160,7 @@ impl Svg {
 
             if node.has_tag_name("defs") {
                 for child in node.children().filter(|n| n.is_element()) {
-                    if let Some((id, def)) = get_def_node(&child, &mat) {
+                    if let Some((id, def)) = get_def_node(&child) {
                         defs.insert(id, def);
                     }
                 }

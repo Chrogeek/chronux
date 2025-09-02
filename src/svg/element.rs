@@ -63,7 +63,6 @@ impl Object {
         mat: Matrix,
         base: PathBuf,
         apply_transform: bool,
-        element_transform: Matrix,
     ) -> ChronuxResult<Object> {
         let style = Properties::from_style(
             &svg::attribute_str(node, "style").unwrap_or_default(),
@@ -180,7 +179,6 @@ impl Object {
                     base.clone(),
                     &id,
                     apply_transform,
-                    element_transform,
                 )?;
                 Shape::Group { objects }
             }
@@ -191,7 +189,7 @@ impl Object {
             style,
             shape,
             apply_transform,
-            transform: element_transform,
+            transform: mat,
         })
     }
 
@@ -308,7 +306,6 @@ fn flatten_group_dfs(
     base: PathBuf,
     base_id: &String,
     apply_transform: bool,
-    element_transform: Matrix,
 ) -> ChronuxResult<()> {
     if node.is_element() {
         match node.tag_name().name() {
@@ -323,7 +320,6 @@ fn flatten_group_dfs(
                     matrix,
                     base.clone(),
                     apply_transform,
-                    element_transform,
                 )?);
             }
             "g" => (),
@@ -341,7 +337,6 @@ fn flatten_group_dfs(
             base.clone(),
             base_id,
             apply_transform,
-            element_mat,
         )?;
     }
 
