@@ -16,10 +16,11 @@ use skia_safe::{
 
 use crate::args::OutputWriter;
 use crate::config::counter::add_sum_counter_item;
+use crate::render::get_bounding_box;
 use crate::svg::element::Shape;
 use crate::util::fontmgr::get_font;
 use crate::util::version::CHRONUX_VERSION;
-use crate::util::{parse_css_color, timecode_rt};
+use crate::util::{ChronuxResult, parse_css_color, timecode_rt};
 use crate::widget::WIDGET_CANVAS_WIDTH;
 use crate::{
     animation::Animation, args::Args, config::Config, svg::Svg, util::ChronuxError, writer::Writer,
@@ -297,8 +298,6 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     let frame_end = (animation_end * conf.output.fps as f32) as usize;
     log::info!("Frames to render: {frame_start} - {frame_end}");
 
-    log::info!("Start rendering...");
-
     let max_frames = (time_end * conf.output.fps as f32) as usize;
 
     let writer = match args.encoder {
@@ -324,6 +323,72 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         (frame_end - frame_start).to_string().len()
     ))
     .unwrap();
+
+    log::info!("Calculating frame bounds...");
+
+    let bounds = if let Some(minimap) = conf.drawing.minimap.as_ref() {
+        Some({
+            let bounds = (frame_start..frame_end)
+                .progress_with_style(pstyle.clone())
+                .map(|f| {
+                    let t = f as f32 / conf.output.fps as f32;
+                    // 计算所有需要显示在小地图中的对象的边界框
+                    let mut bounding_box: Option<(f32, f32, f32, f32)> = None;
+                    for o in objs.iter() {
+                        if minimap.paths.contains(&o.id) {
+                            let properties = match timeline.get(&o.id) {
+                                Some(tl) => tl.interpolate(t),
+                                None => {
+                                    return Err(ChronuxError::ArgError(format!(
+                                        "Object '{}' in minimap.paths not in timeline",
+                                        o.id
+                                    )));
+                                }
+                            };
+                            let ret_bb = get_bounding_box(&o.shape, &properties);
+                            if let Some((bl, bt, br, bb)) = bounding_box
+                                && let Some(ret_bb) = ret_bb
+                            {
+                                bounding_box = Some((
+                                    bl.min(ret_bb.0),
+                                    bt.min(ret_bb.1),
+                                    br.max(ret_bb.2),
+                                    bb.max(ret_bb.3),
+                                ));
+                            } else if bounding_box.is_none() {
+                                bounding_box = ret_bb;
+                            }
+                        }
+                    }
+                    Ok(bounding_box)
+                })
+                .collect::<ChronuxResult<Vec<_>>>()?;
+            let mut new_bounds = vec![];
+            for i in 0..bounds.len() {
+                if i == 0 {
+                    new_bounds.push(bounds[i]);
+                } else {
+                    match (new_bounds[i - 1], bounds[i]) {
+                        (None, _) | (_, None) => new_bounds.push(bounds[i]),
+                        (Some((bl1, bt1, br1, bb1)), Some((bl2, bt2, br2, bb2))) => {
+                            let max_delta = minimap.expand_speed / conf.output.fps as f32;
+                            new_bounds.push(Some((
+                                limit_frame_bound(bl1, bl2, max_delta),
+                                limit_frame_bound(bt1, bt2, max_delta),
+                                limit_frame_bound(br1, br2, max_delta),
+                                limit_frame_bound(bb1, bb2, max_delta),
+                            )));
+                        }
+                    }
+                }
+            }
+            new_bounds
+        })
+    } else {
+        None
+    };
+
+    log::info!("Start rendering...");
 
     let render_routine = move |f| {
         // 获取当前时间戳
@@ -620,6 +685,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                 &defs,
                 x,
                 y,
+                bounds.as_ref().unwrap()[f - frame_start],
             )?;
         }
 
@@ -733,5 +799,13 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             Ok(())
         }
         Err(e) => Err(e),
+    }
+}
+
+fn limit_frame_bound(x: f32, y: f32, max_delta: f32) -> f32 {
+    if x < y {
+        y.min(x + max_delta)
+    } else {
+        y.max(x - max_delta)
     }
 }

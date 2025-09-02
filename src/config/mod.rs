@@ -85,6 +85,8 @@ pub struct MinimapConfig {
     #[serde(rename = "fill-color")]
     #[serde(deserialize_with = "crate::util::deserialize_hex_color")]
     pub fill_color: Color,
+    #[serde(rename = "expand-speed")]
+    pub expand_speed: f32,
 }
 
 #[derive(Debug, Deserialize, Clone)]

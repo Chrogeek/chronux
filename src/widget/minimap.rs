@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 
-use skia_safe::{Canvas, Rect};
+use skia_safe::{Canvas, ClipOp, RRect, Rect};
 
 use crate::{
     animation::timeline::Timeline,
-    config::{counter::Counters, MinimapAnchor, MinimapConfig},
-    render::{self, get_bounding_box},
+    config::{MinimapAnchor, MinimapConfig, counter::Counters},
+    render,
     svg::{defs::SvgDef, element::Object},
-    util::{ChronuxError, ChronuxResult},
+    util::ChronuxResult,
 };
 
 pub fn draw(
@@ -20,39 +20,16 @@ pub fn draw(
     defs: &HashMap<String, SvgDef>,
     x: f32,
     y: f32,
+    bounds: Option<(f32, f32, f32, f32)>,
 ) -> ChronuxResult<()> {
-    // 计算所有需要显示在小地图中的对象的边界框
-    let mut bounding_box: Option<(f32, f32, f32, f32)> = None;
-    for o in objs.iter() {
-        if minimap.paths.contains(&o.id) {
-            let properties = match timeline.get(&o.id) {
-                Some(tl) => tl.interpolate(t),
-                None => return Err(ChronuxError::ArgError(format!("Object '{}' in minimap.paths not in timeline", o.id))),
-            };
-            let ret_bb = get_bounding_box(&o.shape, &properties);
-            if let Some((bl, bt, br, bb)) = bounding_box
-                && let Some(ret_bb) = ret_bb
-            {
-                bounding_box = Some((
-                    bl.min(ret_bb.0),
-                    bt.min(ret_bb.1),
-                    br.max(ret_bb.2),
-                    bb.max(ret_bb.3),
-                ));
-            } else if bounding_box.is_none() {
-                bounding_box = ret_bb;
-            }
-        }
-    }
-
-    if bounding_box.is_none() {
+    if bounds.is_none() {
         // 小地图为空，什么都不画
         return Ok(());
     }
 
     let canvas_restore_count = canvas.save();
 
-    let bb = bounding_box.unwrap();
+    let bb = bounds.unwrap();
     let (bw, bh) = (bb.2 - bb.0, bb.3 - bb.1);
 
     let padding = minimap.padding;
@@ -117,7 +94,16 @@ pub fn draw(
         &fill,
     );
 
-    canvas.translate((x1, y1)).scale((scale.recip(), scale.recip())).translate((-bb.0, -bb.1));
+    canvas.clip_rrect(
+        RRect::new_rect_xy(minimap_rect, minimap.corner_radius, minimap.corner_radius),
+        ClipOp::Intersect,
+        true,
+    );
+
+    canvas
+        .translate((x1, y1))
+        .scale((scale.recip(), scale.recip()))
+        .translate((-bb.0, -bb.1));
 
     for o in objs.iter() {
         if minimap.paths.contains(&o.id) {
