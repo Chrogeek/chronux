@@ -128,17 +128,31 @@ fn run(args: Args) -> Result<(), ChronuxError> {
 
     if let Some(es) = conf.drawing.extra_stroke.as_ref() {
         // 根据 es 中指定的路径组，将 objs 重排顺序，使得每个路径组的对象都在一起
-        // 首先给每个对象指定一个编号：如果不在任何一个路径组中则编号等于 objs 中的下标，否则编号指定为该路径组中所有对象的最小下标
+        // 首先给每个对象指定一个编号：如果不在任何一个路径组中则编号等于 objs 中的下标，否则编号指定为该路径组中所有对象的最大下标
+
+        let obj_id = objs
+            .iter()
+            .enumerate()
+            .map(|(i, o)| (o.id.clone(), i))
+            .collect::<HashMap<_, _>>();
+
         let obj_id = objs
             .iter()
             .enumerate()
             .map(|(i, o)| {
-                let group_index = es
+                let myid = es
                     .path_groups
                     .iter()
                     .position(|g| g.contains(&o.id))
+                    .map(|group_index| {
+                        es.path_groups[group_index]
+                            .iter()
+                            .map(|item| obj_id[item])
+                            .max()
+                            .unwrap_or(i)
+                    })
                     .unwrap_or(i);
-                (o.id.clone(), group_index)
+                (o.id.clone(), myid)
             })
             .collect::<HashMap<_, _>>();
 
