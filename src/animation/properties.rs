@@ -301,11 +301,6 @@ impl Properties {
                     if let (Some(p1), Some(p2)) = (p1, p2) {
                         let p1 = (element_transform * *gradient_transform).map_point(*p1);
                         let p2 = (element_transform * *gradient_transform).map_point(*p2);
-                        println!("Gradient transform = {gradient_transform:?}");
-                        println!("Element transform = {element_transform:?}");
-                        println!(
-                            "Creating linear gradient shader for stroke: p1 = {p1:?}, p2 = {p2:?}"
-                        );
                         let shader = gradient_shader::linear(
                             (p1, p2),
                             stops.iter().map(|s| s.color).collect::<Vec<_>>().as_slice(),
