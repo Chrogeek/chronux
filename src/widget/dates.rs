@@ -53,11 +53,12 @@ pub fn draw(
             canvas.clip_rect(clip_date, ClipOp::Intersect, true);
 
             // 5.2. 动画插值
-            let date_duration = if start.is_none() || end.is_none() {
-                DURATION_SHORT * DURATION_IN_OUT_SCALE
-            } else {
-                DURATION_SHORT
-            };
+            let date_duration =
+                if start.clone().map(|s| s.2).is_none() || end.clone().map(|e| e.2).is_none() {
+                    DURATION_SHORT * DURATION_IN_OUT_SCALE
+                } else {
+                    DURATION_SHORT
+                };
 
             let t_dates = if let Some((end_time, _, _)) = end {
                 (1.0 - (end_time - t) / date_duration).clamp(0.0, 1.0)
@@ -137,7 +138,7 @@ pub fn draw(
             let mut dur = [0.0; 4];
             let mut duration = 0.0f32;
 
-            if start.is_none() {
+            if start.clone().map(|s| s.2).is_none() {
                 for i in 0..4 {
                     let c1 = year_start[i];
                     let c2 = year_end[i];
@@ -183,7 +184,7 @@ pub fn draw(
                     }
                 } else {
                     0.0
-                } * if start.is_none() || end.is_none() {
+                } * if start.clone().map(|s| s.2).is_none() || end.clone().map(|s| s.2).is_none() {
                     DURATION_IN_OUT_SCALE
                 } else {
                     1.0
