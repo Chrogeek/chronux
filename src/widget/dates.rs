@@ -131,6 +131,13 @@ pub fn draw(
             assert_eq!(year_start.len(), 4);
             assert_eq!(year_end.len(), 4);
 
+            let scale_year =
+                if year_start == [' ', ' ', ' ', ' '] || year_end == [' ', ' ', ' ', ' '] {
+                    DURATION_IN_OUT_SCALE
+                } else {
+                    1.0
+                };
+
             // 如果 start.is_none 则从左至右依次演示，如果 end.is_none 或者均为 some 则从右至左依次演示
 
             let mut delay = 0.0;
@@ -138,7 +145,7 @@ pub fn draw(
             let mut dur = [0.0; 4];
             let mut duration = 0.0f32;
 
-            if start.clone().map(|s| s.2).is_none() {
+            if start.clone().map(|s| s.1).is_none() {
                 for i in 0..4 {
                     let c1 = year_start[i];
                     let c2 = year_end[i];
@@ -148,7 +155,7 @@ pub fn draw(
                         } else {
                             start_offset[i - 1] + delay
                         };
-                        delay += DURATION_OFFSET_UNIT;
+                        delay += DURATION_OFFSET_UNIT * scale_year;
                     } else if i > 0 {
                         start_offset[i] = start_offset[i - 1];
                     }
@@ -163,7 +170,7 @@ pub fn draw(
                         } else {
                             start_offset[i + 1] + delay
                         };
-                        delay += DURATION_OFFSET_UNIT;
+                        delay += DURATION_OFFSET_UNIT * scale_year;
                     } else if i < 3 {
                         start_offset[i] = start_offset[i + 1];
                     }
@@ -184,11 +191,7 @@ pub fn draw(
                     }
                 } else {
                     0.0
-                } * if start.clone().map(|s| s.2).is_none() || end.clone().map(|s| s.2).is_none() {
-                    DURATION_IN_OUT_SCALE
-                } else {
-                    1.0
-                };
+                } * scale_year;
                 duration = duration.max(start_offset[i] + dur[i]);
             }
 
