@@ -95,7 +95,6 @@ pub fn get_def_node(node: &Node) -> Option<(String, SvgDef)> {
                     gradient_transform,
                 },
             ))
-            .inspect(|g| println!("Parsed linearGradient: {:?}", g))
         }
         "filter" => {
             let id = attribute_str(node, "id").unwrap_or_default();
