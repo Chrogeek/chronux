@@ -20,8 +20,7 @@ use crate::{
     },
     svg::element::{Object, Shape},
     util::{
-        COLOR_DICT, ChronuxError, ChronuxResult, interpolator::PchipInterpolator,
-        version::is_compatible,
+        COLOR_DICT, ChronuxError, ChronuxResult, interpolator::Interpolator, version::is_compatible,
     },
 };
 
@@ -340,6 +339,12 @@ impl Config {
                     )));
                 }
             };
+
+            let d_length = {
+                let mut pm = PathMeasure::new(d, false, Some(2.0));
+                pm.length()
+            };
+
             let num_keyframes = viewport.keyframes.len();
             let keyframes = viewport
                 .keyframes
@@ -354,14 +359,17 @@ impl Config {
                     let position = if let Some(kx) = k.x
                         && let Some(ky) = k.y
                     {
-                        let (pt, len) = track_on_path(d, kx, ky, &Easing::Linear, 0.0);
-                        // total_time=0.0 since in this case (not animating) we don't care it
-                        pt * len
+                        if d_length < 1e-3 {
+                            0.0
+                        } else {
+                            let (pt, len) = track_on_path(d, kx, ky, &Easing::Linear, 0.0);
+                            // total_time=0.0 since in this case (not animating) we don't care it
+                            pt * len
+                        }
                     } else if id == 0 {
                         0.0
                     } else if id == num_keyframes - 1 {
-                        let mut pm = PathMeasure::new(d, false, Some(2.0));
-                        pm.length()
+                        d_length
                     } else {
                         return Err(ChronuxError::ArgError(format!(
                             "Viewport keyframe {id} has no position defined"
@@ -380,6 +388,26 @@ impl Config {
                 .collect::<ChronuxResult<Vec<_>>>()?;
 
             let pos_seq = keyframes.iter().map(|(pos, _, _)| *pos).collect::<Vec<_>>();
+            let time_seq = keyframes
+                .iter()
+                .map(|(_, _, time)| *time)
+                .collect::<Vec<_>>();
+
+            let pos_pchip = if d_length > 1e-3 {
+                Interpolator::new_pchip(time_seq.clone(), pos_seq).inspect_err(|_e| {
+                    log::error!(
+                        "Failed to create position PchipInterpolator for viewport track on {})",
+                        tracked_path.id,
+                    );
+                })?
+            } else {
+                Interpolator::new_zero(
+                    *time_seq.first().expect("at least one keyframe"),
+                    *time_seq.last().expect("at least one keyframe"),
+                    *pos_seq.first().expect("at least one keyframe"),
+                )
+            };
+
             let size_seq = keyframes
                 .iter()
                 .map(|(_, size, _)| *size)
@@ -396,19 +424,8 @@ impl Config {
                     )));
                 }
             }
-            let time_seq = keyframes
-                .iter()
-                .map(|(_, _, time)| *time)
-                .collect::<Vec<_>>();
 
-            let pos_pchip =
-                PchipInterpolator::new(time_seq.clone(), pos_seq).inspect_err(|_e| {
-                    log::error!(
-                        "Failed to create position PchipInterpolator for viewport track on {})",
-                        tracked_path.id,
-                    );
-                })?;
-            let size_pchip = PchipInterpolator::new(time_seq, new_size_seq).inspect_err(|_e| {
+            let size_pchip = Interpolator::new_pchip(time_seq, new_size_seq).inspect_err(|_e| {
                 log::error!(
                     "Failed to create size PchipInterpolator for viewport track on {}",
                     tracked_path.id,
@@ -424,13 +441,13 @@ impl Config {
         for i in 1..seq.vp_pos_inter.len() {
             // 检查相邻两个插值的时间区间是否交叉
             let (p0, p1) = (&seq.vp_pos_inter[i - 1], &seq.vp_pos_inter[i]);
-            if p1.t_start < p0.t_end {
+            if p1.t_start() < p0.t_end() {
                 log::warn!(
                     "Viewport tracks time interval intersection detected between track '{} (t_end = {})' and '{} (t_start = {})'",
                     seq.vp_track_paths[i - 1],
-                    p0.t_end,
+                    p0.t_end(),
                     seq.vp_track_paths[i],
-                    p1.t_start,
+                    p1.t_start(),
                 );
                 log::warn!("This may cause unexpected behavior for viewport move.");
                 log::warn!(
