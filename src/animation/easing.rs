@@ -57,6 +57,7 @@ pub enum Easing {
     EaseOut,
     EaseInOut,
     EaseInOutCubic,
+    EaseInOutSine,
 }
 
 impl<'de> Deserialize<'de> for Easing {
@@ -71,6 +72,7 @@ impl<'de> Deserialize<'de> for Easing {
             "ease-out" => Ok(Easing::EaseOut),
             "ease-in-out" => Ok(Easing::EaseInOut),
             "ease-in-out-cubic" => Ok(Easing::EaseInOutCubic),
+            "ease-in-out-sine" => Ok(Easing::EaseInOutSine),
             _ => Err(serde::de::Error::custom(format!(
                 "Unknown easing type: {s}"
             ))),
@@ -92,6 +94,7 @@ impl Easing {
             Easing::EaseOut => cubic_bezier(t, 0.0, 0.0, 1.0 - bez, 1.0),
             Easing::EaseInOut => cubic_bezier(t, bez, 0.0, 1.0 - bez, 1.0),
             Easing::EaseInOutCubic => cubic_bezier(t, 0.65, 0.0, 0.35, 1.0),
+            Easing::EaseInOutSine => cubic_bezier(t, 0.37, 0.0, 0.63, 1.0),
         }
     }
 }
