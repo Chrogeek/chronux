@@ -55,6 +55,7 @@ pub struct DrawingConfig {
     pub scale: Option<ScaleConfig>,
     pub minimap: Option<MinimapConfig>,
     #[serde(rename = "debug-timecode")]
+    #[serde(default)]
     pub debug_timecode: bool,
     #[serde(rename = "ascii-font", default = "default_ascii_font")]
     pub ascii_font: String,
