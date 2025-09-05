@@ -131,16 +131,11 @@ pub fn draw(
             assert_eq!(year_start.len(), 4);
             assert_eq!(year_end.len(), 4);
 
-            let scale_year =
-                if year_start == [' ', ' ', ' ', ' '] || year_end == [' ', ' ', ' ', ' '] {
-                    DURATION_IN_OUT_SCALE
-                } else {
-                    1.0
-                };
+            let is_start_or_end = year_start == [' ', ' ', ' ', ' '] || year_end == [' ', ' ', ' ', ' '];
 
             // 如果 start.is_none 则从左至右依次演示，如果 end.is_none 或者均为 some 则从右至左依次演示
 
-            let mut delay = 0.0;
+            let mut delay = DURATION_OFFSET_UNIT * 3.0;
             let mut start_offset = [0.0; 4];
             let mut dur = [0.0; 4];
             let mut duration = 0.0f32;
@@ -155,7 +150,7 @@ pub fn draw(
                         } else {
                             start_offset[i - 1] + delay
                         };
-                        delay += DURATION_OFFSET_UNIT * scale_year;
+                        delay -= DURATION_OFFSET_UNIT;
                     } else if i > 0 {
                         start_offset[i] = start_offset[i - 1];
                     }
@@ -170,7 +165,7 @@ pub fn draw(
                         } else {
                             start_offset[i + 1] + delay
                         };
-                        delay += DURATION_OFFSET_UNIT * scale_year;
+                        delay -= DURATION_OFFSET_UNIT;
                     } else if i < 3 {
                         start_offset[i] = start_offset[i + 1];
                     }
@@ -181,7 +176,9 @@ pub fn draw(
                 let c1 = year_start[i];
                 let c2 = year_end[i];
                 dur[i] = if c1 != c2 {
-                    if !c1.is_ascii_digit()
+                    if is_start_or_end {
+                        DURATION_LONG
+                    } else if !c1.is_ascii_digit()
                         || !c2.is_ascii_digit()
                         || (10 + u32::from(c2) - u32::from(c1)) % 10 == 1
                     {
@@ -191,7 +188,7 @@ pub fn draw(
                     }
                 } else {
                     0.0
-                } * scale_year;
+                };
                 duration = duration.max(start_offset[i] + dur[i]);
             }
 
