@@ -131,14 +131,27 @@ pub fn draw(
             assert_eq!(year_start.len(), 4);
             assert_eq!(year_end.len(), 4);
 
-            let is_start_or_end = year_start == [' ', ' ', ' ', ' '] || year_end == [' ', ' ', ' ', ' '];
+            let is_start_or_end =
+                year_start == [' ', ' ', ' ', ' '] || year_end == [' ', ' ', ' ', ' '];
 
             // 如果 start.is_none 则从左至右依次演示，如果 end.is_none 或者均为 some 则从右至左依次演示
 
-            let mut delay = DURATION_OFFSET_UNIT * 3.0;
+            let mut delay_cnt = 0;
             let mut start_offset = [0.0; 4];
             let mut dur = [0.0; 4];
             let mut duration = 0.0f32;
+
+            let diffs = (0..4)
+                .map(|i| year_start[i] != year_end[i])
+                .filter(|&b| b)
+                .count();
+            let multi = match diffs {
+                0 | 1 => vec![0.0],            // -
+                2 => vec![0.0, 3.0],           // 3
+                3 => vec![0.0, 1.5, 3.0],      // 1.5 3
+                4 => vec![0.0, 1.0, 2.0, 3.0], // 1 2 3
+                _ => unreachable!(),
+            };
 
             if start.clone().map(|s| s.1).is_none() {
                 for i in 0..4 {
@@ -148,11 +161,13 @@ pub fn draw(
                         start_offset[i] = if i == 0 {
                             0.0
                         } else {
-                            start_offset[i - 1] + delay
+                            start_offset[i - 1] + multi[delay_cnt] * DURATION_OFFSET_UNIT
                         };
-                        delay -= DURATION_OFFSET_UNIT;
+                        delay_cnt += 1;
                     } else if i > 0 {
                         start_offset[i] = start_offset[i - 1];
+                    } else {
+                        start_offset[i] = 0.0
                     }
                 }
             } else {
@@ -163,11 +178,13 @@ pub fn draw(
                         start_offset[i] = if i == 3 {
                             0.0
                         } else {
-                            start_offset[i + 1] + delay
+                            start_offset[i + 1] + multi[delay_cnt] * DURATION_OFFSET_UNIT
                         };
-                        delay -= DURATION_OFFSET_UNIT;
+                        delay_cnt += 1;
                     } else if i < 3 {
                         start_offset[i] = start_offset[i + 1];
+                    } else {
+                        start_offset[i] = 0.0
                     }
                 }
             }
