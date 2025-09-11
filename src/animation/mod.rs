@@ -48,6 +48,8 @@ pub enum Animation {
     FadeOut,
     #[serde(rename = "move")]
     Move { dx: f32, dy: f32 },
+    #[serde(rename = "stretch-in")]
+    StretchIn,
 }
 
 #[derive(Debug, Deserialize, Clone)]

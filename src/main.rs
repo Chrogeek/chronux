@@ -280,6 +280,11 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                         tl.start.opacity = 0.0;
                         break;
                     }
+                    Animation::StretchIn => {
+                        tl.start.scale_x = 0.0;
+                        tl.start.scale_y = 0.0;
+                        break;
+                    }
                     // 下面这些不是出现动画，什么都不用做
                     Animation::TypewriterOut { .. }
                     | Animation::SweepOut

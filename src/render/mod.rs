@@ -63,21 +63,25 @@ pub fn draw(
             let restore_handle = canvas.save();
             canvas.translate(Vector::new(properties.translate_x, properties.translate_y));
 
+            // TODO: 这里的缩放操作可能与预期不同，后期使用时需要检查
+            canvas.scale((properties.scale_x, properties.scale_y));
+
             canvas.draw_path(d, &paints[0]);
             canvas.draw_path(d, &paints[1]);
 
             canvas.restore_to_count(restore_handle);
         }
         Shape::Circle { cx, cy, r } => {
-            let (cx, cy, r) = (
+            let (cx, cy, rx, ry) = (
                 *cx + properties.translate_x,
                 *cy + properties.translate_y,
-                *r,
+                *r * properties.scale_x,
+                *r * properties.scale_y,
             );
             let (sweep_start, sweep_end) = properties.sweep;
             for paint in paints {
                 canvas.draw_arc(
-                    Rect::new(cx - r, cy - r, cx + r, cy + r),
+                    Rect::new(cx - rx, cy - ry, cx + rx, cy + ry),
                     -90.0 + sweep_start * 360.0,
                     (sweep_end - sweep_start) * 360.0,
                     match paint.style() {
@@ -97,8 +101,14 @@ pub fn draw(
             ry,
         } => {
             let (x, y) = (x + properties.translate_x, y + properties.translate_y);
-            let (rx, ry) = (*rx, *ry);
-            let rect = Rect::new(x, y, x + width, y + height);
+            let (rx, ry) = (*rx * properties.scale_x, *ry * properties.scale_y);
+            let (w, h) = (width * properties.scale_x, height * properties.scale_y);
+            let rect = Rect::new(
+                x + width * 0.5 - w * 0.5,
+                y + height * 0.5 - h * 0.5,
+                x + width * 0.5 + w * 0.5,
+                y + height * 0.5 + h * 0.5,
+            );
             for paint in paints {
                 if rx > 1e-3 || ry > 1e-3 {
                     canvas.draw_round_rect(rect, rx, ry, &paint);
@@ -108,6 +118,8 @@ pub fn draw(
             }
         }
         Shape::Text { children, .. } => {
+            // TODO: 文本绘制暂不支持缩放 (scale_x, scale_y)
+
             let (start, end) = properties.typewriter;
             let total_len = children.iter().map(|s| s.length).sum::<f32>();
 
@@ -143,11 +155,12 @@ pub fn draw(
             height,
             skia_img,
         } => {
+            let (w, h) = (width * properties.scale_x, height * properties.scale_y);
             let dst_rect = Rect::new(
-                *x + properties.translate_x,
-                *y + properties.translate_y,
-                x + width + properties.translate_x,
-                y + height + properties.translate_y,
+                *x + properties.translate_x + width * 0.5 - w * 0.5,
+                *y + properties.translate_y + height * 0.5 - h * 0.5,
+                x + properties.translate_x + width * 0.5 + w * 0.5,
+                y + properties.translate_y + height * 0.5 + h * 0.5,
             );
             let mut paint = Paint::default();
             paint.set_alpha((properties.opacity * 255.0) as u8);
