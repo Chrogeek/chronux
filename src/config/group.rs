@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use serde_with::{serde_as, OneOrMany, formats::PreferOne};
+use serde_with::{OneOrMany, formats::PreferOne, serde_as};
 
 use crate::{
     animation::{TaggedAnimation, easing::Easing},

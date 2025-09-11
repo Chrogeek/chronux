@@ -7,8 +7,11 @@ use unicode_segmentation::UnicodeSegmentation;
 use crate::{
     animation::properties::Properties,
     config::counter::Counters,
-    svg::{attribute_f32, attribute_str, attribute_transform, defs::SvgDef, placeholder_text::PlaceholderText},
-    util::{sort_paints, ChronuxResult},
+    svg::{
+        attribute_f32, attribute_str, attribute_transform, defs::SvgDef,
+        placeholder_text::PlaceholderText,
+    },
+    util::{ChronuxResult, sort_paints},
 };
 
 #[derive(Debug, Clone)]

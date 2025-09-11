@@ -1,7 +1,10 @@
 use serde::Deserialize;
-use serde_with::{serde_as, OneOrMany, formats::PreferOne};
+use serde_with::{OneOrMany, formats::PreferOne, serde_as};
 
-use crate::{animation::{easing::Easing, Animation}, config::counter::Counters};
+use crate::{
+    animation::{Animation, easing::Easing},
+    config::counter::Counters,
+};
 
 #[serde_as]
 #[derive(Debug, Deserialize, Clone)]

@@ -39,7 +39,7 @@ impl ElevatedConfig {
                                     0.0
                                 } else {
                                     let (x, y) = obj_map[p].get_position(&Properties::default());
-                                    track_on_path(d, x, y, &Easing::Linear, 1.0).0
+                                    track_on_path(d, x, y, &Easing::Linear).0
                                 }
                             })
                             .collect::<Vec<_>>();

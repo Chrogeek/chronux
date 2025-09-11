@@ -85,18 +85,13 @@ impl<'de> Deserialize<'de> for Easing {
 }
 
 impl Easing {
-    pub fn evaluate(&self, t_in: f32, total_time: f32) -> f32 {
+    pub fn evaluate(&self, t_in: f32) -> f32 {
         let t = t_in.clamp(0.0, 1.0); // Ensure t is within [0, 1]
-        let bez = if total_time < 4.0 {
-            0.42
-        } else {
-            1.68 / total_time
-        };
         match self {
             Easing::Linear => t,
-            Easing::EaseIn => cubic_bezier(t, bez, 0.0, 1.0, 1.0),
-            Easing::EaseOut => cubic_bezier(t, 0.0, 0.0, 1.0 - bez, 1.0),
-            Easing::EaseInOut => cubic_bezier(t, bez, 0.0, 1.0 - bez, 1.0),
+            Easing::EaseIn => cubic_bezier(t, 0.42, 0.0, 1.0, 1.0),
+            Easing::EaseOut => cubic_bezier(t, 0.0, 0.0, 0.58, 1.0),
+            Easing::EaseInOut => cubic_bezier(t, 0.42, 0.0, 0.58, 1.0),
             Easing::EaseInOutCubic => cubic_bezier(t, 0.65, 0.0, 0.35, 1.0),
             Easing::EaseInOutSine => cubic_bezier(t, 0.37, 0.0, 0.63, 1.0),
             Easing::EaseOutBack => cubic_bezier(t, 0.34, 1.56, 0.64, 1.0),

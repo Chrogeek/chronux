@@ -89,8 +89,8 @@ impl Writer {
                 path,
                 max_frame_length,
             } => {
-                let output =
-                    std::path::Path::new(path).join(format!("frame_{f:0>0$}.png", max_frame_length));
+                let output = std::path::Path::new(path)
+                    .join(format!("frame_{f:0>0$}.png", max_frame_length));
                 let mut file = std::fs::File::create(output).map_err(ChronuxError::IoError)?;
 
                 PngEncoder::new(&mut file)

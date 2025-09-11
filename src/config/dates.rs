@@ -65,14 +65,14 @@ impl DatesConfig {
                 let time = match &kf.time {
                     TimeKey::WithPrevious { depends, delay } => {
                         let dep = events.get(depends).ok_or(ChronuxError::ArgError(format!(
-                                "Timeline keyframe dependency {depends} is broken"
-                            )))?;
+                            "Timeline keyframe dependency {depends} is broken"
+                        )))?;
                         dep.start + delay
                     }
                     TimeKey::AfterPrevious { depends, offset } => {
                         let dep = events.get(depends).ok_or(ChronuxError::ArgError(format!(
-                                "Timeline keyframe dependency {depends} is broken"
-                            )))?;
+                            "Timeline keyframe dependency {depends} is broken"
+                        )))?;
                         dep.start + dep.duration + offset
                     }
                 };

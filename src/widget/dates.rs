@@ -66,7 +66,7 @@ pub fn draw(
                 0.0
             };
 
-            let t_dates = config.easing.evaluate(t_dates, date_duration);
+            let t_dates = config.easing.evaluate(t_dates);
 
             let y_start = date_y - t_dates * config.line_height * config.font_size_date;
             let y_end = y_start + config.line_height * config.font_size_date;
@@ -222,7 +222,7 @@ pub fn draw(
                         0.0
                     };
 
-                    let t_years = config.easing.evaluate(t_years, dur[i]);
+                    let t_years = config.easing.evaluate(t_years);
 
                     // 6.4. 绘制年份
                     let mut paint = Paint::default();

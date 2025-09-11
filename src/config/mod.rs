@@ -365,7 +365,7 @@ impl Config {
                         if d_length < 1e-3 {
                             0.0
                         } else {
-                            let (pt, len) = track_on_path(d, kx, ky, &Easing::Linear, 0.0);
+                            let (pt, len) = track_on_path(d, kx, ky, &Easing::Linear);
                             // total_time=0.0 since in this case (not animating) we don't care it
                             pt * len
                         }
@@ -471,7 +471,7 @@ impl Config {
             } else if time > event.start {
                 let t = (time - event.start) / event.duration;
                 for (k, v) in &event.counters {
-                    update_counters(&mut cnt, k, v * event.easing.evaluate(t, event.duration));
+                    update_counters(&mut cnt, k, v * event.easing.evaluate(t));
                 }
             }
         }

@@ -172,14 +172,7 @@ impl Object {
             }
             "g" => {
                 let mut objects = Vec::new();
-                flatten_group_dfs(
-                    node,
-                    &mut objects,
-                    mat,
-                    base.clone(),
-                    &id,
-                    apply_transform,
-                )?;
+                flatten_group_dfs(node, &mut objects, mat, base.clone(), &id, apply_transform)?;
                 Shape::Group { objects }
             }
             _ => unreachable!("unexpected SVG element: {}", node.tag_name().name()),
@@ -330,14 +323,7 @@ fn flatten_group_dfs(
     for child in node.children() {
         let element_mat = attribute_transform(&child);
         let mat = matrix * element_mat;
-        flatten_group_dfs(
-            &child,
-            results,
-            mat,
-            base.clone(),
-            base_id,
-            apply_transform,
-        )?;
+        flatten_group_dfs(&child, results, mat, base.clone(), base_id, apply_transform)?;
     }
 
     Ok(())

@@ -52,11 +52,7 @@ impl PlaceholderText {
                 } else if frac.len() <= *max_significant - int.len() {
                     formatted
                 } else {
-                    format!(
-                        "{}.{}",
-                        int,
-                        &frac[0..(*max_significant - int.len())]
-                    )
+                    format!("{}.{}", int, &frac[0..(*max_significant - int.len())])
                 }
             }
         }
