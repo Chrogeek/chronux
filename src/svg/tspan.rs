@@ -168,10 +168,10 @@ impl Tspan {
             TspanText::Placeholder(placeholder) => placeholder.format(counters),
         };
 
-        if tr - tl < 1e-3 {
+        if tr - tl < 1e-4 {
             // Avoid drawing if the text length is too small
             // Do nothing here
-        } else if tl < 1e-3 && tr > self.length - 1e-3 {
+        } else if tl < 1e-4 && tr > self.length - 1e-4 {
             let (x, y) = (self.x, self.y);
             canvas.draw_text_align(
                 &text,
@@ -203,7 +203,6 @@ impl Tspan {
                     let mut new_paints = paints.clone();
 
                     for paint in new_paints.iter_mut() {
-                        // paint.set_path_effect(self.style.get_path_effect());
                         paint.set_alpha((alpha * paint.alpha() as f32) as u8);
                         canvas.draw_text_align(g, (x + tx, y + ty), &font, paint, Align::Left);
                     }

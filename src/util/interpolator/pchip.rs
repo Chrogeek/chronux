@@ -155,7 +155,7 @@ impl PchipInterpolator {
 
         // check if t is strictly increasing
         for i in 1..n {
-            if t[i] - t[i - 1] < 1e-6 {
+            if t[i] - t[i - 1] < 1e-4 {
                 return Err(ChronuxError::ArgError(format!(
                     "Time points must be strictly increasing: t[{}] = {}, t[{}] = {}",
                     i - 1,
@@ -171,7 +171,7 @@ impl PchipInterpolator {
         let p_start = p[0];
         let p_end = p[n - 1];
 
-        let is_zero_length = (p_end - p_start).abs() < 1e-6;
+        let is_zero_length = (p_end - p_start).abs() < 1e-4;
 
         let t = t.iter().map(|v| v - t_start).collect::<Vec<_>>();
         let p = p
@@ -196,7 +196,7 @@ impl PchipInterpolator {
             .map(|w| {
                 if is_zero_length
                 || (w[0].signum() * w[1].signum() <= 0.0) // if the slopes have different signs, set m to 0
-                || (w[0].abs() < 1e-6 || w[1].abs() < 1e-6)
+                || (w[0].abs() < 1e-4 || w[1].abs() < 1e-4)
                 // if either slope is zero, set m to 0
                 {
                     0.0

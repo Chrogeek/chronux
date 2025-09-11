@@ -106,9 +106,10 @@ pub fn track_on_path(d: &Path, x: f32, y: f32, easing: &Easing) -> (f32, f32) {
 
     let closest = (0..SEGMENTS + 1)
         .map(|i| {
-            let t = easing.evaluate(i as f32 / SEGMENTS as f32);
+            let p = i as f32 / SEGMENTS as f32;
+            let t = easing.evaluate(p);
             let dis = t * length;
-            (t, pm.pos_tan(dis).unwrap().0)
+            (p, pm.pos_tan(dis).unwrap().0)
         })
         .min_by(|(_, p1), (_, p2)| {
             let d1 = (p1.x - x).powi(2) + (p1.y - y).powi(2);

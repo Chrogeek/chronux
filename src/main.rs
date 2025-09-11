@@ -497,10 +497,13 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                         }
                     };
 
+                    let mut pm = skia_safe::PathMeasure::new(d, false, Some(2.0));
+                    let path_length = pm.length();
+
                     let path_props = timeline[path].interpolate(t);
                     let (ps, pe) = path_props.trim;
 
-                    if path_props.stroke_width < 1e-3 || path_props.opacity < 1e-3 || pe - ps < 1e-3
+                    if path_props.stroke_width < 1e-4 || path_props.opacity < 1e-4 || (pe - ps) * path_length < 1e-4
                     {
                         // 没有描边/不可见就不需要绘制地上段
                         continue;
@@ -516,7 +519,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                         let start = ps.max(*is);
                         let end = pe.min(*ie);
 
-                        if end - start > 1e-3 {
+                        if (end - start) * path_length > 1e-4 {
                             let effect =
                                 trim_path_effect::new(start, end, trim_path_effect::Mode::Normal);
 
@@ -541,10 +544,13 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                         }
                     };
 
+                    let mut pm = skia_safe::PathMeasure::new(d, false, Some(2.0));
+                    let path_length = pm.length();
+
                     let path_props = timeline[path].interpolate(t);
                     let (ps, pe) = path_props.trim;
 
-                    if path_props.stroke_width < 1e-3 || path_props.opacity < 1e-3 || pe - ps < 1e-3
+                    if path_props.stroke_width < 1e-4 || path_props.opacity < 1e-4 || (pe - ps) * path_length < 1e-4
                     {
                         // 没有描边/不可见就不需要绘制地上段
                         continue;
@@ -563,7 +569,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                         let start = ps.max(*is);
                         let end = pe.min(*ie);
 
-                        if end - start > 1e-3 {
+                        if (end - start) * path_length > 1e-4 {
                             let effect =
                                 trim_path_effect::new(start, end, trim_path_effect::Mode::Normal);
 

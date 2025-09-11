@@ -20,7 +20,7 @@ pub fn draw(
     defs: &HashMap<String, SvgDef>,
     element_transform: Matrix,
 ) -> ChronuxResult<()> {
-    if !properties.visible || properties.opacity < 1e-3 {
+    if !properties.visible || properties.opacity < 1e-4 {
         return Ok(());
     }
 
@@ -110,7 +110,7 @@ pub fn draw(
                 y + height * 0.5 + h * 0.5,
             );
             for paint in paints {
-                if rx > 1e-3 || ry > 1e-3 {
+                if rx > 1e-4 || ry > 1e-4 {
                     canvas.draw_round_rect(rect, rx, ry, &paint);
                 } else {
                     canvas.draw_rect(rect, &paint);
@@ -187,7 +187,7 @@ pub fn draw(
 }
 
 pub fn get_bounding_box(shape: &Shape, properties: &Properties) -> Option<(f32, f32, f32, f32)> {
-    if properties.opacity < 1e-3 || !properties.visible {
+    if properties.opacity < 1e-4 || !properties.visible {
         return None; // 不可见，无边界框
     }
     match shape {
@@ -196,7 +196,7 @@ pub fn get_bounding_box(shape: &Shape, properties: &Properties) -> Option<(f32, 
             let mut pm = skia_safe::PathMeasure::new(d, false, None);
             let length = pm.length();
             let (tl, tr) = properties.trim;
-            if tr - tl < 1e-3 {
+            if (tr - tl) * length < 1e-4 {
                 return None; // 没有有效的长度
             }
             let mut rect: Option<(f32, f32, f32, f32)> = None;

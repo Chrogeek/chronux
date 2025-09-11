@@ -65,7 +65,7 @@ impl Svg {
             )));
         }
 
-        if ((vb.2 / width) / (vb.3 / height) - 1.0).abs() > 1e-6 {
+        if ((vb.2 / width) / (vb.3 / height) - 1.0).abs() > 1e-4 {
             log::warn!(
                 "SVG viewbox aspect ratio does not match width/height: viewBox = {vb:?}, width = {width}, height = {height}"
             );

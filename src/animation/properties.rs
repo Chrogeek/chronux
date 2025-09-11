@@ -399,7 +399,7 @@ impl Properties {
     pub fn get_effects(&self) -> Option<skia_safe::PathEffect> {
         let mut effects = vec![];
 
-        if self.trim.0 > 1e-3 || self.trim.1 < 1.0 - 1e-3 {
+        if self.trim.0 > 0.0 || self.trim.1 < 1.0 {
             effects.push(skia_safe::trim_path_effect::new(
                 self.trim.0,
                 self.trim.1,
@@ -407,8 +407,7 @@ impl Properties {
             ));
         }
 
-        if self.dash_array.len() > 0 && self.stroke_width > 1e-3 {
-            // println!("dash array: {:?}", self.dash_array);
+        if self.dash_array.len() > 0 && self.stroke_width > 1e-4 {
             let dash_effect = skia_safe::dash_path_effect::new(&self.dash_array, self.dash_offset);
             effects.push(dash_effect);
         }

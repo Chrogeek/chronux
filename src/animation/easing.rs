@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use roots::Roots;
 use serde::Deserialize;
 
@@ -53,8 +55,11 @@ pub fn cubic_bezier(x: f32, p1: f32, p2: f32, p3: f32, p4: f32) -> f32 {
 #[derive(Debug, Clone)]
 pub enum Easing {
     Linear,
+    CubicBezier(f32, f32, f32, f32), // p1x, p1y, p2x, p2y
     EaseIn,
+    EaseInSine,
     EaseOut,
+    EaseOutSine,
     EaseOutBack,
     EaseInOut,
     EaseInOutCubic,
@@ -71,12 +76,31 @@ impl<'de> Deserialize<'de> for Easing {
         match s.as_str() {
             "linear" => Ok(Easing::Linear),
             "ease-in" => Ok(Easing::EaseIn),
+            "ease-in-sine" => Ok(Easing::EaseInSine),
             "ease-out" => Ok(Easing::EaseOut),
+            "ease-out-sine" => Ok(Easing::EaseOutSine),
             "ease-out-back" => Ok(Easing::EaseOutBack),
             "ease-in-out" => Ok(Easing::EaseInOut),
             "ease-in-out-cubic" => Ok(Easing::EaseInOutCubic),
             "ease-in-out-sine" => Ok(Easing::EaseInOutSine),
             "ease-in-out-back" => Ok(Easing::EaseInOutBack),
+            s if s.starts_with("cubic-bezier") => {
+                let params: Vec<f32> = s["cubic-bezier(".len()..s.len() - 1]
+                    .split(',')
+                    .map(|p| p.trim().parse::<f32>())
+                    .collect::<Result<Vec<_>, _>>()
+                    .map_err(|e| {
+                        serde::de::Error::custom(format!("Invalid cubic-bezier params: {e}"))
+                    })?;
+                if params.len() != 4 {
+                    return Err(serde::de::Error::custom(
+                        "Cubic-bezier requires 4 parameters",
+                    ));
+                }
+                Ok(Easing::CubicBezier(
+                    params[0], params[1], params[2], params[3],
+                ))
+            }
             _ => Err(serde::de::Error::custom(format!(
                 "Unknown easing type: {s}"
             ))),
@@ -89,13 +113,31 @@ impl Easing {
         let t = t_in.clamp(0.0, 1.0); // Ensure t is within [0, 1]
         match self {
             Easing::Linear => t,
-            Easing::EaseIn => cubic_bezier(t, 0.42, 0.0, 1.0, 1.0),
-            Easing::EaseOut => cubic_bezier(t, 0.0, 0.0, 0.58, 1.0),
-            Easing::EaseInOut => cubic_bezier(t, 0.42, 0.0, 0.58, 1.0),
-            Easing::EaseInOutCubic => cubic_bezier(t, 0.65, 0.0, 0.35, 1.0),
-            Easing::EaseInOutSine => cubic_bezier(t, 0.37, 0.0, 0.63, 1.0),
-            Easing::EaseOutBack => cubic_bezier(t, 0.34, 1.56, 0.64, 1.0),
-            Easing::EaseInOutBack => cubic_bezier(t, 0.68, -0.6, 0.32, 1.6),
+            Easing::CubicBezier(p1x, p1y, p2x, p2y) => cubic_bezier(t, *p1x, *p1y, *p2x, *p2y),
+            Easing::EaseIn | Easing::EaseInSine => 1.0 - ((t * PI) / 2.0).cos(),
+            Easing::EaseOut | Easing::EaseOutSine => ((t * PI) / 2.0).sin(),
+            Easing::EaseInOut | Easing::EaseInOutSine => -((PI * t).cos() - 1.0) / 2.0,
+            Easing::EaseInOutCubic => {
+                if t < 0.5 {
+                    4.0 * t.powi(3)
+                } else {
+                    1.0 - (-2.0 * t + 2.0).powi(3) / 2.0
+                }
+            }
+            Easing::EaseOutBack => {
+                let c1 = 1.70158;
+                let c3 = c1 + 1.0;
+                1.0 + c3 * (t - 1.0).powi(3) + c1 * (t - 1.0).powi(2)
+            }
+            Easing::EaseInOutBack => {
+                let c1 = 1.70158;
+                let c2 = c1 * 1.525;
+                if t < 0.5 {
+                    ((2.0 * t).powi(2) * ((c2 + 1.0) * 2.0 * t - c2)) / 2.0
+                } else {
+                    ((2.0 * t - 2.0).powi(2) * ((c2 + 1.0) * (t * 2.0 - 2.0) + c2) + 2.0) / 2.0
+                }
+            }
         }
     }
 }

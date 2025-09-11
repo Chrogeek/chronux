@@ -362,7 +362,7 @@ impl Config {
                     let position = if let Some(kx) = k.x
                         && let Some(ky) = k.y
                     {
-                        if d_length < 1e-3 {
+                        if d_length < 1e-4 {
                             0.0
                         } else {
                             let (pt, len) = track_on_path(d, kx, ky, &Easing::Linear);
@@ -396,7 +396,7 @@ impl Config {
                 .map(|(_, _, time)| *time)
                 .collect::<Vec<_>>();
 
-            let pos_pchip = if d_length > 1e-3 {
+            let pos_pchip = if d_length > 1e-4 {
                 Interpolator::new_pchip(time_seq.clone(), pos_seq).inspect_err(|_e| {
                     log::error!(
                         "Failed to create position PchipInterpolator for viewport track on {})",
