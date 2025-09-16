@@ -155,16 +155,18 @@ pub fn draw(
             height,
             skia_img,
         } => {
-            let (w, h) = (width * properties.scale_x, height * properties.scale_y);
-            let dst_rect = Rect::new(
-                *x + properties.translate_x + width * 0.5 - w * 0.5,
-                *y + properties.translate_y + height * 0.5 - h * 0.5,
-                x + properties.translate_x + width * 0.5 + w * 0.5,
-                y + properties.translate_y + height * 0.5 + h * 0.5,
-            );
-            let mut paint = Paint::default();
-            paint.set_alpha((properties.opacity * 255.0) as u8);
-            canvas.draw_image_rect(skia_img, None, dst_rect, &paint);
+            if properties.opacity > 1e-4 {
+                let (w, h) = (width * properties.scale_x, height * properties.scale_y);
+                let dst_rect = Rect::new(
+                    *x + properties.translate_x + width * 0.5 - w * 0.5,
+                    *y + properties.translate_y + height * 0.5 - h * 0.5,
+                    x + properties.translate_x + width * 0.5 + w * 0.5,
+                    y + properties.translate_y + height * 0.5 + h * 0.5,
+                );
+                let mut paint = Paint::default();
+                paint.set_alpha((properties.opacity * 255.0) as u8);
+                canvas.draw_image_rect(skia_img, None, dst_rect, &paint);
+            }
         }
         Shape::Group { objects } => {
             for obj in objects {
