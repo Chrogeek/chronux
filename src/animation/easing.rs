@@ -54,6 +54,9 @@ pub fn cubic_bezier(x: f32, p1: f32, p2: f32, p3: f32, p4: f32) -> f32 {
 
 #[derive(Debug, Clone)]
 pub enum Easing {
+    // 即时完成，无缓动
+    Instant,
+
     // 线性动画，无缓动
     Linear,
 
@@ -93,6 +96,7 @@ impl<'de> Deserialize<'de> for Easing {
     {
         let s: String = Deserialize::deserialize(deserializer)?;
         match s.as_str() {
+            "instant" => Ok(Easing::Instant),
             "linear" => Ok(Easing::Linear),
             "ease-in" => Ok(Easing::EaseIn),
             "ease-in-sine" => Ok(Easing::EaseInSine),
@@ -135,6 +139,7 @@ impl Easing {
     pub fn evaluate(&self, t_in: f32) -> f32 {
         let t = t_in.clamp(0.0, 1.0); // Ensure t is within [0, 1]
         match self {
+            Easing::Instant => 1.0,
             Easing::Linear => t,
             Easing::CubicBezier(p1x, p1y, p2x, p2y) => cubic_bezier(t, *p1x, *p1y, *p2x, *p2y),
             Easing::EaseIn | Easing::EaseInSine => 1.0 - ((t * PI) / 2.0).cos(),
