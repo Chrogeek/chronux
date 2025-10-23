@@ -16,6 +16,7 @@ use crate::{
         group::Group,
         input::InputConfig,
         output::OutputConfig,
+        tracker::Tracker,
         viewport::{TimeKey, ViewportSequence, ViewportTrack},
     },
     svg::element::{Object, Shape},
@@ -32,6 +33,7 @@ pub mod extra_stroke;
 pub mod group;
 pub mod input;
 pub mod output;
+pub mod tracker;
 pub mod viewport;
 
 #[derive(Debug, Deserialize, Clone)]
@@ -42,6 +44,7 @@ pub struct Config {
     #[serde(deserialize_with = "deserialize_events")]
     pub events: HashMap<String, Event>,
     pub groups: Vec<Group>,
+    pub trackers: Vec<Tracker>,
     #[serde(rename = "viewports")]
     pub viewport_tracks: Vec<ViewportTrack>,
 }
@@ -151,7 +154,7 @@ impl Config {
         &self,
         event_id: &String,
         visited: &mut HashMap<String, f32>,
-        stack: &mut HashSet<String>,
+        stack: &mut Vec<String>,
         objs: &Vec<Object>,
         objmap: &HashMap<String, usize>,
     ) -> ChronuxResult<f32> {
@@ -159,15 +162,24 @@ impl Config {
         let mut with_start_time = 0.0f32;
         let mut track_start_time = 0.0f32;
 
-        if stack.contains(event_id) {
-            return Err(ChronuxError::CircularDependency(event_id.clone()));
+        match stack.iter().enumerate().find(|eid| eid.1 == event_id) {
+            None => {}
+            Some((index, _)) => {
+                let circular_ids = stack[index..]
+                    .iter()
+                    .cloned()
+                    .chain(std::iter::once(event_id.clone()))
+                    .collect::<Vec<_>>()
+                    .join(" -> ");
+                return Err(ChronuxError::CircularDependency(circular_ids));
+            }
         }
 
         if visited.contains_key(event_id) {
             return Ok(visited[event_id]);
         }
 
-        stack.insert(event_id.clone());
+        stack.push(event_id.clone());
 
         for next in self
             .events
@@ -187,7 +199,10 @@ impl Config {
                         next, self.events[next].object
                     )
                 })];
-                let obj = &objs[objmap[&self.events[event_id].object]];
+                let obj = &objs[*objmap.get(&self.events[event_id].object).expect(&format!(
+                    "Object for event {} not found ({}, failed for event tracking)",
+                    event_id, self.events[event_id].object
+                ))];
                 let (x, y) = obj.get_position(&Properties::default());
                 track_start_time = t + track(nextobj, &self.events[next], x, y)?;
             }
@@ -199,14 +214,14 @@ impl Config {
             event::Offset::Track { track: offset } => track_start_time + offset,
         };
 
-        stack.remove(event_id);
+        stack.pop();
         visited.insert(event_id.clone(), start_time);
         Ok(start_time)
     }
 
     pub fn calc_start_times(&mut self, objs: &Vec<Object>) -> ChronuxResult<()> {
         let mut visited = HashMap::new();
-        let mut stack = HashSet::new();
+        let mut stack = Vec::new();
 
         let objmap = objs
             .iter()
@@ -313,6 +328,18 @@ impl Config {
             }
         }
 
+        for tracker in self.trackers.drain(..) {
+            let events = tracker.to_events();
+            for event in events {
+                if self.events.contains_key(&event.id) {
+                    return Err(ChronuxError::ConfigError(serde::de::Error::custom(
+                        format!("Duplicate event ID: {}", event.id),
+                    )));
+                }
+                self.events.insert(event.id.clone(), event);
+            }
+        }
+
         Ok(())
     }
 
@@ -325,7 +352,7 @@ impl Config {
 
         let mut seq = ViewportSequence::default();
 
-        for viewport in &self.viewport_tracks[..] {
+        for viewport in self.viewport_tracks[..].iter() {
             let tracked_path =
                 &objs[*objmap
                     .get(&viewport.tracked_path)
@@ -423,7 +450,8 @@ impl Config {
                     new_size_seq.push(*last);
                 } else {
                     return Err(ChronuxError::ArgError(format!(
-                        "For each viewport track, size must be defined for the first keyframe even if it is not changed since previous track end: {size_seq:?}"
+                        "For each viewport track, size must be defined for the first keyframe even if it is not changed since previous track end: {size_seq:?}; missing for viewport track {}",
+                        viewport.tracked_path
                     )));
                 }
             }
