@@ -76,6 +76,7 @@ impl Default for Properties {
 impl Properties {
     pub fn apply(&self, event: &Animation, t: f32) -> Properties {
         match event {
+            Animation::None => self.clone(),
             Animation::TrimPath { reverse } => {
                 let (start, end) = if *reverse { (1.0 - t, 1.0) } else { (0.0, t) };
                 Properties {

@@ -286,7 +286,8 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                         break;
                     }
                     // 下面这些不是出现动画，什么都不用做
-                    Animation::TypewriterOut { .. }
+                    Animation::None
+                    | Animation::TypewriterOut { .. }
                     | Animation::SweepOut
                     | Animation::Tween(_)
                     | Animation::FadeOut
@@ -503,7 +504,9 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                     let path_props = timeline[path].interpolate(t);
                     let (ps, pe) = path_props.trim;
 
-                    if path_props.stroke_width < 1e-4 || path_props.opacity < 1e-4 || (pe - ps) * path_length < 1e-4
+                    if path_props.stroke_width < 1e-4
+                        || path_props.opacity < 1e-4
+                        || (pe - ps) * path_length < 1e-4
                     {
                         // 没有描边/不可见就不需要绘制地上段
                         continue;
@@ -550,7 +553,9 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                     let path_props = timeline[path].interpolate(t);
                     let (ps, pe) = path_props.trim;
 
-                    if path_props.stroke_width < 1e-4 || path_props.opacity < 1e-4 || (pe - ps) * path_length < 1e-4
+                    if path_props.stroke_width < 1e-4
+                        || path_props.opacity < 1e-4
+                        || (pe - ps) * path_length < 1e-4
                     {
                         // 没有描边/不可见就不需要绘制地上段
                         continue;

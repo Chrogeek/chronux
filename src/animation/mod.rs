@@ -16,6 +16,8 @@ pub mod tween;
 #[derive(Debug, Deserialize, Clone)]
 #[serde(tag = "animation")]
 pub enum Animation {
+    #[serde(rename = "none")]
+    None,
     #[serde(rename = "trim-path")]
     TrimPath {
         #[serde(default)]
