@@ -11,8 +11,8 @@ pub struct Tween {
     pub fill_color: Option<Color>,
     pub stroke_color: Option<Color>,
     pub stroke_width: Option<f32>,
-    // pub translate_x: Option<f32>,
-    // pub translate_y: Option<f32>,
+    pub translate_x: Option<f32>,
+    pub translate_y: Option<f32>,
     // pub scale_x: Option<f32>,
     // pub scale_y: Option<f32>,
     // pub rotate: Option<f32>,
@@ -30,6 +30,8 @@ impl<'de> Deserialize<'de> for Tween {
             fill_color: None,
             stroke_color: None,
             stroke_width: None,
+            translate_x: None,
+            translate_y: None,
         };
 
         let map = toml::Table::deserialize(deserializer)?;
@@ -59,6 +61,8 @@ impl<'de> Deserialize<'de> for Tween {
                 "opacity" => {
                     tween.opacity = value.as_float().map(|v| v as f32);
                 }
+                "x" => tween.translate_x = value.as_float().map(|v| v as f32),
+                "y" => tween.translate_y = value.as_float().map(|v| v as f32),
                 _ => {}
             }
         }

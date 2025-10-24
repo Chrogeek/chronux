@@ -132,6 +132,12 @@ impl Properties {
                 if let Some(opacity) = tween.opacity {
                     new_props.opacity += t * (opacity - self.opacity);
                 }
+                if let Some(tx) = tween.translate_x {
+                    new_props.translate_x += t * (tx - self.translate_x);
+                }
+                if let Some(ty) = tween.translate_y {
+                    new_props.translate_y += t * (ty - self.translate_y);
+                }
                 new_props.tweening = true;
                 new_props
             }
