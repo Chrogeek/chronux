@@ -143,8 +143,8 @@ impl Easing {
     pub fn evaluate(&self, t_in: f32) -> f32 {
         let t = t_in.clamp(0.0, 1.0); // Ensure t is within [0, 1]
         match self {
-            Easing::Instant => 1.0,
-            Easing::InstantEnd => 0.0,
+            Easing::Instant => if t > 0.0 { 1.0 } else { 0.0 },
+            Easing::InstantEnd => if t < 1.0 { 0.0 } else { 1.0 },
             Easing::Linear => t,
             Easing::CubicBezier(p1x, p1y, p2x, p2y) => cubic_bezier(t, *p1x, *p1y, *p2x, *p2y),
             Easing::EaseIn | Easing::EaseInSine => 1.0 - ((t * PI) / 2.0).cos(),

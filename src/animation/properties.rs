@@ -328,12 +328,12 @@ impl Properties {
                         paint.set_shader(shader);
                         return paint;
                     }
-                    log::warn!(
-                        "Linear gradient url(href) has incomplete properties: p1 = {p1:?}, p2 = {p2:?}"
-                    );
+                    // log::warn!(
+                    //     "Linear gradient url(href) has incomplete properties: p1 = {p1:?}, p2 = {p2:?}"
+                    // );
                     paint.set_color(Color::TRANSPARENT);
                 } else {
-                    log::warn!("Linear gradient url(href) not found: {href}");
+                    // log::warn!("Linear gradient url(href) not found: {href}");
                     paint.set_color(Color::TRANSPARENT);
                 }
             }
@@ -385,12 +385,12 @@ impl Properties {
                         paint.set_shader(shader);
                         return paint;
                     }
-                    log::warn!(
-                        "Linear gradient url(href) has incomplete properties: p1 = {p1:?}, p2 = {p2:?}"
-                    );
+                    // log::warn!(
+                    //     "Linear gradient url(href) has incomplete properties: p1 = {p1:?}, p2 = {p2:?}"
+                    // );
                     paint.set_color(Color::TRANSPARENT);
                 } else {
-                    log::warn!("Linear gradient url(href) not found: {href}");
+                    // log::warn!("Linear gradient url(href) not found: {href}");
                     paint.set_color(Color::TRANSPARENT);
                 }
             }
