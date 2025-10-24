@@ -11,7 +11,7 @@ use crate::{
         attribute_f32, attribute_str, attribute_transform, defs::SvgDef,
         placeholder_text::PlaceholderText,
     },
-    util::{ChronuxResult, sort_paints},
+    util::{sort_paints, trim_control_chars, ChronuxResult},
 };
 
 #[derive(Debug, Clone)]
@@ -58,10 +58,11 @@ impl Tspan {
                 let y = attribute_f32(&child, "y").unwrap_or(y);
                 if child.is_text() {
                     let text = child.text().unwrap_or("").to_string();
+                    let text = trim_control_chars(&text);
                     let Point { x, y } = mat.map_point((x, y));
                     if !text.is_empty() {
                         let font = base_style.get_font()?;
-                        let (width, bounds_rect) = font.measure_str(&text, None);
+                        let (width, bounds_rect) = font.measure_str(text, None);
                         let tspan = Tspan {
                             x,
                             y,
@@ -69,7 +70,7 @@ impl Tspan {
                             length: width,
                             text: match placeholder {
                                 Some(formatter) => TspanText::Placeholder(formatter.clone()),
-                                None => TspanText::Text(text),
+                                None => TspanText::Text(text.to_string()),
                             },
                             bounds: bounds_rect,
                         };

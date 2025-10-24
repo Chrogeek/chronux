@@ -208,3 +208,24 @@ pub fn sort_paints(paint_order: PaintOrder, stroke: Paint, fill: Paint) -> [Pain
         _ => unreachable!("Impossible paint order: {:?}", paint_order.order),
     }
 }
+
+pub fn trim_control_chars(s: &str) -> &str {
+    let mut start = 0;
+    let mut end = s.len();
+
+    for (i, c) in s.char_indices() {
+        if !c.is_control() {
+            start = i;
+            break;
+        }
+    }
+
+    for (i, c) in s.char_indices().rev() {
+        if !c.is_control() {
+            end = i + c.len_utf8();
+            break;
+        }
+    }
+
+    &s[start..end]
+}
