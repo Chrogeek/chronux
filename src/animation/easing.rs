@@ -57,6 +57,9 @@ pub enum Easing {
     // 即时完成，无缓动
     Instant,
 
+    // 即时完成，但是是在动画时长结束的瞬间，无缓动
+    InstantEnd,
+
     // 线性动画，无缓动
     Linear,
 
@@ -97,6 +100,7 @@ impl<'de> Deserialize<'de> for Easing {
         let s: String = Deserialize::deserialize(deserializer)?;
         match s.as_str() {
             "instant" => Ok(Easing::Instant),
+            "instant-end" => Ok(Easing::InstantEnd),
             "linear" => Ok(Easing::Linear),
             "ease-in" => Ok(Easing::EaseIn),
             "ease-in-sine" => Ok(Easing::EaseInSine),
@@ -140,6 +144,7 @@ impl Easing {
         let t = t_in.clamp(0.0, 1.0); // Ensure t is within [0, 1]
         match self {
             Easing::Instant => 1.0,
+            Easing::InstantEnd => 0.0,
             Easing::Linear => t,
             Easing::CubicBezier(p1x, p1y, p2x, p2y) => cubic_bezier(t, *p1x, *p1y, *p2x, *p2y),
             Easing::EaseIn | Easing::EaseInSine => 1.0 - ((t * PI) / 2.0).cos(),
