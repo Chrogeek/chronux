@@ -44,7 +44,7 @@ pub fn cubic_bezier(x: f32, p1: f32, p2: f32, p3: f32, p4: f32) -> f32 {
                 unreachable!()
             }
         }
-        _ => todo!(),
+        _ => unreachable!("No valid root found for cubic bezier"),
     };
 
     (3.0 * t - 6.0 * t.powi(2) + 3.0 * t.powi(3)) * p2
