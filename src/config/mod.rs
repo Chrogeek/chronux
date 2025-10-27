@@ -121,6 +121,12 @@ pub struct ScaleConfig {
     pub position: String,
     pub anchor: ScaleAnchor,
     pub size: f32,
+    #[serde(rename = "stroke-color")]
+    #[serde(deserialize_with = "crate::util::deserialize_hex_color")]
+    pub stroke_color: Color,
+    #[serde(rename = "fill-color")]
+    #[serde(deserialize_with = "crate::util::deserialize_hex_color")]
+    pub fill_color: Color,
 }
 
 #[derive(Debug, Deserialize, Clone)]
