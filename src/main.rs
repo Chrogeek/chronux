@@ -484,103 +484,112 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         // 绘制地上段（elevated）路径
         if let Some(elevated) = &elevated {
             let elevated_config = conf.drawing.elevated.as_ref().unwrap();
-            for o in objs.iter() {
-                let path = &o.id;
-                if let Some(intervals) = elevated.get(path) {
-                    let o = &objs[obj_map[path]];
-                    let d = match &o.shape {
-                        Shape::Path { d } => d,
-                        _ => {
-                            return Err(ChronuxError::ArgError(format!(
-                                "Invalid shape for elevated point: {}, must be a path",
-                                o.id
-                            )));
+            if elevated_config.stroke_width > 1e-4 {
+                for o in objs.iter() {
+                    let path = &o.id;
+                    if let Some(intervals) = elevated.get(path) {
+                        let o = &objs[obj_map[path]];
+                        let d = match &o.shape {
+                            Shape::Path { d } => d,
+                            _ => {
+                                return Err(ChronuxError::ArgError(format!(
+                                    "Invalid shape for elevated point: {}, must be a path",
+                                    o.id
+                                )));
+                            }
+                        };
+
+                        let mut pm = skia_safe::PathMeasure::new(d, false, Some(2.0));
+                        let path_length = pm.length();
+
+                        let path_props = timeline[path].interpolate(t);
+                        let (ps, pe) = path_props.trim;
+
+                        if path_props.stroke_width < 1e-4
+                            || path_props.opacity < 1e-4
+                            || (pe - ps) * path_length < 1e-4
+                        {
+                            // 没有描边/不可见就不需要绘制地上段
+                            continue;
                         }
-                    };
 
-                    let mut pm = skia_safe::PathMeasure::new(d, false, Some(2.0));
-                    let path_length = pm.length();
+                        let mut paint_line = path_props.get_stroke_paint(&defs, o.transform);
+                        paint_line.set_stroke_width(
+                            path_props.stroke_width
+                                + (elevated_config.gap + elevated_config.stroke_width) * 2.0,
+                        );
 
-                    let path_props = timeline[path].interpolate(t);
-                    let (ps, pe) = path_props.trim;
+                        for (is, ie) in intervals {
+                            let start = ps.max(*is);
+                            let end = pe.min(*ie);
 
-                    if path_props.stroke_width < 1e-4
-                        || path_props.opacity < 1e-4
-                        || (pe - ps) * path_length < 1e-4
-                    {
-                        // 没有描边/不可见就不需要绘制地上段
-                        continue;
-                    }
+                            if (end - start) * path_length > 1e-4 {
+                                let effect = trim_path_effect::new(
+                                    start,
+                                    end,
+                                    trim_path_effect::Mode::Normal,
+                                );
 
-                    let mut paint_line = path_props.get_stroke_paint(&defs, o.transform);
-                    paint_line.set_stroke_width(
-                        path_props.stroke_width
-                            + (elevated_config.gap + elevated_config.stroke_width) * 2.0,
-                    );
-
-                    for (is, ie) in intervals {
-                        let start = ps.max(*is);
-                        let end = pe.min(*ie);
-
-                        if (end - start) * path_length > 1e-4 {
-                            let effect =
-                                trim_path_effect::new(start, end, trim_path_effect::Mode::Normal);
-
-                            let mut paint_line = paint_line.clone();
-                            paint_line.set_path_effect(effect);
-                            surface.canvas().draw_path(d, &paint_line);
+                                let mut paint_line = paint_line.clone();
+                                paint_line.set_path_effect(effect);
+                                surface.canvas().draw_path(d, &paint_line);
+                            }
                         }
                     }
                 }
             }
+            if elevated_config.gap > 1e-4 {
+                for o in objs.iter() {
+                    let path = &o.id;
+                    if let Some(intervals) = elevated.get(path) {
+                        let d = match &o.shape {
+                            Shape::Path { d } => d,
+                            _ => {
+                                return Err(ChronuxError::ArgError(format!(
+                                    "Invalid shape for elevated point: {}, must be a path",
+                                    o.id
+                                )));
+                            }
+                        };
 
-            for o in objs.iter() {
-                let path = &o.id;
-                if let Some(intervals) = elevated.get(path) {
-                    let d = match &o.shape {
-                        Shape::Path { d } => d,
-                        _ => {
-                            return Err(ChronuxError::ArgError(format!(
-                                "Invalid shape for elevated point: {}, must be a path",
-                                o.id
-                            )));
+                        let mut pm = skia_safe::PathMeasure::new(d, false, Some(2.0));
+                        let path_length = pm.length();
+
+                        let path_props = timeline[path].interpolate(t);
+                        let (ps, pe) = path_props.trim;
+
+                        if path_props.stroke_width < 1e-4
+                            || path_props.opacity < 1e-4
+                            || (pe - ps) * path_length < 1e-4
+                        {
+                            // 没有描边/不可见就不需要绘制地上段
+                            continue;
                         }
-                    };
 
-                    let mut pm = skia_safe::PathMeasure::new(d, false, Some(2.0));
-                    let path_length = pm.length();
+                        let mut paint_gap = path_props.get_stroke_paint(&defs, o.transform);
 
-                    let path_props = timeline[path].interpolate(t);
-                    let (ps, pe) = path_props.trim;
+                        paint_gap
+                            .set_color(parse_css_color(
+                                &elevated_config.gap_color,
+                                path_props.opacity,
+                            )?)
+                            .set_stroke_width(path_props.stroke_width + elevated_config.gap * 2.0);
 
-                    if path_props.stroke_width < 1e-4
-                        || path_props.opacity < 1e-4
-                        || (pe - ps) * path_length < 1e-4
-                    {
-                        // 没有描边/不可见就不需要绘制地上段
-                        continue;
-                    }
+                        for (is, ie) in intervals {
+                            let start = ps.max(*is);
+                            let end = pe.min(*ie);
 
-                    let mut paint_gap = path_props.get_stroke_paint(&defs, o.transform);
+                            if (end - start) * path_length > 1e-4 {
+                                let effect = trim_path_effect::new(
+                                    start,
+                                    end,
+                                    trim_path_effect::Mode::Normal,
+                                );
 
-                    paint_gap
-                        .set_color(parse_css_color(
-                            &elevated_config.gap_color,
-                            path_props.opacity,
-                        )?)
-                        .set_stroke_width(path_props.stroke_width + elevated_config.gap * 2.0);
-
-                    for (is, ie) in intervals {
-                        let start = ps.max(*is);
-                        let end = pe.min(*ie);
-
-                        if (end - start) * path_length > 1e-4 {
-                            let effect =
-                                trim_path_effect::new(start, end, trim_path_effect::Mode::Normal);
-
-                            let mut paint_gap = paint_gap.clone();
-                            paint_gap.set_path_effect(effect.clone());
-                            surface.canvas().draw_path(d, &paint_gap);
+                                let mut paint_gap = paint_gap.clone();
+                                paint_gap.set_path_effect(effect.clone());
+                                surface.canvas().draw_path(d, &paint_gap);
+                            }
                         }
                     }
                 }
