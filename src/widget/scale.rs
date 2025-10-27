@@ -16,7 +16,7 @@ pub fn draw(
 ) -> ChronuxResult<()> {
     let mut fill = skia_safe::Paint::default();
     fill.set_anti_alias(true);
-    fill.set_color(skia_safe::Color::BLACK);
+    fill.set_color(scale.fill_color);
     fill.set_style(skia_safe::PaintStyle::Fill);
 
     let mut stroke_text = skia_safe::Paint::default();
