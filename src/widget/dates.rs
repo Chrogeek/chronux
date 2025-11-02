@@ -284,7 +284,7 @@ pub fn draw(
 }
 
 fn draw_centered_text(canvas: &Canvas, text: &str, p: (f32, f32), font: &Font, paint: &Paint) {
-    let (_, rect) = font.measure_str(text, Some(paint));
+    let (_, rect) = font.measure_str(format!("{text}0123456789"), Some(paint));
     canvas.draw_text_align(
         text,
         (p.0, p.1 - (rect.bottom + rect.top) * 0.5),
