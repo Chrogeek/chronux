@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use skia_safe::Color;
 
-use crate::util::parse_css_color;
+use crate::util::{parse_css_color, toml_value_as_number};
 
 #[derive(Debug, Clone)]
 pub struct Tween {
@@ -37,8 +37,8 @@ impl<'de> Deserialize<'de> for Tween {
         let map = toml::Table::deserialize(deserializer)?;
         for (key, value) in map.iter() {
             match key.as_str() {
-                "font-size" => tween.font_size = value.as_float().map(|v| v as f32),
-                "font-weight" => tween.font_weight = value.as_float().map(|v| v as f32),
+                "font-size" => tween.font_size = toml_value_as_number(value).map(|v| v as f32),
+                "font-weight" => tween.font_weight = toml_value_as_number(value).map(|v| v as f32),
                 "fill-color" => {
                     tween.fill_color = {
                         if let Some(c) = value.as_str().map(|c| parse_css_color(c, 1.0)) {
@@ -57,12 +57,12 @@ impl<'de> Deserialize<'de> for Tween {
                         }
                     }
                 }
-                "stroke-width" => tween.stroke_width = value.as_float().map(|v| v as f32),
+                "stroke-width" => tween.stroke_width = toml_value_as_number(value).map(|v| v as f32),
                 "opacity" => {
-                    tween.opacity = value.as_float().map(|v| v as f32);
+                    tween.opacity = toml_value_as_number(value).map(|v| v as f32);
                 }
-                "x" => tween.translate_x = value.as_float().map(|v| v as f32),
-                "y" => tween.translate_y = value.as_float().map(|v| v as f32),
+                "x" => tween.translate_x = toml_value_as_number(value).map(|v| v as f32),
+                "y" => tween.translate_y = toml_value_as_number(value).map(|v| v as f32),
                 _ => {}
             }
         }

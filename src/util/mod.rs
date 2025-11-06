@@ -229,3 +229,11 @@ pub fn trim_control_chars(s: &str) -> &str {
 
     &s[start..end]
 }
+
+pub fn toml_value_as_number(value: &toml::Value) -> Option<f64> {
+    match value {
+        toml::Value::Integer(i) => Some(*i as f64),
+        toml::Value::Float(f) => Some(*f),
+        _ => None,
+    }
+}
