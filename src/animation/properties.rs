@@ -283,6 +283,24 @@ impl Properties {
             }
         }
 
+        if let Some(font_variations) = rules.get("font-variation-settings") {
+            // Currently only support 'wght' axis
+            for setting in font_variations.split(',') {
+                let setting = setting.trim().split_ascii_whitespace().collect::<Vec<_>>();
+                if setting.len() < 2 {
+                    continue;
+                }
+                if setting[0] == "'wght'" || setting[0] == "\"wght\"" {
+                    let weight = setting[1].trim().parse::<f32>().map_err(|_| {
+                        ChronuxError::ArgError(format!(
+                            "invalid font-variation-settings value: {font_variations}"
+                        ))
+                    })?;
+                    result.font_weight = weight;
+                }
+            }
+        }
+
         Ok(result)
     }
 
