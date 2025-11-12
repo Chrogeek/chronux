@@ -33,7 +33,7 @@ pub struct Properties {
     pub translate_y: f32,
     pub scale_x: f32,
     pub scale_y: f32,
-    // pub rotate: f32,
+    pub rotate: f32,
     pub trim: (f32, f32),
     pub typewriter: (f32, f32),
     pub sweep: (f32, f32),
@@ -62,7 +62,7 @@ impl Default for Properties {
             translate_y: 0.0,
             scale_x: 1.0,
             scale_y: 1.0,
-            // rotate: 0.0,
+            rotate: 0.0,
             trim: (0.0, 1.0),
             typewriter: (0.0, 1.0),
             sweep: (0.0, 1.0),
@@ -137,6 +137,9 @@ impl Properties {
                 }
                 if let Some(ty) = tween.translate_y {
                     new_props.translate_y += t * (ty - self.translate_y);
+                }
+                if let Some(r) = tween.rotate {
+                    new_props.rotate += t * (r - self.rotate);
                 }
                 new_props.tweening = true;
                 new_props
@@ -469,7 +472,7 @@ impl Properties {
             translate_y: parent.translate_y + child.translate_y,
             scale_x: parent.scale_x * child.scale_x,
             scale_y: parent.scale_y * child.scale_y,
-            // rotate: parent.rotate + child.rotate,
+            rotate: parent.rotate + child.rotate,
             trim: (
                 parent.trim.0.max(child.trim.0),
                 parent.trim.1.min(child.trim.1),

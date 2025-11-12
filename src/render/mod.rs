@@ -52,6 +52,18 @@ pub fn draw(
 
     let paints = sort_paints(properties.paint_order, stroke, fill);
 
+    let bboxcenter =
+        get_bounding_box(shape, properties).map(|(l, t, r, b)| ((l + r) * 0.5, (t + b) * 0.5));
+
+    // 将画布绕 bboxcenter 点旋转 properties.rotate 角度(deg)
+    let restore_handle = if properties.rotate.abs() > 1e-4 && let Some((cx, cy)) = bboxcenter {
+        let restore_handle = canvas.save();
+        canvas.rotate(properties.rotate, Some((cx, cy).into()));
+        Some(restore_handle)
+    } else {
+        None
+    };
+
     match shape {
         Shape::Path { d } => {
             let mut paints = paints;
@@ -185,6 +197,10 @@ pub fn draw(
         }
     }
 
+    if let Some(restore_handle) = restore_handle {
+        canvas.restore_to_count(restore_handle);
+    }
+
     Ok(())
 }
 
@@ -214,7 +230,7 @@ pub fn get_bounding_box(shape: &Shape, properties: &Properties) -> Option<(f32, 
             rect
         }
         _ => {
-            log::warn!("Bounding box calculation for {shape:?} is not implemented");
+            // log::warn!("Bounding box calculation for {shape:?} is not implemented");
             None
         }
     }

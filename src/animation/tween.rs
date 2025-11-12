@@ -15,7 +15,7 @@ pub struct Tween {
     pub translate_y: Option<f32>,
     // pub scale_x: Option<f32>,
     // pub scale_y: Option<f32>,
-    // pub rotate: Option<f32>,
+    pub rotate: Option<f32>,
 }
 
 impl<'de> Deserialize<'de> for Tween {
@@ -32,6 +32,7 @@ impl<'de> Deserialize<'de> for Tween {
             stroke_width: None,
             translate_x: None,
             translate_y: None,
+            rotate: None,
         };
 
         let map = toml::Table::deserialize(deserializer)?;
@@ -63,6 +64,7 @@ impl<'de> Deserialize<'de> for Tween {
                 }
                 "x" => tween.translate_x = toml_value_as_number(value).map(|v| v as f32),
                 "y" => tween.translate_y = toml_value_as_number(value).map(|v| v as f32),
+                "rotate" => tween.rotate = toml_value_as_number(value).map(|v| v as f32),
                 _ => {}
             }
         }
