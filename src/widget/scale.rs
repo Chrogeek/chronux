@@ -133,7 +133,7 @@ pub fn draw(
         }
 
         // 判断是否与主要刻度重合，重合则跳过
-        if ((minor_x - x1) / maj_len).fract() < f32::EPSILON {
+        if ((minor_x - x1) * dir / maj_len).fract() < f32::EPSILON {
             continue;
         }
 
