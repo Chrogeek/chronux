@@ -60,10 +60,10 @@ pub fn draw(
                     DURATION_SHORT
                 };
 
-            let (t_dates, rev) = if let Some((end_time, _, _, rev)) = end {
+            let (t_dates, rev) = if let Some((end_time, _, _, r)) = end {
                 (
                     (1.0 - (end_time - t) / date_duration).clamp(0.0, 1.0),
-                    if rev { -1.0 } else { 1.0 },
+                    if r { -1.0 } else { 1.0 },
                 )
             } else {
                 (0.0, 1.0)
@@ -244,20 +244,20 @@ pub fn draw(
                         // 绘制数字
                         let c1 = c1.to_digit(10).unwrap();
                         let c2 = c2.to_digit(10).unwrap();
-                        let c2 = if c2 < c1 { c2 + 10 } else { c2 };
+                        let (c1, c2) = if rev > 0.0 {
+                            if c2 < c1 { (c1, c2 + 10) } else { (c1, c2) }
+                        } else {
+                            if c2 > c1 { (c1 + 10, c2) } else { (c1, c2) }
+                        };
 
                         let y_start = year_y
                             - t_years
                                 * config.line_height
                                 * config.font_size_year
-                                * (c2 - c1) as f32
-                                * rev;
-                        for c in c1..=c2 {
+                                * (c2 as i32 - c1 as i32) as f32;
+                        for c in if rev > 0.0 { c1..=c2 } else { c2..=c1 } {
                             let y = y_start
-                                + (c - c1) as f32
-                                    * config.line_height
-                                    * config.font_size_year
-                                    * rev;
+                                + (c as i32 - c1 as i32) as f32 * config.line_height * config.font_size_year;
                             draw_centered_text(
                                 canvas,
                                 &(c % 10).to_string(),
@@ -267,8 +267,9 @@ pub fn draw(
                             );
                         }
                     } else {
-                        let y_start = year_y - t_years * config.line_height * config.font_size_year;
-                        let y_end = y_start + config.line_height * config.font_size_year;
+                        let y_start =
+                            year_y - t_years * config.line_height * config.font_size_year * rev;
+                        let y_end = y_start + config.line_height * config.font_size_year * rev;
                         draw_centered_text(
                             canvas,
                             &c1.to_string(),
