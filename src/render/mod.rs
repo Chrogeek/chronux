@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
-use skia_safe::{Canvas, Matrix, Paint, PaintStyle, Rect, TileMode, Vector, image_filters::blur};
+use skia_safe::{Canvas, Color, Matrix, Paint, PaintStyle, Rect, TileMode, Vector, image_filters::blur};
 
 use crate::{
     animation::properties::Properties,
     config::{counter::Counters, extra_stroke::ExtraStrokeConfig},
     svg::{defs::SvgDef, element::Shape},
-    util::{ChronuxError, ChronuxResult, sort_paints},
+    util::{ChronuxError, ChronuxResult, paint::ColorPaint, sort_paints},
 };
 
 pub fn draw(
@@ -140,24 +140,41 @@ pub fn draw(
 
             let mut drawn_length = 0.0;
 
-            for c in children.iter() {
-                let l = start.max(drawn_length);
-                let r = end.min(drawn_length + c.length);
-                if l >= r {
-                    // 当前文本段不在范围内，跳过
-                } else {
-                    // 当前文本段在范围内，计算绘制比例
-                    c.draw_text(
-                        canvas,
-                        l - drawn_length,
-                        r - drawn_length,
-                        properties.clone(),
-                        counters,
-                        defs,
-                        element_transform,
-                    )?;
+            // 文本强制按照 描边(pass=0)-填充(pass=1) 顺序绘制
+            for pass in 0..2 {
+                for c in children.iter() {
+                    let l = start.max(drawn_length);
+                    let r = end.min(drawn_length + c.length);
+                    if l >= r {
+                        // 当前文本段不在范围内，跳过
+                    } else {
+                        let props = if pass == 0 {
+                            // 描边
+                            Properties {
+                                fill_color: ColorPaint::Color(Color::TRANSPARENT),
+                                ..properties.clone()
+                            }
+                        } else {
+                            // 填充
+                            Properties {
+                                stroke_color: ColorPaint::Color(Color::TRANSPARENT),
+                                ..properties.clone()
+                            }
+                        };
+
+                        // 当前文本段在范围内，计算绘制比例
+                        c.draw_text(
+                            canvas,
+                            l - drawn_length,
+                            r - drawn_length,
+                            props,
+                            counters,
+                            defs,
+                            element_transform,
+                        )?;
+                    }
+                    drawn_length += c.length;
                 }
-                drawn_length += c.length;
             }
         }
         Shape::Image {
