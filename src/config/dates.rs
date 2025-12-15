@@ -52,13 +52,14 @@ pub struct DatesKeyframe {
     pub time: TimeKey,
     pub year: Option<String>,
     pub date: Option<String>,
+    pub reverse: Option<bool>,
 }
 
 impl DatesConfig {
     pub fn parse_timekeys(
         &self,
         events: &HashMap<String, Event>,
-    ) -> ChronuxResult<Vec<(f32, String, String)>> {
+    ) -> ChronuxResult<Vec<(f32, String, String, bool)>> {
         self.keyframes
             .iter()
             .map(|kf| {
@@ -80,6 +81,7 @@ impl DatesConfig {
                     time,
                     kf.year.clone().unwrap_or_default(),
                     kf.date.clone().unwrap_or_default(),
+                    kf.reverse.unwrap_or(false),
                 ))
             })
             .collect()

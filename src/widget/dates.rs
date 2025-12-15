@@ -13,7 +13,7 @@ const DURATION_OFFSET_UNIT: f32 = 5.0 / 60.0;
 pub fn draw(
     canvas: &Canvas,
     config: &DatesConfig,
-    keyframes: &[(f32, String, String)],
+    keyframes: &[(f32, String, String, bool)],
     t: f32,
     position_date: (f32, f32),
     position_year: (f32, f32),
@@ -24,11 +24,11 @@ pub fn draw(
     // 1. 判断 t 处于哪两个 keyframe 之间 (keyframes已按时间升序排序)
     let mut start = None;
     let mut end = None;
-    for (time, year, date) in keyframes.iter() {
+    for (time, year, date, reverse) in keyframes.iter() {
         if *time <= t {
-            start = Some((*time, year.clone(), date.clone()));
+            start = Some((*time, year.clone(), date.clone(), *reverse));
         } else {
-            end = Some((*time, year.clone(), date.clone()));
+            end = Some((*time, year.clone(), date.clone(), *reverse));
             break;
         }
     }
@@ -60,16 +60,19 @@ pub fn draw(
                     DURATION_SHORT
                 };
 
-            let t_dates = if let Some((end_time, _, _)) = end {
-                (1.0 - (end_time - t) / date_duration).clamp(0.0, 1.0)
+            let (t_dates, rev) = if let Some((end_time, _, _, rev)) = end {
+                (
+                    (1.0 - (end_time - t) / date_duration).clamp(0.0, 1.0),
+                    if rev { -1.0 } else { 1.0 },
+                )
             } else {
-                0.0
+                (0.0, 1.0)
             };
 
             let t_dates = config.easing.evaluate(t_dates);
 
-            let y_start = date_y - t_dates * config.line_height * config.font_size_date;
-            let y_end = y_start + config.line_height * config.font_size_date;
+            let y_start = date_y - t_dates * config.line_height * config.font_size_date * rev;
+            let y_end = y_start + config.line_height * config.font_size_date * rev;
 
             // 5.3. 绘制日期
             let mut paint = Paint::default();
@@ -83,8 +86,8 @@ pub fn draw(
                 config.font_size_date,
                 config.font_weight_date as i32,
             )?;
-            let date_start = start.as_ref().map(|(_, _, date)| date);
-            let date_end = end.as_ref().map(|(_, _, date)| date);
+            let date_start = start.as_ref().map(|(_, _, date, _)| date);
+            let date_end = end.as_ref().map(|(_, _, date, _)| date);
 
             if date_start != date_end {
                 if let Some(date_start) = &date_start {
@@ -118,13 +121,13 @@ pub fn draw(
             // 6.2. 分解年份四位数
             let year_start = start
                 .as_ref()
-                .map(|(_, year, _)| format!("{year:>4}"))
+                .map(|(_, year, _, _)| format!("{year:>4}"))
                 .unwrap_or("    ".to_string())
                 .chars()
                 .collect::<Vec<_>>();
             let year_end = end
                 .as_ref()
-                .map(|(_, year, _)| format!("{year:>4}"))
+                .map(|(_, year, _, _)| format!("{year:>4}"))
                 .unwrap_or("    ".to_string())
                 .chars()
                 .collect::<Vec<_>>();
@@ -216,7 +219,7 @@ pub fn draw(
                 let year_x = year_x + (i as f32 - 1.5) * digit_spacing;
                 if c1 != c2 {
                     // 6.3. 动画插值
-                    let t_years = if let Some((end_time, _, _)) = end {
+                    let t_years = if let Some((end_time, _, _, _)) = end {
                         ((t - (end_time - duration + start_offset[i])) / dur[i]).clamp(0.0, 1.0)
                     } else {
                         0.0
@@ -247,10 +250,14 @@ pub fn draw(
                             - t_years
                                 * config.line_height
                                 * config.font_size_year
-                                * (c2 - c1) as f32;
+                                * (c2 - c1) as f32
+                                * rev;
                         for c in c1..=c2 {
                             let y = y_start
-                                + (c - c1) as f32 * config.line_height * config.font_size_year;
+                                + (c - c1) as f32
+                                    * config.line_height
+                                    * config.font_size_year
+                                    * rev;
                             draw_centered_text(
                                 canvas,
                                 &(c % 10).to_string(),
