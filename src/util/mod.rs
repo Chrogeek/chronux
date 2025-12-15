@@ -73,6 +73,12 @@ impl Display for ChronuxError {
 
 pub static COLOR_DICT: OnceCell<HashMap<String, Color>> = OnceCell::new();
 
+#[derive(Copy, Clone, Debug)]
+pub enum TextDrawPass {
+    Fill,
+    Stroke,
+}
+
 pub fn parse_css_color(color: &str, opacity: f32) -> ChronuxResult<Color> {
     if color == "none" {
         return Ok(Color::TRANSPARENT);

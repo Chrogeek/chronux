@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use roxmltree::Node;
-use skia_safe::{Canvas, Matrix, Point, Rect, utils::text_utils::Align};
+use skia_safe::{Canvas, Color, Matrix, Point, Rect, utils::text_utils::Align};
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
@@ -11,7 +11,7 @@ use crate::{
         attribute_f32, attribute_str, attribute_transform, defs::SvgDef,
         placeholder_text::PlaceholderText,
     },
-    util::{sort_paints, trim_control_chars, ChronuxResult},
+    util::{ChronuxResult, TextDrawPass, paint::ColorPaint, trim_control_chars},
 };
 
 #[derive(Debug, Clone)]
@@ -140,6 +140,7 @@ impl Tspan {
         counters: &Counters,
         defs: &HashMap<String, SvgDef>,
         element_transform: Matrix,
+        pass: TextDrawPass,
     ) -> ChronuxResult<()> {
         let tl = tl.max(0.0);
         let tr = tr.min(self.length);
@@ -152,11 +153,23 @@ impl Tspan {
             Properties::merge(&self.style, &properties)
         };
 
-        let font = self.style.get_font()?;
-        let fill = color_style.get_fill_paint(defs, element_transform);
-        let stroke = color_style.get_stroke_paint(defs, element_transform);
+        let color_style = match pass {
+            TextDrawPass::Stroke => Properties {
+                fill_color: ColorPaint::Color(Color::TRANSPARENT),
+                ..color_style
+            },
+            TextDrawPass::Fill => Properties {
+                stroke_color: ColorPaint::Color(Color::TRANSPARENT),
+                ..color_style
+            },
+        };
 
-        let paints = sort_paints(color_style.paint_order, stroke, fill);
+        let font = self.style.get_font()?;
+
+        let paint = match pass {
+            TextDrawPass::Stroke => color_style.get_stroke_paint(defs, element_transform),
+            TextDrawPass::Fill => color_style.get_fill_paint(defs, element_transform),
+        };
 
         let offset = match self.style.text_anchor {
             Align::Left => 0.0,
@@ -178,14 +191,7 @@ impl Tspan {
                 &text,
                 (x + tx, y + ty),
                 &font,
-                &paints[0],
-                self.style.text_anchor,
-            );
-            canvas.draw_text_align(
-                &text,
-                (x + tx, y + ty),
-                &font,
-                &paints[1],
+                &paint,
                 self.style.text_anchor,
             );
         } else {
@@ -201,12 +207,10 @@ impl Tspan {
                     let alpha = (tr - tl) / c;
                     let (x, y) = (self.x + dlen - offset, self.y);
 
-                    let mut new_paints = paints.clone();
+                    let mut new_paint = paint.clone();
 
-                    for paint in new_paints.iter_mut() {
-                        paint.set_alpha((alpha * paint.alpha() as f32) as u8);
-                        canvas.draw_text_align(g, (x + tx, y + ty), &font, paint, Align::Left);
-                    }
+                    new_paint.set_alpha((alpha * paint.alpha() as f32) as u8);
+                    canvas.draw_text_align(g, (x + tx, y + ty), &font, &new_paint, Align::Left);
                 }
 
                 dlen += c;
