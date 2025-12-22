@@ -14,7 +14,7 @@
 
 */
 
-use std::fmt::Display;
+use std::{collections::HashMap, fmt::Display};
 
 use serde::Serialize;
 
@@ -26,9 +26,9 @@ pub enum ChainedPath {
 }
 
 impl ChainedPath {
-    pub fn is_atomic(&self) -> bool {
-        matches!(self, ChainedPath::Atom(_))
-    }
+    // pub fn is_atomic(&self) -> bool {
+    //     matches!(self, ChainedPath::Atom(_))
+    // }
 
     pub fn get_atomic(&self) -> Option<&String> {
         if let ChainedPath::Atom(s) = self {
@@ -66,12 +66,35 @@ impl ChainedPath {
         }
     }
 
-    pub fn contains_object(&self, obj: &str) -> bool {
+    // pub fn contains_object(&self, obj: &str) -> bool {
+    //     match self {
+    //         ChainedPath::Atom(o) => o == obj,
+    //         ChainedPath::Seq(chained_paths) | ChainedPath::Par(chained_paths) => {
+    //             chained_paths.iter().any(|c| c.contains_object(obj))
+    //         }
+    //     }
+    // }
+
+    pub fn length(&self, dict: &HashMap<String, f32>) -> Option<f32> {
         match self {
-            ChainedPath::Atom(o) => o == obj,
-            ChainedPath::Seq(chained_paths) | ChainedPath::Par(chained_paths) => {
-                chained_paths.iter().any(|c| c.contains_object(obj))
+            ChainedPath::Atom(o) => dict.get(o).cloned(),
+            ChainedPath::Seq(chained_paths) => {
+                chained_paths
+                    .iter()
+                    .map(|o| o.length(dict))
+                    .fold(Some(0.0), |acc, len_opt| match (acc, len_opt) {
+                        (Some(acc_len), Some(len)) => Some(acc_len + len),
+                        _ => None,
+                    })
             }
+            ChainedPath::Par(chained_paths) => chained_paths
+                .iter()
+                .map(|o| o.length(dict))
+                .fold(Some(0.0), |acc, len_opt| match (acc, len_opt) {
+                    (Some(acc_len), Some(len)) => Some(acc_len + len),
+                    _ => None,
+                })
+                .map(|len| len / (chained_paths.len() as f32)),
         }
     }
 }

@@ -128,6 +128,12 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         defs.extend(osvg.get_defs());
     }
 
+    // 计算所有 path 对象的长度
+    let path_length_dict = objs
+        .iter()
+        .filter_map(|o| o.get_length().map(|l| (o.id.clone(), l)))
+        .collect::<HashMap<_, _>>();
+
     if let Some(es) = conf.drawing.extra_stroke.as_ref() {
         // 根据 es 中指定的路径组，将 objs 重排顺序，使得每个路径组的对象都在一起
         // 首先给每个对象指定一个编号：如果不在任何一个路径组中则编号等于 objs 中的下标，否则编号指定为该路径组中所有对象的最大下标
@@ -165,7 +171,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     let objs = objs;
 
     // 计算每个动画的起始时间
-    conf.calc_start_times(&objs)?;
+    conf.calc_start_times(&objs, &path_length_dict)?;
     log::info!("Calculated start times for objects");
 
     // 计算所有动画全部结束的时间
@@ -200,15 +206,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                 (
                     e.start,
                     e.duration,
-                    e.object
-                        .flatten()
-                        .iter()
-                        .map(|o| objs[obj_map[o]].get_length())
-                        .fold(None, |acc, cur| match (acc, cur) {
-                            (None, _) => cur,
-                            (_, None) => acc,
-                            (Some(acc), Some(cur)) => Some(acc + cur),
-                        }),
+                    e.object.length(&path_length_dict),
                     id.clone(),
                 )
             })

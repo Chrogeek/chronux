@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::Deserialize;
 use skia_safe::{Path, PathMeasure};
 
@@ -67,41 +69,111 @@ pub struct TaggedAnimation {
     pub easing: Option<Easing>,
 }
 
-pub fn track(obj: &Object, event: &Event, x: f32, y: f32) -> ChronuxResult<f32> {
+/// 跟踪路径 `chained_path` 上距离 (x,y) 最近的位置
+/// 为保证求解正确，建议 event 的缓动函数为单调函数
+/// 返回 (t, dis2)，其中 t 为跟踪位置，dis2 为最近距离的平方
+pub fn track(
+    chained_path: &ChainedPath,
+    objs: &[Object],
+    objmap: &HashMap<String, usize>,
+    event: &Event,
+    x: f32,
+    y: f32,
+    dict: &HashMap<String, f32>,
+) -> ChronuxResult<(f32, f32)> {
+    // 先求出不加缓动函数前提下，最近的位置t
+    let (t, dis2) = match chained_path {
+        ChainedPath::Atom(o) => {
+            let obj = &objs[objmap[o]];
+            if let Shape::Path { d } = &obj.shape {
+                let (t, _, dis2) = track_on_path(d, x, y, &Easing::Linear);
+                Ok((t, dis2))
+            } else {
+                Err(ChronuxError::ArgError(
+                    "non-path shapes cannot be tracked".into(),
+                ))
+            }
+        }
+        ChainedPath::Seq(chained_paths) => {
+            let lengths = chained_paths
+                .iter()
+                .map(|c| c.length(dict))
+                .collect::<Option<Vec<_>>>()
+                .expect(&format!(
+                    "Cannot get length of chained path '{:?}'",
+                    chained_path
+                ));
+            let total_length = lengths.iter().sum::<f32>();
+
+            let tracks = chained_paths
+                .iter()
+                .map(|c| track(c, objs, objmap, event, x, y, dict))
+                .collect::<ChronuxResult<Vec<_>>>()?;
+
+            // 获取距离最近的点
+            let nearest = tracks
+                .into_iter()
+                .enumerate()
+                .reduce(|(acc_id, (acc_t, acc_dis2)), (cur_id, (cur_t, cur_dis2))| {
+                    if cur_dis2 <= acc_dis2 {
+                        (acc_id, (cur_t, cur_dis2))
+                    } else {
+                        (cur_id, (acc_t, acc_dis2))
+                    }
+                })
+                .ok_or_else(|| ChronuxError::ArgError("Empty #seq chained path".to_string()))?;
+
+            let pre_length = lengths[..nearest.0].iter().sum::<f32>();
+            let t = (pre_length + nearest.1.0 * lengths[nearest.0]) / total_length;
+            Ok((t, nearest.1.1))
+        }
+        ChainedPath::Par(chained_paths) => {
+            let tracks = chained_paths
+                .iter()
+                .map(|c| track(c, objs, objmap, event, x, y, dict))
+                .collect::<ChronuxResult<Vec<_>>>()?;
+
+            // 获取距离最近的点
+            tracks
+                .into_iter()
+                .reduce(|(acc_t, acc_dis2), (cur_t, cur_dis2)| {
+                    if cur_dis2 <= acc_dis2 {
+                        (cur_t, cur_dis2)
+                    } else {
+                        (acc_t, acc_dis2)
+                    }
+                })
+                .ok_or_else(|| ChronuxError::ArgError("Empty #par chained path".to_string()))
+        }
+    }?;
+
     let t = match event.animation {
-        Animation::TrimPath { reverse } => {
-            if let Shape::Path { d } = &obj.shape {
-                let t = track_on_path(d, x, y, &event.easing).0;
-                let t = if reverse { 1.0 - t } else { t };
-                Ok(t)
-            } else {
-                Err(ChronuxError::ArgError(
-                    "non-path shapes cannot be tracked".into(),
-                ))
-            }
-        }
-        Animation::TrimPathOut { reverse } => {
-            if let Shape::Path { d } = &obj.shape {
-                let t = track_on_path(d, x, y, &event.easing).0;
-                let t = if reverse { t } else { 1.0 - t };
-                Ok(t)
-            } else {
-                Err(ChronuxError::ArgError(
-                    "non-path shapes cannot be tracked".into(),
-                ))
-            }
-        }
+        Animation::TrimPath { reverse } => Ok(if reverse { 1.0 - t } else { t }),
+        Animation::TrimPathOut { reverse } => Ok(if reverse { t } else { 1.0 - t }),
         _ => Err(ChronuxError::ArgError(format!(
             "animation '{:?}' cannot be tracked",
             event.animation
         ))),
     }?;
-    Ok(t * event.duration)
+
+    // 根据event的缓动函数设置，二分法求出正确的t
+    let (mut tl, mut tr, mut tm) = (0.0, 1.0, 0.5);
+    while tr - tl > 1e-4 {
+        if event.easing.evaluate(tm) < t {
+            tl = tm;
+        } else {
+            tr = tm;
+        }
+        tm = (tl + tr) / 2.0;
+    }
+
+    // 返回跟踪结果
+    Ok((tm * event.duration, dis2))
 }
 
 /// Calculate the nearest point on path d to given point (x, y).
-/// Returns (t, d) where d is the path length, l is the length from path origin to the nearest point, and t = l / d.
-pub fn track_on_path(d: &Path, x: f32, y: f32, easing: &Easing) -> (f32, f32) {
+/// Returns (t, d, p) where d is the path length and p is the coordinate of nearest point, l is the length from path origin to the nearest point, and t = l / d.
+pub fn track_on_path(d: &Path, x: f32, y: f32, easing: &Easing) -> (f32, f32, f32) {
     const SEGMENTS: usize = 20;
 
     let mut pm = PathMeasure::new(d, false, Some(2.0));
@@ -138,5 +210,9 @@ pub fn track_on_path(d: &Path, x: f32, y: f32, easing: &Easing) -> (f32, f32) {
         }
     }
 
-    ((tl + tr) / 2.0, length)
+    let t = (tl + tr) / 2.0;
+    let pt = pm.pos_tan(t * length).unwrap().0;
+    let dis2 = (pt.x - x).powi(2) + (pt.y - y).powi(2);
+
+    (t, length, dis2)
 }

@@ -19,7 +19,6 @@ use crate::{
         tracker::Tracker,
         viewport::{TimeKey, ViewportSequence, ViewportTrack},
     },
-    parser::chain::ChainedPath,
     svg::element::{Object, Shape},
     util::{
         COLOR_DICT, ChronuxError, ChronuxResult, interpolator::Interpolator, version::is_compatible,
@@ -164,6 +163,7 @@ impl Config {
         stack: &mut Vec<String>,
         objs: &Vec<Object>,
         objmap: &HashMap<String, usize>,
+        dict: &HashMap<String, f32>,
     ) -> ChronuxResult<f32> {
         let mut after_start_time = 0.0f32;
         let mut with_start_time = 0.0f32;
@@ -195,23 +195,12 @@ impl Config {
             .depends
             .iter()
         {
-            let t = self.dfs(next, visited, stack, objs, objmap)?;
+            let t = self.dfs(next, visited, stack, objs, objmap, dict)?;
             after_start_time = after_start_time.max(t + self.events[next].duration);
             with_start_time = with_start_time.max(t);
 
             if let event::Offset::Track { .. } = self.events[event_id].offset {
-                // 要求nextobj必须是Atom元素，否则无法定位
-                let nextobj = &self.events[next].object;
-                let nextobj = nextobj
-                    .get_atomic()
-                    .expect(&format!("Track target must be Atom, got '{}'", nextobj));
-                let nextobj = &objs[*objmap.get(nextobj).unwrap_or_else(|| {
-                    panic!(
-                        "Object for event {} not found ({}, failed for event tracking)",
-                        next, self.events[next].object
-                    )
-                })];
-
+                // 要求obj必须是Atom元素，否则无法定位
                 let obj = &self.events[event_id].object;
                 let obj = obj
                     .get_atomic()
@@ -221,7 +210,11 @@ impl Config {
                     event_id, self.events[event_id].object
                 ))];
                 let (x, y) = obj.get_position(&Properties::default());
-                track_start_time = t + track(nextobj, &self.events[next], x, y)?;
+
+                let nextobj = &self.events[next].object;
+                let (track_t, _dis2) =
+                    track(nextobj, objs, objmap, &self.events[next], x, y, dict)?;
+                track_start_time = t + track_t;
             }
         }
 
@@ -236,7 +229,11 @@ impl Config {
         Ok(start_time)
     }
 
-    pub fn calc_start_times(&mut self, objs: &Vec<Object>) -> ChronuxResult<()> {
+    pub fn calc_start_times(
+        &mut self,
+        objs: &Vec<Object>,
+        dict: &HashMap<String, f32>,
+    ) -> ChronuxResult<()> {
         let mut visited = HashMap::new();
         let mut stack = Vec::new();
 
@@ -248,7 +245,7 @@ impl Config {
 
         for event_id in self.events.keys() {
             if !visited.contains_key(event_id) {
-                self.dfs(event_id, &mut visited, &mut stack, objs, &objmap)?;
+                self.dfs(event_id, &mut visited, &mut stack, objs, &objmap, dict)?;
             }
         }
 
@@ -411,7 +408,7 @@ impl Config {
                         if d_length < 1e-4 {
                             0.0
                         } else {
-                            let (pt, len) = track_on_path(d, kx, ky, &Easing::Linear);
+                            let (pt, len, _) = track_on_path(d, kx, ky, &Easing::Linear);
                             // total_time=0.0 since in this case (not animating) we don't care it
                             pt * len
                         }
