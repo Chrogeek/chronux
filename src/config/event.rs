@@ -4,6 +4,7 @@ use serde_with::{OneOrMany, formats::PreferOne, serde_as};
 use crate::{
     animation::{Animation, easing::Easing},
     config::counter::Counters,
+    parser::chain::ChainedPath,
 };
 
 #[serde_as]
@@ -13,7 +14,7 @@ pub struct Event {
     #[serde(default = "Vec::new")]
     #[serde_as(as = "OneOrMany<_, PreferOne>")]
     pub depends: Vec<String>,
-    pub object: String,
+    pub object: ChainedPath,
     pub easing: Easing,
     #[serde(flatten)]
     pub offset: Offset,

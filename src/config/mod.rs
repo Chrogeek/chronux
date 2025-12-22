@@ -19,6 +19,7 @@ use crate::{
         tracker::Tracker,
         viewport::{TimeKey, ViewportSequence, ViewportTrack},
     },
+    parser::chain::ChainedPath,
     svg::element::{Object, Shape},
     util::{
         COLOR_DICT, ChronuxError, ChronuxResult, interpolator::Interpolator, version::is_compatible,
@@ -199,13 +200,23 @@ impl Config {
             with_start_time = with_start_time.max(t);
 
             if let event::Offset::Track { .. } = self.events[event_id].offset {
-                let nextobj = &objs[*objmap.get(&self.events[next].object).unwrap_or_else(|| {
+                // 要求nextobj必须是Atom元素，否则无法定位
+                let nextobj = &self.events[next].object;
+                let nextobj = nextobj
+                    .get_atomic()
+                    .expect(&format!("Track target must be Atom, got '{}'", nextobj));
+                let nextobj = &objs[*objmap.get(nextobj).unwrap_or_else(|| {
                     panic!(
                         "Object for event {} not found ({}, failed for event tracking)",
                         next, self.events[next].object
                     )
                 })];
-                let obj = &objs[*objmap.get(&self.events[event_id].object).expect(&format!(
+
+                let obj = &self.events[event_id].object;
+                let obj = obj
+                    .get_atomic()
+                    .expect(&format!("Track target must be Atom, got '{}'", obj));
+                let obj = &objs[*objmap.get(obj).expect(&format!(
                     "Object for event {} not found ({}, failed for event tracking)",
                     event_id, self.events[event_id].object
                 ))];
@@ -259,14 +270,16 @@ impl Config {
         let mut timeline = HashMap::new();
 
         for event_id in self.events.keys() {
-            let object_id = &self.events[event_id].object;
+            let objects = &self.events[event_id].object.flatten();
 
-            if !timeline.contains_key(object_id) {
-                timeline.insert(object_id.clone(), Vec::new());
+            for object_id in objects {
+                if !timeline.contains_key(object_id) {
+                    timeline.insert(object_id.clone(), Vec::new());
+                }
+
+                let event = &self.events[event_id];
+                timeline.get_mut(object_id).unwrap().push(event.clone());
             }
-
-            let event = &self.events[event_id];
-            timeline.get_mut(object_id).unwrap().push(event.clone());
         }
 
         let timeline = timeline
@@ -284,7 +297,7 @@ impl Config {
         let mut objects = HashSet::new();
 
         for event_id in self.events.keys() {
-            objects.insert(self.events[event_id].object.clone());
+            objects.extend(self.events[event_id].object.flatten());
         }
 
         for vp_tracks in self.viewport_tracks.iter() {

@@ -4,6 +4,7 @@ use skia_safe::{Path, PathMeasure};
 use crate::{
     animation::{easing::Easing, tween::Tween},
     config::{counter::Counters, event::Event},
+    parser::chain::ChainedPath,
     svg::element::{Object, Shape},
     util::{ChronuxError, ChronuxResult},
 };
@@ -57,7 +58,7 @@ pub enum Animation {
 #[derive(Debug, Deserialize, Clone)]
 pub struct TaggedAnimation {
     #[serde(rename = "object")]
-    pub obj_id: String,
+    pub obj_id: ChainedPath,
     #[serde(flatten)]
     pub animation: Animation,
     #[serde(default)]

@@ -54,6 +54,26 @@ impl ChainedPath {
             ChainedPath::Atom(raw.to_string())
         }
     }
+
+    pub fn flatten(&self) -> Vec<String> {
+        match self {
+            ChainedPath::Atom(atom) => vec![atom.clone()],
+            ChainedPath::Seq(chained_paths) | ChainedPath::Par(chained_paths) => chained_paths
+                .iter()
+                .map(|child| child.flatten())
+                .flatten()
+                .collect(),
+        }
+    }
+
+    pub fn contains_object(&self, obj: &str) -> bool {
+        match self {
+            ChainedPath::Atom(o) => o == obj,
+            ChainedPath::Seq(chained_paths) | ChainedPath::Par(chained_paths) => {
+                chained_paths.iter().any(|c| c.contains_object(obj))
+            }
+        }
+    }
 }
 
 impl From<&str> for ChainedPath {

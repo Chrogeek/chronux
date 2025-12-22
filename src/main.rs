@@ -200,12 +200,15 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                 (
                     e.start,
                     e.duration,
-                    obj_map
-                        .get(&e.object)
-                        .map(|index| objs.get(*index))
+                    e.object
                         .flatten()
-                        .map(|o| o.get_length())
-                        .flatten(),
+                        .iter()
+                        .map(|o| objs[obj_map[o]].get_length())
+                        .fold(None, |acc, cur| match (acc, cur) {
+                            (None, _) => cur,
+                            (_, None) => acc,
+                            (Some(acc), Some(cur)) => Some(acc + cur),
+                        }),
                     id.clone(),
                 )
             })

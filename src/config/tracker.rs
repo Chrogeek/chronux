@@ -10,6 +10,7 @@ use crate::{
         event::{Event, Offset},
         group::Group,
     },
+    parser::chain::ChainedPath,
 };
 
 #[serde_as]
@@ -23,7 +24,7 @@ pub struct Tracker {
     pub offset: Offset,
     pub easing: Easing,
     pub duration: f32,
-    pub object: String,
+    pub object: ChainedPath,
     #[serde(default)]
     pub counters: Counters,
     pub children: Vec<TrackerChild>,
