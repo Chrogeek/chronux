@@ -29,6 +29,7 @@ use crate::{
 mod animation;
 mod args;
 mod config;
+mod parser;
 mod render;
 mod svg;
 mod util;
