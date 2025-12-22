@@ -38,21 +38,27 @@ impl ChainedPath {
         }
     }
 
-    pub fn from_raw(raw: &str) -> ChainedPath {
+    pub fn new(raw: &str) -> ChainedPath {
         let raw = raw.trim();
         if raw.starts_with("#seq(") && raw.ends_with(")") {
             let inner = &raw[5..raw.len() - 1];
             let parts = str::split(inner, ',');
-            let paths = parts.map(|s| Self::from_raw(s)).collect();
+            let paths = parts.map(|s| Self::new(s)).collect();
             ChainedPath::Seq(paths)
         } else if raw.starts_with("#par(") && raw.ends_with(")") {
             let inner = &raw[5..raw.len() - 1];
             let parts = str::split(inner, ',');
-            let paths = parts.map(|s| Self::from_raw(s)).collect();
+            let paths = parts.map(|s| Self::new(s)).collect();
             ChainedPath::Par(paths)
         } else {
             ChainedPath::Atom(raw.to_string())
         }
+    }
+}
+
+impl From<&str> for ChainedPath {
+    fn from(raw: &str) -> Self {
+        ChainedPath::new(raw)
     }
 }
 
@@ -87,6 +93,6 @@ impl<'de> serde::Deserialize<'de> for ChainedPath {
         D: serde::Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        Ok(ChainedPath::from_raw(&s))
+        Ok(ChainedPath::new(&s))
     }
 }
