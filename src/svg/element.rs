@@ -190,7 +190,10 @@ impl Object {
         let (tx, ty) = (properties.translate_x, properties.translate_y);
         match &self.shape {
             Shape::Path { d } => {
-                log::warn!("position may not be accurate for path elements");
+                log::warn!(
+                    "position may not be accurate for path element '{}'",
+                    self.id
+                );
                 let Point { x, y } = d.bounds().center();
                 (x + tx, y + ty)
             }
@@ -203,15 +206,24 @@ impl Object {
                 ..
             } => (*x + width / 2.0 + tx, *y + height / 2.0 + ty),
             Shape::Text { x, y, .. } => {
-                log::warn!("position may not be accurate for text elements");
+                log::warn!(
+                    "position may not be accurate for text element '{}'",
+                    self.id
+                );
                 (*x + tx, *y + ty)
             }
             Shape::Image { x, y, .. } => {
-                log::warn!("position may not be accurate for image elements");
+                log::warn!(
+                    "position may not be accurate for image element '{}'",
+                    self.id
+                );
                 (*x + tx, *y + ty)
             }
             Shape::Group { objects } => {
-                log::warn!("position may not be accurate for group elements");
+                log::warn!(
+                    "position may not be accurate for group element '{}'",
+                    self.id
+                );
                 if let Some(first) = objects.first() {
                     first.get_position(properties)
                 } else {

@@ -7,6 +7,7 @@ use svgtypes::PaintOrder;
 
 use crate::{
     animation::Animation,
+    config::event::Event,
     svg::defs::SvgDef,
     util::{
         self, ChronuxError, ChronuxResult, paint::ColorPaint, parse_color_or_image,
@@ -74,18 +75,50 @@ impl Default for Properties {
 }
 
 impl Properties {
-    pub fn apply(&self, event: &Animation, t: f32) -> Properties {
-        match event {
+    pub fn apply(
+        &self,
+        event: &Event,
+        t: f32,
+        object: &str,
+        dict: &HashMap<String, f32>,
+    ) -> Properties {
+        match &event.animation {
             Animation::None => self.clone(),
             Animation::TrimPath { reverse } => {
+                let chain = &event.object;
+                let segment = chain.locate(object, dict).unwrap_or((0.0, 0.0));
+                let seglength = segment.1 - segment.0;
+                let chain_len = chain.length(dict).unwrap_or(0.0);
                 let (start, end) = if *reverse { (1.0 - t, 1.0) } else { (0.0, t) };
+                let (start, end) = (start * chain_len, end * chain_len);
+                let (start, end) = (
+                    start.clamp(segment.0, segment.1),
+                    end.clamp(segment.0, segment.1),
+                );
+                let (start, end) = (
+                    (start - segment.0) / seglength,
+                    (end - segment.0) / seglength,
+                );
                 Properties {
                     trim: (start, end),
                     ..self.clone()
                 }
             }
             Animation::TrimPathOut { reverse } => {
+                let chain = &event.object;
+                let segment = chain.locate(object, dict).unwrap_or((0.0, 0.0));
+                let seglength = segment.1 - segment.0;
+                let chain_len = chain.length(dict).unwrap_or(0.0);
                 let (start, end) = if *reverse { (t, 1.0) } else { (0.0, 1.0 - t) };
+                let (start, end) = (start * chain_len, end * chain_len);
+                let (start, end) = (
+                    start.clamp(segment.0, segment.1),
+                    end.clamp(segment.0, segment.1),
+                );
+                let (start, end) = (
+                    (start - segment.0) / seglength,
+                    (end - segment.0) / seglength,
+                );
                 Properties {
                     trim: (start, end),
                     ..self.clone()

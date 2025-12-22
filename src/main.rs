@@ -345,7 +345,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                     for o in objs.iter() {
                         if minimap.paths.contains(&o.id) {
                             let properties = match timeline.get(&o.id) {
-                                Some(tl) => tl.interpolate(t),
+                                Some(tl) => tl.interpolate(t, &path_length_dict),
                                 None => {
                                     return Err(ChronuxError::ArgError(format!(
                                         "Object '{}' in minimap.paths not in timeline",
@@ -504,7 +504,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                         let mut pm = skia_safe::PathMeasure::new(d, false, Some(2.0));
                         let path_length = pm.length();
 
-                        let path_props = timeline[path].interpolate(t);
+                        let path_props = timeline[path].interpolate(t, &path_length_dict);
                         let (ps, pe) = path_props.trim;
 
                         if path_props.stroke_width < 1e-4
@@ -557,7 +557,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                         let mut pm = skia_safe::PathMeasure::new(d, false, Some(2.0));
                         let path_length = pm.length();
 
-                        let path_props = timeline[path].interpolate(t);
+                        let path_props = timeline[path].interpolate(t, &path_length_dict);
                         let (ps, pe) = path_props.trim;
 
                         if path_props.stroke_width < 1e-4
@@ -606,7 +606,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             } else if !o.apply_transform {
                 continue;
             } else if let Some(tl) = timeline.get(&o.id) {
-                let properties = tl.interpolate(t);
+                let properties = tl.interpolate(t, &path_length_dict);
                 render::draw(
                     surface.canvas(),
                     &o.shape,
@@ -625,7 +625,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                         *count -= 1;
                         if *count == 0 {
                             for path in paths.iter() {
-                                let properties = timeline[path].interpolate(t);
+                                let properties = timeline[path].interpolate(t, &path_length_dict);
                                 let mut extra_paint =
                                     properties.get_stroke_paint(&defs, o.transform);
                                 extra_paint
@@ -683,7 +683,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             } else if o.apply_transform {
                 continue;
             } else if let Some(tl) = timeline.get(&o.id) {
-                let properties = tl.interpolate(t);
+                let properties = tl.interpolate(t, &path_length_dict);
                 render::draw(
                     surface.canvas(),
                     &o.shape,
@@ -700,7 +700,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
 
         // 绘制小地图
         if let Some(minimap) = conf.drawing.minimap.as_ref() {
-            let minimap_props = timeline[&minimap.position].interpolate(t);
+            let minimap_props = timeline[&minimap.position].interpolate(t, &path_length_dict);
             let (x, y) = objs[obj_map[&minimap.position]].get_position(&minimap_props);
             widget::minimap::draw(
                 surface.canvas(),
@@ -713,12 +713,13 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                 x,
                 y,
                 bounds.as_ref().unwrap()[f - frame_start],
+                &path_length_dict,
             )?;
         }
 
         // 绘制比例尺
         if let Some(scale) = conf.drawing.scale.as_ref() {
-            let scale_props = timeline[&scale.position].interpolate(t);
+            let scale_props = timeline[&scale.position].interpolate(t, &path_length_dict);
             let (x, y) = objs[obj_map[&scale.position]].get_position(&scale_props);
             widget::scale::draw(surface.canvas(), scale, vw, &conf.drawing.ascii_font, x, y)?;
         }
@@ -727,10 +728,14 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         if let Some(dates_config) = conf.drawing.dates.as_ref()
             && let Some(dates_keyframes) = dates_keyframes.as_ref()
         {
-            let position_year_props = timeline[&dates_config.position_year].interpolate(t);
-            let position_date_props = timeline[&dates_config.position_date].interpolate(t);
-            let area_year_props = timeline[&dates_config.area_year].interpolate(t);
-            let area_date_props = timeline[&dates_config.area_date].interpolate(t);
+            let position_year_props =
+                timeline[&dates_config.position_year].interpolate(t, &path_length_dict);
+            let position_date_props =
+                timeline[&dates_config.position_date].interpolate(t, &path_length_dict);
+            let area_year_props =
+                timeline[&dates_config.area_year].interpolate(t, &path_length_dict);
+            let area_date_props =
+                timeline[&dates_config.area_date].interpolate(t, &path_length_dict);
 
             let position_year =
                 objs[obj_map[&dates_config.position_year]].get_position(&position_year_props);

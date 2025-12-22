@@ -116,9 +116,9 @@ pub fn track(
                 .enumerate()
                 .reduce(|(acc_id, (acc_t, acc_dis2)), (cur_id, (cur_t, cur_dis2))| {
                     if cur_dis2 <= acc_dis2 {
-                        (acc_id, (cur_t, cur_dis2))
+                        (cur_id, (cur_t, cur_dis2))
                     } else {
-                        (cur_id, (acc_t, acc_dis2))
+                        (acc_id, (acc_t, acc_dis2))
                     }
                 })
                 .ok_or_else(|| ChronuxError::ArgError("Empty #seq chained path".to_string()))?;
@@ -168,7 +168,7 @@ pub fn track(
     }
 
     // 返回跟踪结果
-    Ok((tm * event.duration, dis2))
+    Ok((tm, dis2))
 }
 
 /// Calculate the nearest point on path d to given point (x, y).

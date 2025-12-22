@@ -21,6 +21,7 @@ pub fn draw(
     x: f32,
     y: f32,
     bounds: Option<(f32, f32, f32, f32)>,
+    dict: &HashMap<String, f32>,
 ) -> ChronuxResult<()> {
     if bounds.is_none() {
         // 小地图为空，什么都不画
@@ -108,7 +109,7 @@ pub fn draw(
     for o in objs.iter() {
         if minimap.paths.contains(&o.id) {
             let properties = match timeline.get(&o.id) {
-                Some(tl) => tl.interpolate(t),
+                Some(tl) => tl.interpolate(t, dict),
                 None => o.style.clone(),
             };
             render::draw(

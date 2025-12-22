@@ -97,6 +97,43 @@ impl ChainedPath {
                 .map(|len| len / (chained_paths.len() as f32)),
         }
     }
+
+    // 定位 atom 路径在整个 chained_path 上的起止位置，返回 Option<(start, end)>
+    pub fn locate(&self, atom: &str, dict: &HashMap<String, f32>) -> Option<(f32, f32)> {
+        match self {
+            ChainedPath::Atom(o) => {
+                if o == atom {
+                    dict.get(o).cloned().map(|len| (0.0, len))
+                } else {
+                    None
+                }
+            }
+            ChainedPath::Seq(chained_paths) => {
+                let mut accumulated_length = 0.0;
+                for child in chained_paths {
+                    if let Some((start, end)) = child.locate(atom, dict) {
+                        return Some((accumulated_length + start, accumulated_length + end));
+                    }
+                    accumulated_length += child.length(dict)?;
+                }
+                None
+            }
+            ChainedPath::Par(chained_paths) => {
+                let lengths = chained_paths
+                    .iter()
+                    .map(|c| c.length(dict))
+                    .collect::<Option<Vec<_>>>()?;
+                let avg_length = lengths.iter().sum::<f32>() / (chained_paths.len() as f32);
+                for (id, child) in chained_paths.iter().enumerate() {
+                    if let Some((start, end)) = child.locate(atom, dict) {
+                        let scale = avg_length / lengths[id];
+                        return Some((start * scale, end * scale));
+                    }
+                }
+                None
+            }
+        }
+    }
 }
 
 impl From<&str> for ChainedPath {

@@ -214,7 +214,7 @@ impl Config {
                 let nextobj = &self.events[next].object;
                 let (track_t, _dis2) =
                     track(nextobj, objs, objmap, &self.events[next], x, y, dict)?;
-                track_start_time = t + track_t;
+                track_start_time = t + track_t * self.events[next].duration;
             }
         }
 
@@ -282,7 +282,8 @@ impl Config {
         let timeline = timeline
             .into_iter()
             .filter_map(|(object_id, events)| {
-                Timeline::new(events, Properties::default()).map(|tl| (object_id, tl))
+                Timeline::new(events, Properties::default(), object_id.clone())
+                    .map(|tl| (object_id, tl))
             })
             .collect();
 
@@ -442,7 +443,7 @@ impl Config {
             let pos_pchip = if d_length > 1e-4 {
                 Interpolator::new_pchip(time_seq.clone(), pos_seq).inspect_err(|_e| {
                     log::error!(
-                        "Failed to create position PchipInterpolator for viewport track on {})",
+                        "Failed to create position PchipInterpolator for viewport track on {}",
                         tracked_path.id,
                     );
                 })?
