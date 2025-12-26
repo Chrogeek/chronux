@@ -39,16 +39,37 @@ impl ChainedPath {
     }
 
     pub fn new(raw: &str) -> ChainedPath {
+        fn split_args(raw: &str) -> Vec<&str> {
+            let mut l = 0;
+            let mut nest = 0;
+            let mut ret = vec![];
+            for (r, c) in raw.as_bytes().iter().enumerate() {
+                match c {
+                    b'(' => nest += 1,
+                    b')' => nest -= 1,
+                    b',' if nest == 0 => {
+                        ret.push(&raw[l..r]);
+                        l = r + 1;
+                    }
+                    _ => continue,
+                }
+            }
+            if l < raw.len() {
+                ret.push(&raw[l..]);
+            }
+            return ret;
+        }
+
         let raw = raw.trim();
         if raw.starts_with("#seq(") && raw.ends_with(")") {
             let inner = &raw[5..raw.len() - 1];
-            let parts = str::split(inner, ',');
-            let paths = parts.map(|s| Self::new(s)).collect();
+            let parts = split_args(inner);
+            let paths = parts.iter().map(|s| Self::new(s)).collect();
             ChainedPath::Seq(paths)
         } else if raw.starts_with("#par(") && raw.ends_with(")") {
             let inner = &raw[5..raw.len() - 1];
-            let parts = str::split(inner, ',');
-            let paths = parts.map(|s| Self::new(s)).collect();
+            let parts = split_args(inner);
+            let paths = parts.iter().map(|s| Self::new(s)).collect();
             ChainedPath::Par(paths)
         } else {
             ChainedPath::Atom(raw.to_string())
