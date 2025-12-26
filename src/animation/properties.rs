@@ -195,6 +195,11 @@ impl Properties {
                 scale_y: t,
                 ..self.clone()
             },
+            Animation::StretchOut => Properties {
+                scale_x: 1.0 - t,
+                scale_y: 1.0 - t,
+                ..self.clone()
+            },
         }
     }
 

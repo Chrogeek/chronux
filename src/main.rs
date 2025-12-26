@@ -294,7 +294,8 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                     | Animation::Tween(_)
                     | Animation::FadeOut
                     | Animation::TrimPathOut { .. }
-                    | Animation::Move { .. } => {}
+                    | Animation::Move { .. }
+                    | Animation::StretchOut => {}
                 }
             }
         }
