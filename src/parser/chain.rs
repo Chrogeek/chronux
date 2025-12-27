@@ -23,6 +23,7 @@ pub enum ChainedPath {
     Atom(String),
     Seq(Vec<ChainedPath>),
     Par(Vec<ChainedPath>),
+    Rev(Box<ChainedPath>),
 }
 
 impl ChainedPath {
@@ -61,7 +62,11 @@ impl ChainedPath {
         }
 
         let raw = raw.trim();
-        if raw.starts_with("#seq(") && raw.ends_with(")") {
+        if raw.starts_with("#rev(") && raw.ends_with(")") {
+            let inner = &raw[5..raw.len() - 1];
+            let child = Self::new(inner);
+            ChainedPath::Rev(Box::new(child))
+        } else if raw.starts_with("#seq(") && raw.ends_with(")") {
             let inner = &raw[5..raw.len() - 1];
             let parts = split_args(inner);
             let paths = parts.iter().map(|s| Self::new(s)).collect();
@@ -84,6 +89,7 @@ impl ChainedPath {
                 .map(|child| child.flatten())
                 .flatten()
                 .collect(),
+            ChainedPath::Rev(sub) => sub.flatten(),
         }
     }
 
@@ -116,6 +122,7 @@ impl ChainedPath {
                     _ => None,
                 })
                 .map(|len| len / (chained_paths.len() as f32)),
+            ChainedPath::Rev(sub) => sub.length(dict),
         }
     }
 
@@ -153,6 +160,14 @@ impl ChainedPath {
                 }
                 None
             }
+            ChainedPath::Rev(sub) => {
+                if let Some((start, end)) = sub.locate(atom, dict) {
+                    let total_length = sub.length(dict)?;
+                    Some((total_length - end, total_length - start))
+                } else {
+                    None
+                }
+            }
         }
     }
 }
@@ -174,6 +189,9 @@ impl Display for ChainedPath {
             ChainedPath::Par(paths) => {
                 let parts: Vec<String> = paths.iter().map(|p| format!("{}", p)).collect();
                 write!(f, "#par({})", parts.join(", "))
+            }
+            ChainedPath::Rev(sub) => {
+                write!(f, "#rev({})", sub)
             }
         }
     }
