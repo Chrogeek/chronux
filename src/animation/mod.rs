@@ -96,10 +96,6 @@ pub fn track(
                 ))
             }
         }
-        ChainedPath::Rev(sub) => {
-            let (t, dis2) = track(sub, objs, objmap, event, x, y, dict)?;
-            Ok((1.0 - t, dis2))
-        }
         ChainedPath::Seq(chained_paths) => {
             let lengths = chained_paths
                 .iter()
