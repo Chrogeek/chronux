@@ -27,9 +27,9 @@ pub enum ChainedPath {
 }
 
 impl ChainedPath {
-    // pub fn is_atomic(&self) -> bool {
-    //     matches!(self, ChainedPath::Atom(_))
-    // }
+    pub fn is_atomic(&self) -> bool {
+        matches!(self, ChainedPath::Atom(_))
+    }
 
     pub fn get_atomic(&self) -> Option<&String> {
         if let ChainedPath::Atom(s) = self {

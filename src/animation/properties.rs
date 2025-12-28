@@ -86,42 +86,58 @@ impl Properties {
             Animation::None => self.clone(),
             Animation::TrimPath { reverse } => {
                 let chain = &event.object;
-                let segment = chain.locate(object, dict).unwrap_or((0.0, 0.0));
-                let seglength = segment.1 - segment.0;
-                let chain_len = chain.length(dict).unwrap_or(0.0);
-                let (start, end) = if *reverse { (1.0 - t, 1.0) } else { (0.0, t) };
-                let (start, end) = (start * chain_len, end * chain_len);
-                let (start, end) = (
-                    start.clamp(segment.0, segment.1),
-                    end.clamp(segment.0, segment.1),
-                );
-                let (start, end) = (
-                    (start - segment.0) / seglength,
-                    (end - segment.0) / seglength,
-                );
-                Properties {
-                    trim: (start, end),
-                    ..self.clone()
+                if chain.is_atomic() {
+                    let (start, end) = if *reverse { (1.0 - t, 1.0) } else { (0.0, t) };
+                    Properties {
+                        trim: (start, end),
+                        ..self.clone()
+                    }
+                } else {
+                    let segment = chain.locate(object, dict).unwrap_or((0.0, 0.0));
+                    let seglength = segment.1 - segment.0;
+                    let chain_len = chain.length(dict).unwrap_or(0.0);
+                    let (start, end) = if *reverse { (1.0 - t, 1.0) } else { (0.0, t) };
+                    let (start, end) = (start * chain_len, end * chain_len);
+                    let (start, end) = (
+                        start.clamp(segment.0, segment.1),
+                        end.clamp(segment.0, segment.1),
+                    );
+                    let (start, end) = (
+                        (start - segment.0) / seglength,
+                        (end - segment.0) / seglength,
+                    );
+                    Properties {
+                        trim: (start, end),
+                        ..self.clone()
+                    }
                 }
             }
             Animation::TrimPathOut { reverse } => {
                 let chain = &event.object;
-                let segment = chain.locate(object, dict).unwrap_or((0.0, 0.0));
-                let seglength = segment.1 - segment.0;
-                let chain_len = chain.length(dict).unwrap_or(0.0);
-                let (start, end) = if *reverse { (t, 1.0) } else { (0.0, 1.0 - t) };
-                let (start, end) = (start * chain_len, end * chain_len);
-                let (start, end) = (
-                    start.clamp(segment.0, segment.1),
-                    end.clamp(segment.0, segment.1),
-                );
-                let (start, end) = (
-                    (start - segment.0) / seglength,
-                    (end - segment.0) / seglength,
-                );
-                Properties {
-                    trim: (start, end),
-                    ..self.clone()
+                if chain.is_atomic() {
+                    let (start, end) = if *reverse { (t, 1.0) } else { (0.0, 1.0 - t) };
+                    Properties {
+                        trim: (start, end),
+                        ..self.clone()
+                    }
+                } else {
+                    let segment = chain.locate(object, dict).unwrap_or((0.0, 0.0));
+                    let seglength = segment.1 - segment.0;
+                    let chain_len = chain.length(dict).unwrap_or(0.0);
+                    let (start, end) = if *reverse { (t, 1.0) } else { (0.0, 1.0 - t) };
+                    let (start, end) = (start * chain_len, end * chain_len);
+                    let (start, end) = (
+                        start.clamp(segment.0, segment.1),
+                        end.clamp(segment.0, segment.1),
+                    );
+                    let (start, end) = (
+                        (start - segment.0) / seglength,
+                        (end - segment.0) / seglength,
+                    );
+                    Properties {
+                        trim: (start, end),
+                        ..self.clone()
+                    }
                 }
             }
             Animation::Typewriter { reverse } => Properties {

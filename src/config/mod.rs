@@ -6,7 +6,7 @@ use serde_with::serde_as;
 use skia_safe::{Color, PathMeasure};
 
 use crate::{
-    animation::{easing::Easing, properties::Properties, timeline::Timeline, track, track_on_path},
+    animation::{properties::Properties, timeline::Timeline, track, track_on_path},
     config::{
         counter::{Counters, update_counters},
         dates::DatesConfig,
@@ -409,7 +409,7 @@ impl Config {
                         if d_length < 1e-4 {
                             0.0
                         } else {
-                            let (pt, len, _) = track_on_path(d, kx, ky, &Easing::Linear);
+                            let (pt, len, _) = track_on_path(d, kx, ky);
                             // total_time=0.0 since in this case (not animating) we don't care it
                             pt * len
                         }

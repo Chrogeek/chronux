@@ -88,7 +88,7 @@ pub fn track(
         ChainedPath::Atom(o) => {
             let obj = &objs[objmap[o]];
             if let Shape::Path { d } = &obj.shape {
-                let (t, _, dis2) = track_on_path(d, x, y, &Easing::Linear);
+                let (t, _, dis2) = track_on_path(d, x, y);
                 Ok((t, dis2))
             } else {
                 Err(ChronuxError::ArgError(
@@ -179,7 +179,7 @@ pub fn track(
 
 /// Calculate the nearest point on path d to given point (x, y).
 /// Returns (t, d, p) where d is the path length and p is the coordinate of nearest point, l is the length from path origin to the nearest point, and t = l / d.
-pub fn track_on_path(d: &Path, x: f32, y: f32, easing: &Easing) -> (f32, f32, f32) {
+pub fn track_on_path(d: &Path, x: f32, y: f32) -> (f32, f32, f32) {
     const SEGMENTS: usize = 20;
 
     let mut pm = PathMeasure::new(d, false, Some(2.0));
@@ -187,10 +187,9 @@ pub fn track_on_path(d: &Path, x: f32, y: f32, easing: &Easing) -> (f32, f32, f3
 
     let closest = (0..SEGMENTS + 1)
         .map(|i| {
-            let p = i as f32 / SEGMENTS as f32;
-            let t = easing.evaluate(p);
+            let t = i as f32 / SEGMENTS as f32;
             let dis = t * length;
-            (p, pm.pos_tan(dis).unwrap().0)
+            (t, pm.pos_tan(dis).unwrap().0)
         })
         .min_by(|(_, p1), (_, p2)| {
             let d1 = (p1.x - x).powi(2) + (p1.y - y).powi(2);
@@ -205,8 +204,8 @@ pub fn track_on_path(d: &Path, x: f32, y: f32, easing: &Easing) -> (f32, f32, f3
     for _ in 0..20 {
         let ml = tl + (tr - tl) / 3.0;
         let mr = tr - (tr - tl) / 3.0;
-        let dl = pm.pos_tan(easing.evaluate(ml) * length).unwrap().0;
-        let dr = pm.pos_tan(easing.evaluate(mr) * length).unwrap().0;
+        let dl = pm.pos_tan(ml * length).unwrap().0;
+        let dr = pm.pos_tan(mr * length).unwrap().0;
         let d1 = (dl.x - x).powi(2) + (dl.y - y).powi(2);
         let d2 = (dr.x - x).powi(2) + (dr.y - y).powi(2);
         if d1 < d2 {
