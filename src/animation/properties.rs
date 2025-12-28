@@ -8,7 +8,7 @@ use svgtypes::PaintOrder;
 use crate::{
     animation::Animation,
     config::event::Event,
-    svg::defs::SvgDef,
+    svg::{defs::SvgDef, element::Shape},
     util::{
         self, ChronuxError, ChronuxResult, paint::ColorPaint, parse_color_or_image,
         parse_font_weight, parse_href, parse_unit_value,
@@ -41,6 +41,7 @@ pub struct Properties {
     pub tweening: bool,
     pub dash_offset: f32,
     pub dash_array: Vec<f32>,
+    pub shape: Shape,
 }
 
 impl Default for Properties {
@@ -70,6 +71,7 @@ impl Default for Properties {
             tweening: false,
             dash_offset: 0.0,
             dash_array: Vec::new(),
+            shape: Shape::None,
         }
     }
 }
@@ -81,6 +83,7 @@ impl Properties {
         t: f32,
         object: &str,
         dict: &HashMap<String, f32>,
+        shape_dict: &HashMap<String, Shape>,
     ) -> Properties {
         match &event.animation {
             Animation::None => self.clone(),
@@ -189,6 +192,27 @@ impl Properties {
                 }
                 if let Some(r) = tween.rotate {
                     new_props.rotate += t * (r - self.rotate);
+                }
+                if let Some(s) = &tween.shape {
+                    // todo: handle shape tweening
+                    let dst_shape = &shape_dict[s];
+                    let src_shape = &self.shape;
+                    match (src_shape, dst_shape) {
+                        (Shape::Path { d: src_d }, Shape::Path { d: dst_d }) => {
+                            if let Some(res_d) = src_d.interpolate(dst_d, 1.0 - t) {
+                                new_props.shape = Shape::Path { d: res_d };
+                            } else {
+                                log::error!(
+                                    "Failed to interpolate between paths for shape tweening"
+                                );
+                                panic!();
+                            }
+                        }
+                        _ => {
+                            log::error!("Shape tweening requires two Path elements");
+                            panic!();
+                        }
+                    }
                 }
                 new_props.tweening = true;
                 new_props
@@ -549,6 +573,10 @@ impl Properties {
                 child.dash_array.clone()
             } else {
                 parent.dash_array.clone()
+            },
+            shape: match &child.shape {
+                Shape::None => parent.shape.clone(),
+                _ => child.shape.clone(),
             },
             ..child.clone()
         }

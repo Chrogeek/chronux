@@ -87,7 +87,7 @@ pub fn track(
     let (t, dis2) = match chained_path {
         ChainedPath::Atom(o) => {
             let obj = &objs[objmap[o]];
-            if let Shape::Path { d } = &obj.shape {
+            if let Shape::Path { d } = &obj.style.shape {
                 let (t, _, dis2) = track_on_path(d, x, y);
                 Ok((t, dis2))
             } else {

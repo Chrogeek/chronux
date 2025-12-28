@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 
-use skia_safe::{
-    Canvas, Matrix, Paint, PaintStyle, Rect, TileMode, Vector, image_filters::blur,
-};
+use skia_safe::{Canvas, Matrix, Paint, PaintStyle, Rect, TileMode, Vector, image_filters::blur};
 
 use crate::{
     animation::properties::Properties,
@@ -13,7 +11,6 @@ use crate::{
 
 pub fn draw(
     canvas: &Canvas,
-    shape: &Shape,
     properties: &Properties,
     min_stroke_width: f32,
     counters: &Counters,
@@ -55,7 +52,7 @@ pub fn draw(
     let paints = sort_paints(properties.paint_order, stroke, fill);
 
     let bboxcenter =
-        get_bounding_box(shape, properties).map(|(l, t, r, b)| ((l + r) * 0.5, (t + b) * 0.5));
+        get_bounding_box(properties).map(|(l, t, r, b)| ((l + r) * 0.5, (t + b) * 0.5));
 
     // 将画布绕 bboxcenter 点旋转 properties.rotate 角度(deg)
     let restore_handle = if properties.rotate.abs() > 1e-4
@@ -68,7 +65,8 @@ pub fn draw(
         None
     };
 
-    match shape {
+    match &properties.shape {
+        Shape::None => {}
         Shape::Path { d } => {
             let mut paints = paints;
             if let Some(e) = properties.get_effects() {
@@ -82,17 +80,17 @@ pub fn draw(
             // TODO: 这里的缩放操作可能与预期不同，后期使用时需要检查
             canvas.scale((properties.scale_x, properties.scale_y));
 
-            canvas.draw_path(d, &paints[0]);
-            canvas.draw_path(d, &paints[1]);
+            canvas.draw_path(&d, &paints[0]);
+            canvas.draw_path(&d, &paints[1]);
 
             canvas.restore_to_count(restore_handle);
         }
         Shape::Circle { cx, cy, r } => {
             let (cx, cy, rx, ry) = (
-                *cx + properties.translate_x,
-                *cy + properties.translate_y,
-                *r * properties.scale_x,
-                *r * properties.scale_y,
+                cx + properties.translate_x,
+                cy + properties.translate_y,
+                r * properties.scale_x,
+                r * properties.scale_y,
             );
             let (sweep_start, sweep_end) = properties.sweep;
             for paint in paints {
@@ -117,7 +115,7 @@ pub fn draw(
             ry,
         } => {
             let (x, y) = (x + properties.translate_x, y + properties.translate_y);
-            let (rx, ry) = (*rx * properties.scale_x, *ry * properties.scale_y);
+            let (rx, ry) = (rx * properties.scale_x, ry * properties.scale_y);
             let (w, h) = (width * properties.scale_x, height * properties.scale_y);
             let rect = Rect::new(
                 x + width * 0.5 - w * 0.5,
@@ -177,8 +175,8 @@ pub fn draw(
             if properties.opacity > 1e-4 {
                 let (w, h) = (width * properties.scale_x, height * properties.scale_y);
                 let dst_rect = Rect::new(
-                    *x + properties.translate_x + width * 0.5 - w * 0.5,
-                    *y + properties.translate_y + height * 0.5 - h * 0.5,
+                    x + properties.translate_x + width * 0.5 - w * 0.5,
+                    y + properties.translate_y + height * 0.5 - h * 0.5,
                     x + properties.translate_x + width * 0.5 + w * 0.5,
                     y + properties.translate_y + height * 0.5 + h * 0.5,
                 );
@@ -191,8 +189,7 @@ pub fn draw(
             for obj in objects {
                 draw(
                     canvas,
-                    &obj.shape,
-                    &Properties::merge(&obj.style, properties),
+                    &Properties::merge(&obj, properties),
                     min_stroke_width,
                     counters,
                     viewport_rect,
@@ -211,11 +208,11 @@ pub fn draw(
     Ok(())
 }
 
-pub fn get_bounding_box(shape: &Shape, properties: &Properties) -> Option<(f32, f32, f32, f32)> {
+pub fn get_bounding_box(properties: &Properties) -> Option<(f32, f32, f32, f32)> {
     if properties.opacity < 1e-4 || !properties.visible {
         return None; // 不可见，无边界框
     }
-    match shape {
+    match &properties.shape {
         Shape::Path { d } => {
             const SEGMENTS: usize = 20;
             let mut pm = skia_safe::PathMeasure::new(d, false, None);

@@ -6,7 +6,7 @@ use serde_with::serde_as;
 use skia_safe::{Color, PathMeasure};
 
 use crate::{
-    animation::{properties::Properties, timeline::Timeline, track, track_on_path},
+    animation::{Animation, properties::Properties, timeline::Timeline, track, track_on_path},
     config::{
         counter::{Counters, update_counters},
         dates::DatesConfig,
@@ -295,7 +295,15 @@ impl Config {
         let mut objects = HashSet::new();
 
         for event_id in self.events.keys() {
-            objects.extend(self.events[event_id].object.flatten());
+            let evt = &self.events[event_id];
+            objects.extend(evt.object.flatten());
+
+            // Tween 动画中如果指定了 shape，也要加入
+            if let Animation::Tween(tween) = &evt.animation
+                && let Some(s) = &tween.shape
+            {
+                objects.insert(s.clone());
+            }
         }
 
         for vp_tracks in self.viewport_tracks.iter() {
@@ -377,7 +385,7 @@ impl Config {
                         "Viewport track reference object does not exist: {}",
                         viewport.tracked_path
                     )))?];
-            let d = match &tracked_path.shape {
+            let d = match &tracked_path.style.shape {
                 Shape::Path { d } => d,
                 _ => {
                     return Err(ChronuxError::ArgError(format!(

@@ -16,13 +16,13 @@ use crate::{
 pub struct Object {
     pub id: String,
     pub style: Properties,
-    pub shape: Shape,
     pub apply_transform: bool,
     pub transform: Matrix,
 }
 
 #[derive(Debug, Clone)]
 pub enum Shape {
+    None,
     Path {
         d: Path,
     },
@@ -52,8 +52,71 @@ pub enum Shape {
         skia_img: Image,
     },
     Group {
-        objects: Vec<Object>,
+        objects: Vec<Properties>,
     },
+}
+
+impl Shape {
+    pub fn get_bounds(&self) -> Rect {
+        match self {
+            Shape::None => Rect::new_empty(),
+            Shape::Path { d } => *d.bounds(),
+            Shape::Circle { cx, cy, r } => Rect::from_xywh(*cx - *r, *cy - *r, *r * 2.0, *r * 2.0),
+            Shape::Rect {
+                x,
+                y,
+                width,
+                height,
+                ..
+            } => Rect::from_xywh(*x, *y, *width, *height),
+            Shape::Text { children, .. } => children
+                .iter()
+                .map(|c| c.bounds)
+                .reduce(|mut a, b| {
+                    a.join(b);
+                    a
+                })
+                .unwrap_or(Rect::new_empty()),
+            Shape::Image {
+                x,
+                y,
+                width,
+                height,
+                ..
+            } => Rect::from_xywh(*x, *y, *width, *height),
+            Shape::Group { objects } => objects
+                .iter()
+                .map(|c| c.shape.get_bounds())
+                .reduce(|mut a, b| {
+                    a.join(b);
+                    a
+                })
+                .unwrap_or(Rect::new_empty()),
+        }
+    }
+
+    pub fn get_position(&self) -> Point {
+        match self {
+            Shape::None => Point::new(0.0, 0.0),
+            Shape::Circle { cx, cy, .. } => Point::new(*cx, *cy),
+            Shape::Rect {
+                x,
+                y,
+                width,
+                height,
+                ..
+            }
+            | Shape::Image {
+                x,
+                y,
+                width,
+                height,
+                ..
+            } => Rect::from_xywh(*x, *y, *width, *height).center(),
+            Shape::Text { x, y, .. } => Point::new(*x, *y),
+            _ => self.get_bounds().center(),
+        }
+    }
 }
 
 impl Object {
@@ -177,124 +240,31 @@ impl Object {
             }
             _ => unreachable!("unexpected SVG element: {}", node.tag_name().name()),
         };
+        let style = Properties { shape, ..style };
         Ok(Object {
             id,
             style,
-            shape,
             apply_transform,
             transform: mat,
         })
     }
 
     pub fn get_position(&self, properties: &Properties) -> (f32, f32) {
+        // TODO: 暂时还没支持 scale, rotate 等变换
+        let Point { x, y } = self.style.shape.get_position();
         let (tx, ty) = (properties.translate_x, properties.translate_y);
-        match &self.shape {
-            Shape::Path { d } => {
-                log::warn!(
-                    "position may not be accurate for path element '{}'",
-                    self.id
-                );
-                let Point { x, y } = d.bounds().center();
-                (x + tx, y + ty)
-            }
-            Shape::Circle { cx, cy, .. } => (*cx + tx, *cy + ty),
-            Shape::Rect {
-                x,
-                y,
-                width,
-                height,
-                ..
-            } => (*x + width / 2.0 + tx, *y + height / 2.0 + ty),
-            Shape::Text { x, y, .. } => {
-                log::warn!(
-                    "position may not be accurate for text element '{}'",
-                    self.id
-                );
-                (*x + tx, *y + ty)
-            }
-            Shape::Image { x, y, .. } => {
-                log::warn!(
-                    "position may not be accurate for image element '{}'",
-                    self.id
-                );
-                (*x + tx, *y + ty)
-            }
-            Shape::Group { objects } => {
-                log::warn!(
-                    "position may not be accurate for group element '{}'",
-                    self.id
-                );
-                if let Some(first) = objects.first() {
-                    first.get_position(properties)
-                } else {
-                    (0.0, 0.0)
-                }
-            }
-        }
+        (x + tx, y + ty)
     }
 
     pub fn get_bounds(&self, properties: &Properties) -> Rect {
-        match &self.shape {
-            Shape::Path { d } => {
-                let mut bounds = *d.bounds();
-                bounds.offset((properties.translate_x, properties.translate_y));
-                bounds
-            }
-            Shape::Circle { cx, cy, r } => Rect::new(
-                *cx - *r + properties.translate_x,
-                *cy - *r + properties.translate_y,
-                *cx + *r,
-                *cy + *r,
-            ),
-            Shape::Rect {
-                x,
-                y,
-                width,
-                height,
-                ..
-            } => Rect::from_xywh(
-                *x + properties.translate_x,
-                *y + properties.translate_y,
-                *width,
-                *height,
-            ),
-            Shape::Text { children, .. } => {
-                let mut bounds = children
-                    .iter()
-                    .map(|c| c.bounds)
-                    .reduce(|mut a, b| {
-                        a.join(b);
-                        a
-                    })
-                    .unwrap_or(Rect::new_empty());
-                bounds.offset((properties.translate_x, properties.translate_y));
-                bounds
-            }
-            Shape::Image {
-                x,
-                y,
-                width,
-                height,
-                ..
-            } => Rect::from_xywh(
-                *x + properties.translate_x,
-                *y + properties.translate_y,
-                *width,
-                *height,
-            ),
-            Shape::Group { objects } => objects
-                .iter()
-                .map(|c| c.get_bounds(properties))
-                .reduce(|mut a, b| {
-                    a.join(b);
-                    a
-                })
-                .unwrap_or(Rect::new_empty()),
-        }
+        // TODO: 暂时还没支持 scale, rotate 等变换
+        let raw = self.style.shape.get_bounds();
+        let raw = raw.with_offset((properties.translate_x, properties.translate_y));
+        raw
     }
 
     pub fn get_length(&self) -> Option<f32> {
-        match &self.shape {
+        match &self.style.shape {
             Shape::Path { d } => {
                 let mut pm = PathMeasure::new(d, false, Some(2.0));
                 Some(pm.length())
@@ -306,7 +276,7 @@ impl Object {
 
 fn flatten_group_dfs(
     node: &Node,
-    results: &mut Vec<Object>,
+    results: &mut Vec<Properties>,
     matrix: Matrix,
     base: PathBuf,
     base_id: &String,
@@ -315,7 +285,7 @@ fn flatten_group_dfs(
     if node.is_element() {
         match node.tag_name().name() {
             "path" | "circle" | "text" | "image" | "rect" => {
-                results.push(Object::from_node(
+                let obj = Object::from_node(
                     node,
                     format!(
                         "group-element-{}/{}",
@@ -325,7 +295,8 @@ fn flatten_group_dfs(
                     matrix,
                     base.clone(),
                     apply_transform,
-                )?);
+                )?;
+                results.push(obj.style);
             }
             "g" => (),
             _ => (),

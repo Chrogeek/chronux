@@ -29,6 +29,7 @@ impl ElevatedConfig {
                     .ok_or(ChronuxError::ArgError(format!(
                         "No entry found for key '{key}' in [drawing.elevated]"
                     )))?
+                    .style
                     .shape
                 {
                     Shape::Path { d } => {

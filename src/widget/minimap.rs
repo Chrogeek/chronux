@@ -6,7 +6,10 @@ use crate::{
     animation::timeline::Timeline,
     config::{MinimapAnchor, MinimapConfig, counter::Counters},
     render,
-    svg::{defs::SvgDef, element::Object},
+    svg::{
+        defs::SvgDef,
+        element::{Object, Shape},
+    },
     util::ChronuxResult,
 };
 
@@ -22,6 +25,7 @@ pub fn draw(
     y: f32,
     bounds: Option<(f32, f32, f32, f32)>,
     dict: &HashMap<String, f32>,
+    shape_dict: &HashMap<String, Shape>,
 ) -> ChronuxResult<()> {
     if bounds.is_none() {
         // 小地图为空，什么都不画
@@ -109,12 +113,11 @@ pub fn draw(
     for o in objs.iter() {
         if minimap.paths.contains(&o.id) {
             let properties = match timeline.get(&o.id) {
-                Some(tl) => tl.interpolate(t, dict),
+                Some(tl) => tl.interpolate(t, dict, shape_dict),
                 None => o.style.clone(),
             };
             render::draw(
                 canvas,
-                &o.shape,
                 &properties,
                 minimap.min_stroke_width,
                 counters,

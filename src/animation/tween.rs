@@ -16,6 +16,7 @@ pub struct Tween {
     // pub scale_x: Option<f32>,
     // pub scale_y: Option<f32>,
     pub rotate: Option<f32>,
+    pub shape: Option<String>,
 }
 
 impl<'de> Deserialize<'de> for Tween {
@@ -33,6 +34,7 @@ impl<'de> Deserialize<'de> for Tween {
             translate_x: None,
             translate_y: None,
             rotate: None,
+            shape: None,
         };
 
         let map = toml::Table::deserialize(deserializer)?;
@@ -58,13 +60,16 @@ impl<'de> Deserialize<'de> for Tween {
                         }
                     }
                 }
-                "stroke-width" => tween.stroke_width = toml_value_as_number(value).map(|v| v as f32),
+                "stroke-width" => {
+                    tween.stroke_width = toml_value_as_number(value).map(|v| v as f32)
+                }
                 "opacity" => {
                     tween.opacity = toml_value_as_number(value).map(|v| v as f32);
                 }
                 "x" => tween.translate_x = toml_value_as_number(value).map(|v| v as f32),
                 "y" => tween.translate_y = toml_value_as_number(value).map(|v| v as f32),
                 "rotate" => tween.rotate = toml_value_as_number(value).map(|v| v as f32),
+                "shape" => tween.shape = value.as_str().map(|s| s.to_string()),
                 _ => {}
             }
         }
