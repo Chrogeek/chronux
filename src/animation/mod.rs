@@ -84,6 +84,41 @@ pub fn track(
     dict: &HashMap<String, f32>,
 ) -> ChronuxResult<(f32, f32)> {
     // 先求出不加缓动函数前提下，最近的位置t
+    let (t, dis2) = track_inner(chained_path, objs, objmap, x, y, dict)?;
+
+    let t = match event.animation {
+        Animation::TrimPath { reverse } => Ok(if reverse { 1.0 - t } else { t }),
+        Animation::TrimPathOut { reverse } => Ok(if reverse { t } else { 1.0 - t }),
+        _ => Err(ChronuxError::ArgError(format!(
+            "animation '{:?}' cannot be tracked",
+            event.animation
+        ))),
+    }?;
+
+    // 根据event的缓动函数设置，二分法求出正确的t
+    let (mut tl, mut tr, mut tm) = (0.0, 1.0, 0.5);
+    while tr - tl > 1e-4 {
+        if event.easing.evaluate(tm) < t {
+            tl = tm;
+        } else {
+            tr = tm;
+        }
+        tm = (tl + tr) / 2.0;
+    }
+
+    // 返回跟踪结果
+    Ok((tm, dis2))
+}
+
+fn track_inner(
+    chained_path: &ChainedPath,
+    objs: &[Object],
+    objmap: &HashMap<String, usize>,
+    x: f32,
+    y: f32,
+    dict: &HashMap<String, f32>,
+) -> ChronuxResult<(f32, f32)> {
+    // 先求出不加缓动函数前提下，最近的位置t
     let (t, dis2) = match chained_path {
         ChainedPath::Atom(o) => {
             let obj = &objs[objmap[o]];
@@ -109,7 +144,7 @@ pub fn track(
 
             let tracks = chained_paths
                 .iter()
-                .map(|c| track(c, objs, objmap, event, x, y, dict))
+                .map(|c| track_inner(c, objs, objmap, x, y, dict))
                 .collect::<ChronuxResult<Vec<_>>>()?;
 
             // 获取距离最近的点
@@ -132,7 +167,7 @@ pub fn track(
         ChainedPath::Par(chained_paths) => {
             let tracks = chained_paths
                 .iter()
-                .map(|c| track(c, objs, objmap, event, x, y, dict))
+                .map(|c| track_inner(c, objs, objmap, x, y, dict))
                 .collect::<ChronuxResult<Vec<_>>>()?;
 
             // 获取距离最近的点
@@ -149,28 +184,8 @@ pub fn track(
         }
     }?;
 
-    let t = match event.animation {
-        Animation::TrimPath { reverse } => Ok(if reverse { 1.0 - t } else { t }),
-        Animation::TrimPathOut { reverse } => Ok(if reverse { t } else { 1.0 - t }),
-        _ => Err(ChronuxError::ArgError(format!(
-            "animation '{:?}' cannot be tracked",
-            event.animation
-        ))),
-    }?;
-
-    // 根据event的缓动函数设置，二分法求出正确的t
-    let (mut tl, mut tr, mut tm) = (0.0, 1.0, 0.5);
-    while tr - tl > 1e-4 {
-        if event.easing.evaluate(tm) < t {
-            tl = tm;
-        } else {
-            tr = tm;
-        }
-        tm = (tl + tr) / 2.0;
-    }
-
     // 返回跟踪结果
-    Ok((tm, dis2))
+    Ok((t, dis2))
 }
 
 /// Calculate the nearest point on path d to given point (x, y).
