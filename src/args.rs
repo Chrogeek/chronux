@@ -6,7 +6,7 @@ use crate::util::version::CHRONUX_VERSION;
 #[command(version = CHRONUX_VERSION, about = "A CLI tool for creating simple animations", long_about = None)]
 pub struct Args {
     #[arg(short = 'i', long)]
-    pub config: String,
+    pub config: Vec<String>,
     #[arg(short = 'o', long)]
     pub output: String,
     #[arg(short = 'w', long, value_enum, default_value_t = OutputWriter::PngSequence)]

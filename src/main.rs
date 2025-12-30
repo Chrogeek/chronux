@@ -67,7 +67,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
 
     // 加载动画配置
     let mut conf = Config::load(&input)?;
-    log::info!("Loaded config from file `{input}`");
+    log::info!("Loaded config from file(s) `[{}]`", input.join(", "));
 
     // 拆分所有动画组
     conf.flatten_groups()?;
@@ -77,7 +77,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     log::trace!("IDs: {ids:?}");
 
     // 解析SVG
-    let svg_file = PathBuf::from_str(&input)
+    let svg_file = PathBuf::from_str(&input[0])
         .unwrap()
         .parent()
         .unwrap()
@@ -101,7 +101,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
 
     // 解析包装SVG
     if let Some(overlay_svg) = &conf.input.overlay_svg {
-        let overlay_svg_file = PathBuf::from_str(&input)
+        let overlay_svg_file = PathBuf::from_str(&input[0])
             .unwrap()
             .parent()
             .unwrap()

@@ -146,8 +146,12 @@ fn default_ascii_font() -> String {
 }
 
 impl Config {
-    pub fn load(filename: &str) -> ChronuxResult<Config> {
-        let config_data = std::fs::read_to_string(filename).map_err(ChronuxError::IoError)?;
+    pub fn load(files: &[String]) -> ChronuxResult<Config> {
+        let config_data = files
+            .iter()
+            .map(|f| std::fs::read_to_string(f).map_err(ChronuxError::IoError))
+            .collect::<ChronuxResult<Vec<_>>>()?
+            .join("\n");
         let config: Config = toml::from_str(&config_data).map_err(ChronuxError::ConfigError)?;
 
         if !is_compatible(&config.input.version) {
