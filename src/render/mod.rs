@@ -224,7 +224,11 @@ pub fn get_bounding_box(properties: &Properties) -> Option<(f32, f32, f32, f32)>
             let mut rect: Option<(f32, f32, f32, f32)> = None;
             (0..SEGMENTS).for_each(|i| {
                 let dis = (i as f32 / (SEGMENTS - 1) as f32 * (tr - tl) + tl) * length;
-                let pt = pm.pos_tan(dis).unwrap().0;
+                let pt = if let Some(pt) = pm.pos_tan(dis) {
+                    pt.0
+                } else {
+                    return;
+                };
                 if let Some((rl, rt, rr, rb)) = rect {
                     rect = Some((rl.min(pt.x), rt.min(pt.y), rr.max(pt.x), rb.max(pt.y)));
                 } else {
