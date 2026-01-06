@@ -496,8 +496,10 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                 for o in objs.iter() {
                     let path = &o.id;
                     if let Some(intervals) = elevated.get(path) {
-                        let o = &objs[obj_map[path]];
-                        let d = match &o.style.shape {
+                        let path_props =
+                            timeline[path].interpolate(t, &path_length_dict, &shape_dict);
+
+                        let d = match &path_props.shape {
                             Shape::Path { d } => d,
                             _ => {
                                 return Err(ChronuxError::ArgError(format!(
@@ -510,8 +512,6 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                         let mut pm = skia_safe::PathMeasure::new(d, false, Some(2.0));
                         let path_length = pm.length();
 
-                        let path_props =
-                            timeline[path].interpolate(t, &path_length_dict, &shape_dict);
                         let (ps, pe) = path_props.trim;
 
                         if path_props.stroke_width < 1e-4
@@ -551,7 +551,9 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                 for o in objs.iter() {
                     let path = &o.id;
                     if let Some(intervals) = elevated.get(path) {
-                        let d = match &o.style.shape {
+                        let path_props =
+                            timeline[path].interpolate(t, &path_length_dict, &shape_dict);
+                        let d = match &path_props.shape {
                             Shape::Path { d } => d,
                             _ => {
                                 return Err(ChronuxError::ArgError(format!(
@@ -564,8 +566,6 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                         let mut pm = skia_safe::PathMeasure::new(d, false, Some(2.0));
                         let path_length = pm.length();
 
-                        let path_props =
-                            timeline[path].interpolate(t, &path_length_dict, &shape_dict);
                         let (ps, pe) = path_props.trim;
 
                         if path_props.stroke_width < 1e-4
