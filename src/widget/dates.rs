@@ -42,14 +42,12 @@ pub fn draw(
     let (date_x, date_y) = position_date;
     let (year_x, year_y) = position_year;
 
-    // 4. 保存裁剪区
-    let clip_token = canvas.save();
-
     match config.animation {
         DatesAnimation::Rolling => {
             // 5. 绘制dates
 
             // 5.1. 设置裁剪区域
+            let clip_token = canvas.save();
             canvas.clip_rect(clip_date, ClipOp::Intersect, true);
 
             // 5.2. 动画插值
@@ -105,6 +103,7 @@ pub fn draw(
             // 6. 绘制年份
 
             // 6.1. 设置裁剪区域
+            let clip_token = canvas.save();
             canvas.clip_rect(clip_year, ClipOp::Intersect, true);
 
             let font = get_font(
@@ -257,7 +256,9 @@ pub fn draw(
                                 * (c2 as i32 - c1 as i32) as f32;
                         for c in if rev > 0.0 { c1..=c2 } else { c2..=c1 } {
                             let y = y_start
-                                + (c as i32 - c1 as i32) as f32 * config.line_height * config.font_size_year;
+                                + (c as i32 - c1 as i32) as f32
+                                    * config.line_height
+                                    * config.font_size_year;
                             draw_centered_text(
                                 canvas,
                                 &(c % 10).to_string(),

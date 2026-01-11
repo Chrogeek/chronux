@@ -13,6 +13,7 @@ use crate::{
         elevated::ElevatedConfig,
         event::Event,
         extra_stroke::ExtraStrokeConfig,
+        extra_viewport::ExtraViewportConfig,
         group::Group,
         input::InputConfig,
         output::OutputConfig,
@@ -30,6 +31,7 @@ pub mod dates;
 pub mod elevated;
 pub mod event;
 pub mod extra_stroke;
+pub mod extra_viewport;
 pub mod group;
 pub mod input;
 pub mod output;
@@ -57,9 +59,6 @@ pub struct DrawingConfig {
     _colors: (),
     pub scale: Option<ScaleConfig>,
     pub minimap: Option<MinimapConfig>,
-    #[serde(rename = "debug-timecode")]
-    #[serde(default)]
-    pub debug_timecode: bool,
     #[serde(rename = "ascii-font", default = "default_ascii_font")]
     pub ascii_font: String,
     #[serde(rename = "sum-counters", default)]
@@ -70,6 +69,8 @@ pub struct DrawingConfig {
     #[serde(rename = "extra-stroke")]
     pub extra_stroke: Option<ExtraStrokeConfig>,
     pub elevated: Option<ElevatedConfig>,
+    #[serde(rename = "extra-viewports")]
+    pub extra_viewports: Option<ExtraViewportConfig>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -337,6 +338,12 @@ impl Config {
 
         if let Some(scale) = &self.drawing.scale {
             objects.insert(scale.position.clone());
+        }
+
+        if let Some(extra_vp) = &self.drawing.extra_viewports {
+            for vp in &extra_vp.viewports {
+                objects.insert(vp.target.clone());
+            }
         }
 
         objects.extend(self.input.pinned.iter().cloned());
