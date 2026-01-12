@@ -15,7 +15,7 @@ pub fn draw(
     min_stroke_width: f32,
     counters: &Counters,
     viewport_rect: &Rect,
-    extra_stroke: &Option<ExtraStrokeConfig>,
+    extra_strokes: &Vec<ExtraStrokeConfig>,
     defs: &HashMap<String, SvgDef>,
     element_transform: Matrix,
 ) -> ChronuxResult<()> {
@@ -193,7 +193,7 @@ pub fn draw(
                     min_stroke_width,
                     counters,
                     viewport_rect,
-                    extra_stroke,
+                    extra_strokes,
                     defs,
                     element_transform,
                 )?;

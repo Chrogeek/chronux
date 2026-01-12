@@ -122,7 +122,7 @@ pub fn draw(
                 minimap.min_stroke_width,
                 counters,
                 &Rect::new(bb.0, bb.1, bb.2, bb.3),
-                &None,
+                &vec![],
                 defs,
                 o.transform,
             )?;

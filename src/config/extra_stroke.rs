@@ -8,8 +8,8 @@ use serde_with::serde_as;
 pub struct ExtraStrokeConfig {
     #[serde_with(as = "OneOrMany<_, PreferOne>")]
     pub paths: HashSet<String>,
-    #[serde(rename = "path-groups")]
-    pub path_groups: Vec<Vec<String>>,
+    // #[serde(rename = "path-groups")]
+    // pub path_groups: Vec<Vec<String>>,
     #[serde(rename = "stroke-color")]
     pub stroke_color: String,
     #[serde(rename = "stroke-width")]

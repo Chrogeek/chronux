@@ -66,8 +66,9 @@ pub struct DrawingConfig {
     #[serde_with(as = "OneOrMany<_, PreferOne>")]
     pub phantom: HashSet<String>,
     pub dates: Option<DatesConfig>,
-    #[serde(rename = "extra-stroke")]
-    pub extra_stroke: Option<ExtraStrokeConfig>,
+    #[serde(rename = "extra-strokes")]
+    #[serde_with(as = "OneOrMany<_, PreferOne>")]
+    pub extra_strokes: Vec<ExtraStrokeConfig>,
     pub elevated: Option<ElevatedConfig>,
     #[serde(rename = "extra-viewports")]
     pub extra_viewports: Option<ExtraViewportConfig>,

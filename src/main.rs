@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
 use std::process::ExitCode;
@@ -142,35 +142,27 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         .filter_map(|o| o.get_length().map(|l| (o.id.clone(), l)))
         .collect::<HashMap<_, _>>();
 
-    if let Some(es) = conf.drawing.extra_stroke.as_ref() {
+    if !conf.drawing.extra_strokes.is_empty() {
         // 根据 es 中指定的路径组，将 objs 重排顺序，使得每个路径组的对象都在一起
         // 首先给每个对象指定一个编号：如果不在任何一个路径组中则编号等于 objs 中的下标，否则编号指定为该路径组中所有对象的最大下标
 
-        let obj_id = objs
+        let mut obj_id = objs
             .iter()
             .enumerate()
             .map(|(i, o)| (o.id.clone(), i))
             .collect::<HashMap<_, _>>();
 
-        let obj_id = objs
-            .iter()
-            .enumerate()
-            .map(|(i, o)| {
-                let myid = es
-                    .path_groups
-                    .iter()
-                    .position(|g| g.contains(&o.id))
-                    .map(|group_index| {
-                        es.path_groups[group_index]
-                            .iter()
-                            .map(|item| obj_id[item])
-                            .max()
-                            .unwrap_or(i)
-                    })
-                    .unwrap_or(i);
-                (o.id.clone(), myid)
-            })
-            .collect::<HashMap<_, _>>();
+        for es in conf.drawing.extra_strokes.iter() {
+            if es.paths.len() <= 1 {
+                continue;
+            }
+            let max = es.paths.iter().map(|p| obj_id[p]).max().unwrap();
+            es.paths.iter().for_each(|p| {
+                if max > obj_id[p] {
+                    obj_id.insert(p.clone(), max);
+                }
+            });
+        }
 
         // 按照路径组编号排序
         objs.sort_by_key(|o| obj_id[&o.id]);
@@ -488,7 +480,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                     0.0,
                     &counters,
                     &viewport_rect,
-                    &conf.drawing.extra_stroke,
+                    &conf.drawing.extra_strokes,
                     &defs,
                     o.transform,
                 )?;
@@ -509,7 +501,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                     0.0,
                     &counters,
                     &viewport_rect,
-                    &conf.drawing.extra_stroke,
+                    &conf.drawing.extra_strokes,
                     &defs,
                     o.transform,
                 )?;
@@ -745,29 +737,23 @@ fn draw(
 
     canvas.clip_rect(viewport_rect, ClipOp::Intersect, true);
 
-    // if *tx > 1.0 && *ty > 1.0 {
-    //     canvas.draw_rect(Rect::new(0.0, 0.0, tr - tx, tb - ty), &defpaint);
-    // }
-
     // 为 extra-stroke 准备数据结构
-    let mut es = if let Some(es) = &conf.drawing.extra_stroke {
-        let mut counts = es
-            .path_groups
-            .iter()
-            .map(|g| (HashSet::<String>::from_iter(g.iter().cloned()), g.len()))
-            .collect::<Vec<_>>();
-
-        // 有些路径需要绘制 extra-stroke，但没有出现在路径组中，它们自成一组，需要由此扩充 es
-        for path in es.paths.iter() {
-            if !counts.iter().any(|(paths, _)| paths.contains(path)) {
-                counts.push((HashSet::from([path.clone()]), 1));
-            }
-        }
-
-        Some(counts)
-    } else {
-        None
-    };
+    // TODO: 暂不支持一条路径添加多个 extra-stroke
+    let mut es_count = conf
+        .drawing
+        .extra_strokes
+        .iter()
+        .enumerate()
+        .map(|(id, es)| (id, es.paths.len()))
+        .collect::<HashMap<_, _>>();
+    let es_group = conf
+        .drawing
+        .extra_strokes
+        .iter()
+        .enumerate()
+        .map(|(id, es)| es.paths.iter().map(move |p| (p.clone(), id)))
+        .flatten()
+        .collect::<HashMap<_, _>>();
 
     // 固定对象直接绘制
     for o in objs.iter() {
@@ -779,7 +765,7 @@ fn draw(
                 0.0,
                 &counters,
                 &viewport_rect,
-                &conf.drawing.extra_stroke,
+                &conf.drawing.extra_strokes,
                 &defs,
                 o.transform,
             )?;
@@ -910,33 +896,30 @@ fn draw(
                 0.0,
                 &counters,
                 &viewport_rect,
-                &conf.drawing.extra_stroke,
+                &conf.drawing.extra_strokes,
                 &defs,
                 o.transform,
             )?;
         }
-        if let Some(extra_stroke) = conf.drawing.extra_stroke.as_ref() {
-            for (paths, count) in es.as_mut().unwrap() {
-                if paths.contains(&o.id) {
-                    *count -= 1;
-                    if *count == 0 {
-                        for path in paths.iter() {
-                            let properties =
-                                timeline[path].interpolate(t, &path_length_dict, &shape_dict);
-                            let mut extra_paint = properties.get_stroke_paint(&defs, o.transform);
-                            extra_paint
-                                .set_color(parse_css_color(&extra_stroke.stroke_color, 1.0)?)
-                                .set_stroke_width(extra_stroke.stroke_width);
-                            if let Some(e) = properties.get_effects() {
-                                extra_paint.set_path_effect(e);
-                            }
-                            match &objs[obj_map[path]].style.shape {
-                                Shape::Path { d } => {
-                                    canvas.draw_path(d, &extra_paint);
-                                }
-                                _ => unreachable!("extra stroke only supports paths"),
-                            }
+        if let Some(esg) = es_group.get(&o.id) {
+            let esc = es_count.get_mut(esg).unwrap();
+            *esc -= 1;
+            if *esc == 0 {
+                let es = &conf.drawing.extra_strokes[*esg];
+                for path in es.paths.iter() {
+                    let properties = timeline[path].interpolate(t, &path_length_dict, &shape_dict);
+                    let mut extra_paint = properties.get_stroke_paint(&defs, o.transform);
+                    extra_paint
+                        .set_color(parse_css_color(&es.stroke_color, 1.0)?)
+                        .set_stroke_width(es.stroke_width);
+                    if let Some(e) = properties.get_effects() {
+                        extra_paint.set_path_effect(e);
+                    }
+                    match &objs[obj_map[path]].style.shape {
+                        Shape::Path { d } => {
+                            canvas.draw_path(d, &extra_paint);
                         }
+                        _ => unreachable!("extra stroke only supports paths"),
                     }
                 }
             }
