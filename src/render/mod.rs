@@ -58,6 +58,8 @@ pub fn draw(
     let restore_handle = if properties.rotate.abs() > 1e-4
         && let Some((cx, cy)) = bboxcenter
     {
+        let cx = cx + properties.translate_x;
+        let cy = cy + properties.translate_y;
         let restore_handle = canvas.save();
         canvas.rotate(properties.rotate, Some((cx, cy).into()));
         Some(restore_handle)
