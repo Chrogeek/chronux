@@ -1,3 +1,5 @@
+use lazy_static::lazy_static;
+
 use crate::config::counter::Counters;
 
 #[derive(Debug, Clone)]
@@ -38,21 +40,34 @@ impl PlaceholderText {
             } => {
                 let value = *counters.get(counter).unwrap_or(&0.0);
 
-                if *max_decimals == 0 {
+                let fmtstr = if *max_decimals == 0 {
                     return format!("{value:.0}");
+                } else {
+
+                    let formatted = format!("{:.1$}", value, *max_decimals);
+                    let mut parts = formatted.split('.');
+                    let int = parts.next().unwrap().to_string();
+                    let frac = parts.next().unwrap().to_string();
+
+                    if int.len() >= *max_significant {
+                        int
+                    } else if frac.len() <= *max_significant - int.len() {
+                        formatted
+                    } else {
+                        format!("{}.{}", int, &frac[0..(*max_significant - int.len())])
+                    }
+                };
+
+                // 检查是否出现负零，如果是则去掉负号
+                lazy_static! {
+                    static ref NEGATIVE_ZERO_REGEX: regex::Regex =
+                        regex::Regex::new(r"^-0(\.0+)?$").unwrap();
                 }
 
-                let formatted = format!("{:.1$}", value, *max_decimals);
-                let mut parts = formatted.split('.');
-                let int = parts.next().unwrap().to_string();
-                let frac = parts.next().unwrap().to_string();
-
-                if int.len() >= *max_significant {
-                    int
-                } else if frac.len() <= *max_significant - int.len() {
-                    formatted
+                if NEGATIVE_ZERO_REGEX.is_match(&fmtstr) {
+                    fmtstr[1..].to_string()
                 } else {
-                    format!("{}.{}", int, &frac[0..(*max_significant - int.len())])
+                    fmtstr
                 }
             }
         }
