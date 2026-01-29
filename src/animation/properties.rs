@@ -414,7 +414,14 @@ impl Properties {
                         let p2 = (element_transform * *gradient_transform).map_point(*p2);
                         let shader = gradient_shader::linear(
                             (p1, p2),
-                            stops.iter().map(|s| s.color).collect::<Vec<_>>().as_slice(),
+                            stops
+                                .iter()
+                                .map(|s| {
+                                    let c = s.color;
+                                    c.with_a((c.a() as f32 * self.opacity) as u8)
+                                })
+                                .collect::<Vec<_>>()
+                                .as_slice(),
                             stops
                                 .iter()
                                 .map(|s| s.offset)
@@ -471,7 +478,14 @@ impl Properties {
                         let p2 = (element_transform * *gradient_transform).map_point(*p2);
                         let shader = gradient_shader::linear(
                             (p1, p2),
-                            stops.iter().map(|s| s.color).collect::<Vec<_>>().as_slice(),
+                            stops
+                                .iter()
+                                .map(|s| {
+                                    let c = s.color;
+                                    c.with_a((c.a() as f32 * self.opacity) as u8)
+                                })
+                                .collect::<Vec<_>>()
+                                .as_slice(),
                             stops
                                 .iter()
                                 .map(|s| s.offset)
