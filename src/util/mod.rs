@@ -2,7 +2,7 @@ use std::{collections::HashMap, fmt::Display};
 
 use once_cell::sync::OnceCell;
 use serde::Deserialize;
-use skia_safe::{Color, Paint};
+use skia_safe::{Color, Paint, textlayout::TextDirection, utils::text_utils::Align};
 use svgtypes::PaintOrder;
 
 use crate::util::paint::ColorPaint;
@@ -77,6 +77,26 @@ pub static COLOR_DICT: OnceCell<HashMap<String, Color>> = OnceCell::new();
 pub enum TextDrawPass {
     Fill,
     Stroke,
+}
+
+#[derive(Copy, Clone, Debug, Default)]
+pub enum TextAnchor {
+    #[default]
+    Start,
+    Middle,
+    End,
+}
+
+impl TextAnchor {
+    pub fn to_align(self, dir: TextDirection) -> Align {
+        match (self, dir) {
+            (TextAnchor::Start, TextDirection::LTR) => Align::Left,
+            (TextAnchor::Start, TextDirection::RTL) => Align::Right,
+            (TextAnchor::Middle, _) => Align::Center,
+            (TextAnchor::End, TextDirection::LTR) => Align::Right,
+            (TextAnchor::End, TextDirection::RTL) => Align::Left,
+        }
+    }
 }
 
 pub fn parse_css_color(color: &str, opacity: f32) -> ChronuxResult<Color> {

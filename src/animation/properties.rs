@@ -1,7 +1,7 @@
 use std::{collections::HashMap, str::FromStr};
 
 use skia_safe::{
-    Color, Font, Matrix, PaintCap, PaintJoin, PathEffect, gradient_shader, utils::text_utils::Align,
+    Color, Font, Matrix, PaintCap, PaintJoin, PathEffect, gradient_shader, textlayout::TextDirection,
 };
 use svgtypes::PaintOrder;
 
@@ -10,8 +10,7 @@ use crate::{
     config::event::Event,
     svg::{defs::SvgDef, element::Shape},
     util::{
-        self, ChronuxError, ChronuxResult, paint::ColorPaint, parse_color_or_image,
-        parse_font_weight, parse_href, parse_unit_value,
+        self, ChronuxError, ChronuxResult, TextAnchor, paint::ColorPaint, parse_color_or_image, parse_font_weight, parse_href, parse_unit_value
     },
 };
 
@@ -22,7 +21,8 @@ pub struct Properties {
     pub font_family: String,
     pub font_size: f32,
     pub font_weight: f32,
-    pub text_anchor: Align,
+    pub text_anchor: TextAnchor,
+    pub dir: TextDirection,
     pub fill_color: ColorPaint,
     pub filter: Option<String>,
     pub stroke_color: ColorPaint,
@@ -52,7 +52,8 @@ impl Default for Properties {
             font_family: "Arial".to_string(),
             font_size: 16.0,
             font_weight: 400.0,
-            text_anchor: Align::Left,          // default to left alignment
+            text_anchor: TextAnchor::Start,          // default to left alignment
+            dir: TextDirection::LTR,               // default to LTR
             fill_color: ColorPaint::default(), // transparent
             filter: None,
             stroke_color: ColorPaint::default(), // transparent
@@ -296,10 +297,18 @@ impl Properties {
 
         if let Some(anchor) = rules.get("text-anchor") {
             result.text_anchor = match *anchor {
-                "start" => Align::Left,
-                "middle" => Align::Center,
-                "end" => Align::Right,
-                _ => Align::Left,
+                "start" => TextAnchor::Start,
+                "middle" => TextAnchor::Middle,
+                "end" => TextAnchor::End,
+                _ => TextAnchor::Start,
+            };
+        }
+
+        if let Some(anchor) = rules.get("direction") {
+            result.dir = match *anchor {
+                "ltr" => TextDirection::LTR,
+                "rtl" => TextDirection::RTL,
+                _ => TextDirection::LTR,
             };
         }
 

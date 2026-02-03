@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 use roxmltree::Node;
-use skia_safe::{Canvas, Color, Matrix, Point, Rect, utils::text_utils::Align};
+use skia_safe::{
+    Canvas, Color, Matrix, Point, Rect, textlayout::TextDirection,
+};
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
@@ -11,7 +13,10 @@ use crate::{
         attribute_f32, attribute_str, attribute_transform, defs::SvgDef,
         placeholder_text::PlaceholderText,
     },
-    util::{ChronuxResult, TextDrawPass, paint::ColorPaint, trim_control_chars},
+    util::{
+        ChronuxResult, TextAnchor, TextDrawPass, paint::ColorPaint,
+        trim_control_chars,
+    },
 };
 
 #[derive(Debug, Clone)]
@@ -88,9 +93,9 @@ impl Tspan {
         let mut result = Vec::new();
 
         let coeff = match base_style.text_anchor {
-            Align::Left => 0.0,
-            Align::Center => 0.5,
-            Align::Right => 1.0,
+            TextAnchor::Start => 0.0,
+            TextAnchor::Middle => 0.5,
+            TextAnchor::End => 1.0,
         };
 
         dfs_node(node, mat, x, y, base_style, &mut result, placeholder)?;
@@ -107,7 +112,10 @@ impl Tspan {
         for (id, tsp) in result.iter().enumerate() {
             total_length += tsp.length;
             if id + 1 == result.len() || tsp.x != result[id + 1].x || tsp.y != result[id + 1].y {
-                let mut cx = sx - total_length * coeff;
+                let mut cx = match tsp.style.dir {
+                    TextDirection::LTR => sx - total_length * coeff,
+                    TextDirection::RTL => sx + total_length * coeff,
+                };
                 for ret in result.iter().take(id + 1).skip(start_id) {
                     // start_id..=id
                     new_xy.push((cx + ret.length * coeff, ret.y));
@@ -171,10 +179,15 @@ impl Tspan {
             TextDrawPass::Fill => color_style.get_fill_paint(defs, element_transform),
         };
 
+        let dir_coeff = match self.style.dir {
+            TextDirection::LTR => 1.0,
+            TextDirection::RTL => -1.0,
+        };
+
         let offset = match self.style.text_anchor {
-            Align::Left => 0.0,
-            Align::Center => self.length / 2.0,
-            Align::Right => self.length,
+            TextAnchor::Start => 0.0,
+            TextAnchor::Middle => self.length / 2.0,
+            TextAnchor::End => self.length,
         };
 
         let text = match &self.text {
@@ -192,7 +205,7 @@ impl Tspan {
                 (x + tx, y + ty),
                 &font,
                 &paint,
-                self.style.text_anchor,
+                self.style.text_anchor.to_align(self.style.dir),
             );
         } else {
             let mut dlen = 0.0;
@@ -205,12 +218,12 @@ impl Tspan {
                     let tl = tl.max(dlen);
                     let tr = tr.min(dlen + c);
                     let alpha = (tr - tl) / c;
-                    let (x, y) = (self.x + dlen - offset, self.y);
+                    let (x, y) = (self.x + (dlen - offset) * dir_coeff, self.y);
 
                     let mut new_paint = paint.clone();
 
                     new_paint.set_alpha((alpha * paint.alpha() as f32) as u8);
-                    canvas.draw_text_align(g, (x + tx, y + ty), &font, &new_paint, Align::Left);
+                    canvas.draw_text_align(g, (x + tx, y + ty), &font, &new_paint, TextAnchor::Start.to_align(self.style.dir));
                 }
 
                 dlen += c;
