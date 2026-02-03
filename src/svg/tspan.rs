@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 
 use roxmltree::Node;
-use skia_safe::{
-    Canvas, Color, Matrix, Point, Rect, textlayout::TextDirection,
-};
+use skia_safe::{Canvas, Color, Matrix, Point, Rect, textlayout::TextDirection};
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
@@ -13,10 +11,7 @@ use crate::{
         attribute_f32, attribute_str, attribute_transform, defs::SvgDef,
         placeholder_text::PlaceholderText,
     },
-    util::{
-        ChronuxResult, TextAnchor, TextDrawPass, paint::ColorPaint,
-        trim_control_chars,
-    },
+    util::{ChronuxResult, TextAnchor, TextDrawPass, paint::ColorPaint, trim_control_chars},
 };
 
 #[derive(Debug, Clone)]
@@ -223,7 +218,13 @@ impl Tspan {
                     let mut new_paint = paint.clone();
 
                     new_paint.set_alpha((alpha * paint.alpha() as f32) as u8);
-                    canvas.draw_text_align(g, (x + tx, y + ty), &font, &new_paint, TextAnchor::Start.to_align(self.style.dir));
+                    canvas.draw_text_align(
+                        g,
+                        (x + tx, y + ty),
+                        &font,
+                        &new_paint,
+                        TextAnchor::Start.to_align(self.style.dir),
+                    );
                 }
 
                 dlen += c;

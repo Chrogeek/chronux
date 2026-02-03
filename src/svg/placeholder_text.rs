@@ -43,7 +43,6 @@ impl PlaceholderText {
                 let fmtstr = if *max_decimals == 0 {
                     return format!("{value:.0}");
                 } else {
-
                     let formatted = format!("{:.1$}", value, *max_decimals);
                     let mut parts = formatted.split('.');
                     let int = parts.next().unwrap().to_string();

@@ -1,7 +1,8 @@
 use std::{collections::HashMap, str::FromStr};
 
 use skia_safe::{
-    Color, Font, Matrix, PaintCap, PaintJoin, PathEffect, gradient_shader, textlayout::TextDirection,
+    Color, Font, Matrix, PaintCap, PaintJoin, PathEffect, gradient_shader,
+    textlayout::TextDirection,
 };
 use svgtypes::PaintOrder;
 
@@ -10,7 +11,8 @@ use crate::{
     config::event::Event,
     svg::{defs::SvgDef, element::Shape},
     util::{
-        self, ChronuxError, ChronuxResult, TextAnchor, paint::ColorPaint, parse_color_or_image, parse_font_weight, parse_href, parse_unit_value
+        self, ChronuxError, ChronuxResult, TextAnchor, paint::ColorPaint, parse_color_or_image,
+        parse_font_weight, parse_href, parse_unit_value,
     },
 };
 
@@ -52,8 +54,8 @@ impl Default for Properties {
             font_family: "Arial".to_string(),
             font_size: 16.0,
             font_weight: 400.0,
-            text_anchor: TextAnchor::Start,          // default to left alignment
-            dir: TextDirection::LTR,               // default to LTR
+            text_anchor: TextAnchor::Start, // default to left alignment
+            dir: TextDirection::LTR,        // default to LTR
             fill_color: ColorPaint::default(), // transparent
             filter: None,
             stroke_color: ColorPaint::default(), // transparent
