@@ -16,7 +16,7 @@ use skia_safe::{
 
 use crate::animation::timeline::Timeline;
 use crate::args::OutputWriter;
-use crate::config::counter::{Counters, add_sum_counter_item};
+use crate::config::counter::{Counters, add_sum_counter_item, update_counters};
 use crate::config::extra_viewport::ExtraViewport;
 use crate::render::get_bounding_box;
 use crate::svg::defs::SvgDef;
@@ -408,6 +408,16 @@ fn run(args: Args) -> Result<(), ChronuxError> {
 
         // 计算计数器
         let mut counters = conf.get_counters(t);
+
+        // 计算与路径可见性挂钩的计数器
+        for (path, line_counters) in conf.drawing.line_counters.iter() {
+            let properties = timeline[path].interpolate(t, &path_length_dict, &shape_dict);
+            let (tl, tr) = properties.trim;
+            let t = (tr - tl) * properties.opacity;
+            for (k, v) in line_counters {
+                update_counters(&mut counters, k, *v * t);
+            }
+        }
 
         // 添加求和计数器
         for (sum_counter, sub_counters) in &conf.drawing.sum_counters {

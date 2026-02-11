@@ -530,17 +530,21 @@ impl Properties {
     pub fn get_effects(&self) -> Option<skia_safe::PathEffect> {
         let mut effects = vec![];
 
+        // 260211补充说明：
+        // dash必须放在trim前面，否则trim动画会变成一堆线段通过#seq连接起来的效果
+        // 视觉上间断感很强，十分违和
+
+        if self.dash_array.len() > 0 && self.stroke_width > 1e-4 {
+            let dash_effect = skia_safe::dash_path_effect::new(&self.dash_array, self.dash_offset);
+            effects.push(dash_effect);
+        }
+
         if self.trim.0 > 0.0 || self.trim.1 < 1.0 {
             effects.push(skia_safe::trim_path_effect::new(
                 self.trim.0,
                 self.trim.1,
                 skia_safe::trim_path_effect::Mode::Normal,
             ));
-        }
-
-        if self.dash_array.len() > 0 && self.stroke_width > 1e-4 {
-            let dash_effect = skia_safe::dash_path_effect::new(&self.dash_array, self.dash_offset);
-            effects.push(dash_effect);
         }
 
         let effect = effects.into_iter().fold(None, |a, b| match (a, b) {

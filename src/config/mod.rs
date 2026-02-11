@@ -66,13 +66,14 @@ pub struct DrawingConfig {
     #[serde_with(as = "OneOrMany<_, PreferOne>")]
     pub phantom: HashSet<String>,
     pub dates: Option<DatesConfig>,
-    #[serde(rename = "extra-strokes")]
-    #[serde(default)]
+    #[serde(rename = "extra-strokes", default)]
     #[serde_with(as = "OneOrMany<_, PreferOne>")]
     pub extra_strokes: Vec<ExtraStrokeConfig>,
     pub elevated: Option<ElevatedConfig>,
     #[serde(rename = "extra-viewports")]
     pub extra_viewports: Option<ExtraViewportConfig>,
+    #[serde(rename = "line-counters", default)]
+    pub line_counters: HashMap<String, HashMap<String, f32>>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
