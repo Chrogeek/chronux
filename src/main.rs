@@ -5,6 +5,8 @@ use std::process::ExitCode;
 use std::time::Instant;
 use std::{path::PathBuf, str::FromStr};
 
+use bitvec::order::Lsb0;
+use bitvec::vec::BitVec;
 use clap::Parser;
 use image::ImageReader;
 use indicatif::{ParallelProgressIterator, ProgressFinish, ProgressIterator, ProgressStyle};
@@ -25,7 +27,7 @@ use crate::svg::defs::SvgDef;
 use crate::svg::element::{Object, Shape};
 use crate::util::version::CHRONUX_VERSION;
 use crate::util::{ChronuxResult, parse_css_color, timecode_rt};
-use crate::watermark::{embed_wm, gen_samples};
+use crate::watermark::{WatermarkInfo, embed_wm, gen_samples};
 use crate::widget::WIDGET_CANVAS_WIDTH;
 use crate::{
     animation::Animation, args::Args, config::Config, svg::Svg, util::ChronuxError, writer::Writer,
@@ -86,28 +88,34 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                     .map_err(|e| ChronuxError::ImageDecodeError(e.to_string()))
             })
             .map(|img| {
-                let img = img.to_rgb8();
-                // 转换为灰度图并按灰度>=128/<128 二值化
-                img.pixels()
-                    .map(|p| {
-                        if p.0[0] as u32 + p.0[1] as u32 + p.0[2] as u32 >= 128 * 3 {
-                            255
-                        } else {
-                            0
-                        }
-                    })
-                    .collect::<Vec<_>>()
+                let img = img.to_rgb32f();
+                let wm_w = img.width();
+                let wm_h = img.height();
+                // 按灰度>=128/<128 二值化
+                (
+                    wm_w,
+                    wm_h,
+                    img.pixels()
+                        .map(|p| p.0[0] + p.0[1] + p.0[2] >= 1.5)
+                        .collect::<BitVec<u8, Lsb0>>(),
+                )
             })
     });
 
     let mut rng = rand::rng();
     let wm_seed = rng.next_u64();
 
-    let wm_bits = match wm_img {
-        Some(Ok(bits)) => bits,
+    let (wm_shape, wm_bits) = match wm_img {
+        Some(Ok((w, h, bits))) => ((w, h), bits),
         Some(Err(e)) => return Err(e),
-        None => Vec::new(),
+        None => ((0, 0), BitVec::new()),
     };
+
+    let wm_out = conf
+        .drawing
+        .watermark
+        .as_ref()
+        .map(|wm| wm.wminfo_filename.clone());
 
     // 拆分所有动画组
     conf.flatten_groups()?;
@@ -723,6 +731,23 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             .map(write_routine)
             .fold(Ok(0.0), render_err_fold),
     };
+
+    if let Some(out) = wm_out {
+        let hi = (wm_seed >> 32) as u32;
+        let lo = (wm_seed & 0xffffffff) as u32;
+        let mut frames: Vec<_> = wm_frames.into_iter().collect();
+        frames.sort_unstable();
+        writer.write_wm_info(
+            &out,
+            &WatermarkInfo {
+                frames,
+                seed_hi: hi,
+                seed_lo: lo,
+                shape: wm_shape,
+                total_frames: max_frames as u32,
+            },
+        )?;
+    }
 
     writer.finish()?;
 

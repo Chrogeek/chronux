@@ -17,6 +17,7 @@ pub mod version;
 pub enum ChronuxError {
     VersionError(String),
     IoError(std::io::Error),
+    SerializationError(toml::ser::Error),
     ConfigError(toml::de::Error),
     XmlError(roxmltree::Error),
     CircularDependency(String),
@@ -37,6 +38,12 @@ pub enum ChronuxError {
 
 pub type ChronuxResult<T> = Result<T, ChronuxError>;
 
+impl From<toml::ser::Error> for ChronuxError {
+    fn from(value: toml::ser::Error) -> Self {
+        ChronuxError::SerializationError(value)
+    }
+}
+
 impl Display for ChronuxError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -44,6 +51,7 @@ impl Display for ChronuxError {
                 write!(f, "Incompatible version: {version}")
             }
             ChronuxError::IoError(e) => write!(f, "IO Error: {e}"),
+            ChronuxError::SerializationError(e) => write!(f, "Serialization Error: {e}"),
             ChronuxError::ConfigError(e) => {
                 write!(f, "Config Error at span '{:?}': {}", e.span(), e.message())
             }

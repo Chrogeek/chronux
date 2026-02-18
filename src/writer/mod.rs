@@ -1,15 +1,18 @@
 use std::{
-    io::Write,
-    process::{Command, Stdio},
+    fs::File, io::Write, process::{Command, Stdio}
 };
 
 use image::{ExtendedColorType, ImageEncoder, codecs::png::PngEncoder};
 
-use crate::util::{ChronuxError, ChronuxResult};
+use crate::{
+    util::{ChronuxError, ChronuxResult},
+    watermark::WatermarkInfo,
+};
 
 pub enum Writer {
     Ffmpeg {
         process: std::process::Child,
+        output_filename: String,
     },
     PngSequence {
         width: usize,
@@ -53,7 +56,10 @@ impl Writer {
             .spawn()
             .map_err(|e| ChronuxError::FfmpegError(format!("Failed to start ffmpeg: {e}")))?;
 
-        Ok(Writer::Ffmpeg { process })
+        Ok(Writer::Ffmpeg {
+            process,
+            output_filename: output.to_string(),
+        })
     }
 
     pub fn new_png_sequence(
@@ -108,6 +114,20 @@ impl Writer {
             }
         }
         Ok(())
+    }
+
+    pub fn write_wm_info(&self, wminfo_name: &str, wminfo: &WatermarkInfo) -> ChronuxResult<()> {
+        let wm_info_path = match self {
+            Writer::Ffmpeg {
+                output_filename, ..
+            } => std::path::Path::new(output_filename).with_file_name(wminfo_name).to_path_buf(),
+            Writer::PngSequence { path, .. } => {
+                std::path::Path::new(path).join(wminfo_name).to_path_buf()
+            }
+        };
+        let mut file = File::create(&wm_info_path).map_err(ChronuxError::IoError)?;
+        let wmstr = toml::to_string_pretty(wminfo).map_err(|e| Into::<ChronuxError>::into(e))?;
+        file.write_all(wmstr.as_ref()).map_err(ChronuxError::IoError)
     }
 
     pub fn finish(self) -> ChronuxResult<()> {
