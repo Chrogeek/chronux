@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::Write;
 use std::process::ExitCode;
@@ -6,8 +6,10 @@ use std::time::Instant;
 use std::{path::PathBuf, str::FromStr};
 
 use clap::Parser;
+use image::ImageReader;
 use indicatif::{ParallelProgressIterator, ProgressFinish, ProgressIterator, ProgressStyle};
 use pariter::IteratorExt;
+use rand::Rng;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use skia_safe::{
     AlphaType, Canvas, ClipOp, ColorSpace, ColorType, ImageInfo, Rect, SurfaceProps, surfaces,
@@ -23,6 +25,7 @@ use crate::svg::defs::SvgDef;
 use crate::svg::element::{Object, Shape};
 use crate::util::version::CHRONUX_VERSION;
 use crate::util::{ChronuxResult, parse_css_color, timecode_rt};
+use crate::watermark::{embed_wm, gen_samples};
 use crate::widget::WIDGET_CANVAS_WIDTH;
 use crate::{
     animation::Animation, args::Args, config::Config, svg::Svg, util::ChronuxError, writer::Writer,
@@ -35,6 +38,7 @@ mod parser;
 mod render;
 mod svg;
 mod util;
+mod watermark;
 mod widget;
 mod writer;
 
@@ -70,6 +74,40 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     // 加载动画配置
     let mut conf = Config::load(&input)?;
     log::info!("Loaded config from file(s) `[{}]`", input.join(", "));
+
+    // 读取水印图（如果指定了水印配置）并二值化
+    let wm_img = conf.drawing.watermark.as_ref().map(|wm| {
+        let path = &wm.img_path;
+        ImageReader::open(path)
+            .map_err(|e| ChronuxError::IoError(e))
+            .and_then(|reader| {
+                reader
+                    .decode()
+                    .map_err(|e| ChronuxError::ImageDecodeError(e.to_string()))
+            })
+            .map(|img| {
+                let img = img.to_rgb8();
+                // 转换为灰度图并按灰度>=128/<128 二值化
+                img.pixels()
+                    .map(|p| {
+                        if p.0[0] as u32 + p.0[1] as u32 + p.0[2] as u32 >= 128 * 3 {
+                            255
+                        } else {
+                            0
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            })
+    });
+
+    let mut rng = rand::rng();
+    let wm_seed = rng.next_u64();
+
+    let wm_bits = match wm_img {
+        Some(Ok(bits)) => bits,
+        Some(Err(e)) => return Err(e),
+        None => Vec::new(),
+    };
 
     // 拆分所有动画组
     conf.flatten_groups()?;
@@ -309,19 +347,27 @@ fn run(args: Args) -> Result<(), ChronuxError> {
 
     let max_frames = (time_end * conf.output.fps as f32) as usize;
 
+    // 计算水印
+    let wm_frames = conf
+        .drawing
+        .watermark
+        .as_ref()
+        .map(|wm| gen_samples(frame_end - frame_start, wm.samples, wm.len))
+        .unwrap_or(HashSet::new());
+
+    let width = conf.output.width;
+    let height = conf.output.height;
+
     let writer = match args.encoder {
         OutputWriter::Ffmpeg => Writer::new_ffmpeg(
             &output,
-            conf.output.width as usize,
-            conf.output.height as usize,
+            width as usize,
+            height as usize,
             conf.output.fps as usize,
         )?,
-        OutputWriter::PngSequence => Writer::new_png_sequence(
-            &output,
-            conf.output.width as usize,
-            conf.output.height as usize,
-            max_frames,
-        )?,
+        OutputWriter::PngSequence => {
+            Writer::new_png_sequence(&output, width as usize, height as usize, max_frames)?
+        }
         OutputWriter::Timeline | OutputWriter::Objects => {
             unreachable!("Timeline / Objects writer should not be used here")
         }
@@ -427,18 +473,13 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         // 计算当前镜头位置
         let vb = viewport_sequence.interpolate_vp(t)?;
 
-        let (cx, cy, vw, vh) = (
-            vb.0,
-            vb.1,
-            vb.2,
-            vb.2 * conf.output.height as f32 / conf.output.width as f32,
-        );
+        let (cx, cy, vw, vh) = (vb.0, vb.1, vb.2, vb.2 * height as f32 / width as f32);
         let (vx, vy) = (cx - vw / 2.0, cy - vh / 2.0);
         let viewport_rect = Rect::new(vx, vy, vx + vw, vy + vh);
 
         // 创建 Skia 画布
         let ii = ImageInfo::new(
-            (conf.output.width as i32, conf.output.height as i32),
+            (width as i32, height as i32),
             ColorType::RGBA8888,
             AlphaType::Premul,
             ColorSpace::new_srgb(),
@@ -461,23 +502,17 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             &shape_dict,
             &obj_map,
             &viewport_rect,
-            &Rect::from_xywh(
-                0.0,
-                0.0,
-                conf.output.width as f32,
-                conf.output.height as f32,
-            ),
+            &Rect::from_xywh(0.0, 0.0, width as f32, height as f32),
         )?;
 
         let canvas_width = WIDGET_CANVAS_WIDTH;
-        let canvas_height =
-            WIDGET_CANVAS_WIDTH * conf.output.height as f32 / conf.output.width as f32;
+        let canvas_height = WIDGET_CANVAS_WIDTH * height as f32 / width as f32;
 
         // 绘制包装前，需要重置 viewbox 变换，然后按照 1920x1080 大小重新缩放
-        surface.canvas().reset_matrix().scale((
-            conf.output.width as f32 / canvas_width,
-            conf.output.height as f32 / canvas_height,
-        ));
+        surface
+            .canvas()
+            .reset_matrix()
+            .scale((width as f32 / canvas_width, height as f32 / canvas_height));
 
         // 绘制包装部分的图形元素（要求 apply_transform = false）
         // TODO: 目前要求包装 svg 的画幅大小为 1920x1080，暂不支持其他比例（会导致位置错乱）
@@ -655,8 +690,13 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         Ok((f, raw, render_time_us))
     };
 
-    let write_routine = |indexed_raw| match indexed_raw {
+    let write_routine = |indexed_raw: ChronuxResult<(_, Vec<_>, _)>| match indexed_raw {
         Ok((f, raw, frame_time)) => {
+            let raw = if wm_frames.contains(&(f - frame_start)) {
+                embed_wm(&raw, &wm_bits, wm_seed, width, height)
+            } else {
+                raw
+            };
             writer.write_frame(f, raw)?;
             Ok(frame_time)
         }

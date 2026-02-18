@@ -32,6 +32,7 @@ pub enum ChronuxError {
     HrefError(String),
     BrokenDependency(String),
     FfmpegError(String),
+    ImageDecodeError(String),
 }
 
 pub type ChronuxResult<T> = Result<T, ChronuxError>;
@@ -67,6 +68,7 @@ impl Display for ChronuxError {
             ChronuxError::HrefError(msg) => write!(f, "Href Error: {msg}"),
             ChronuxError::BrokenDependency(id) => write!(f, "Broken dependency: {id}"),
             ChronuxError::FfmpegError(msg) => write!(f, "FFmpeg Error: {msg}"),
+            ChronuxError::ImageDecodeError(msg) => write!(f, "Image Decode Error: {msg}"),
         }
     }
 }

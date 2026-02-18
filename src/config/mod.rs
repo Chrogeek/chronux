@@ -19,6 +19,7 @@ use crate::{
         output::OutputConfig,
         tracker::Tracker,
         viewport::{TimeKey, ViewportSequence, ViewportTrack},
+        wm::WatermarkConfig,
     },
     svg::element::{Object, Shape},
     util::{
@@ -37,6 +38,7 @@ pub mod input;
 pub mod output;
 pub mod tracker;
 pub mod viewport;
+pub mod wm;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Config {
@@ -74,6 +76,8 @@ pub struct DrawingConfig {
     pub extra_viewports: Option<ExtraViewportConfig>,
     #[serde(rename = "line-counters", default)]
     pub line_counters: HashMap<String, HashMap<String, f32>>,
+    #[serde(rename = "watermark")]
+    pub watermark: Option<WatermarkConfig>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
