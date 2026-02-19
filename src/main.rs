@@ -2,8 +2,8 @@ use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::Write;
 use std::process::ExitCode;
+use std::str::FromStr;
 use std::time::Instant;
-use std::{path::PathBuf, str::FromStr};
 
 use bitvec::order::Lsb0;
 use bitvec::vec::BitVec;
@@ -26,7 +26,7 @@ use crate::render::get_bounding_box;
 use crate::svg::defs::SvgDef;
 use crate::svg::element::{Object, Shape};
 use crate::util::version::CHRONUX_VERSION;
-use crate::util::{ChronuxResult, parse_css_color, timecode_rt};
+use crate::util::{ChronuxResult, absolute_path, parse_css_color, timecode_rt};
 use crate::watermark::{WatermarkInfo, embed_wm, gen_samples};
 use crate::widget::WIDGET_CANVAS_WIDTH;
 use crate::{
@@ -79,7 +79,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
 
     // 读取水印图（如果指定了水印配置）并二值化
     let wm_img = conf.drawing.watermark.as_ref().map(|wm| {
-        let path = &wm.img_path;
+        let path = absolute_path(&input[0], &wm.img_path);
         ImageReader::open(path)
             .map_err(|e| ChronuxError::IoError(e))
             .and_then(|reader| {
@@ -125,11 +125,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     log::trace!("IDs: {ids:?}");
 
     // 解析SVG
-    let svg_file = PathBuf::from_str(&input[0])
-        .unwrap()
-        .parent()
-        .unwrap()
-        .join(&conf.input.svg);
+    let svg_file = absolute_path(&input[0], &conf.input.svg);
     let svg = Svg::from_file(svg_file.clone())?;
     log::info!("Loaded SVG from file `{}`", conf.input.svg);
 
@@ -149,11 +145,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
 
     // 解析包装SVG
     if let Some(overlay_svg) = &conf.input.overlay_svg {
-        let overlay_svg_file = PathBuf::from_str(&input[0])
-            .unwrap()
-            .parent()
-            .unwrap()
-            .join(overlay_svg);
+        let overlay_svg_file = absolute_path(&input[0], overlay_svg);
         let osvg = Svg::from_file(overlay_svg_file.clone())?;
         log::info!(
             "Loaded overlay SVG from file `{}`",
@@ -372,6 +364,11 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             width as usize,
             height as usize,
             conf.output.fps as usize,
+            &conf
+                .input
+                .bgm
+                .as_ref()
+                .map(|bgm| absolute_path(&input[0], &bgm)),
         )?,
         OutputWriter::PngSequence => {
             Writer::new_png_sequence(&output, width as usize, height as usize, max_frames)?

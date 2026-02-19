@@ -1,5 +1,5 @@
 use std::{
-    fs::File, io::Write, process::{Command, Stdio}
+    fs::File, io::Write, path::PathBuf, process::{Command, Stdio}
 };
 
 use image::{ExtendedColorType, ImageEncoder, codecs::png::PngEncoder};
@@ -28,8 +28,10 @@ impl Writer {
         width: usize,
         height: usize,
         fps: usize,
+        bgm: &Option<PathBuf>,
     ) -> ChronuxResult<Writer> {
-        let process = Command::new("ffmpeg")
+        let mut process = Command::new("ffmpeg");
+        let process = process
             .arg("-y")
             .arg("-f")
             .arg("rawvideo")
@@ -40,7 +42,13 @@ impl Writer {
             .arg("-r")
             .arg(fps.to_string())
             .arg("-i")
-            .arg("pipe:0")
+            .arg("pipe:0");
+        let process = if let Some(bgm) = bgm {
+            process.arg("-i").arg(bgm).arg("-c:a").arg("copy")
+        } else {
+            process
+        };
+        let process = process
             .arg("-c:v")
             .arg("libx264")
             .arg("-pix_fmt")
@@ -120,26 +128,32 @@ impl Writer {
         let wm_info_path = match self {
             Writer::Ffmpeg {
                 output_filename, ..
-            } => std::path::Path::new(output_filename).with_file_name(wminfo_name).to_path_buf(),
+            } => std::path::Path::new(output_filename)
+                .with_file_name(wminfo_name)
+                .to_path_buf(),
             Writer::PngSequence { path, .. } => {
                 std::path::Path::new(path).join(wminfo_name).to_path_buf()
             }
         };
         let mut file = File::create(&wm_info_path).map_err(ChronuxError::IoError)?;
         let wmstr = toml::to_string_pretty(wminfo).map_err(|e| Into::<ChronuxError>::into(e))?;
-        file.write_all(wmstr.as_ref()).map_err(ChronuxError::IoError)
+        file.write_all(wmstr.as_ref())
+            .map_err(ChronuxError::IoError)
     }
 
     pub fn finish(self) -> ChronuxResult<()> {
         match self {
-            Writer::Ffmpeg { process, .. } => {
+            Writer::Ffmpeg { mut process, .. } => {
                 process
                     .stdin
                     .as_ref()
                     .unwrap()
                     .flush()
                     .map_err(ChronuxError::IoError)?;
-                log::info!("FFmpeg writer finished.");
+                let status = process.wait().map_err(|e| {
+                    ChronuxError::FfmpegError(format!("Failed to wait for ffmpeg: {e}"))
+                })?;
+                log::info!("FFmpeg writer finished with: {}.", status);
             }
             Writer::PngSequence { .. } => {
                 // no cleanup needed for PNG sequence

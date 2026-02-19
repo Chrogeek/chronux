@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Display};
+use std::{collections::HashMap, fmt::Display, path::PathBuf};
 
 use once_cell::sync::OnceCell;
 use serde::Deserialize;
@@ -271,5 +271,21 @@ pub fn toml_value_as_number(value: &toml::Value) -> Option<f64> {
         toml::Value::Integer(i) => Some(*i as f64),
         toml::Value::Float(f) => Some(*f),
         _ => None,
+    }
+}
+
+pub fn absolute_path(base: &str, relative: &str) -> PathBuf {
+    let base_path = std::path::Path::new(base);
+    let relative_path = std::path::Path::new(relative);
+    if relative_path.is_absolute() {
+        relative.into()
+    } else {
+        base_path
+            .parent()
+            .unwrap_or(std::path::Path::new(""))
+            .join(relative_path)
+            .to_str()
+            .unwrap()
+            .into()
     }
 }

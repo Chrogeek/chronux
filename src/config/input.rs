@@ -10,4 +10,5 @@ pub struct InputConfig {
     pub overlay_svg: Option<String>,
     #[serde(default = "HashSet::new")]
     pub pinned: HashSet<String>,
+    pub bgm: Option<String>,
 }
