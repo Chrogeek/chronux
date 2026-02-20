@@ -250,8 +250,8 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             })
             .collect::<Vec<_>>();
         events.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
-        let mut file = File::create(&output).map_err(ChronuxError::IoError)?;
-        writeln!(file, "id,start,duration,length,").map_err(ChronuxError::IoError)?;
+        let mut file = File::create(&output)?;
+        writeln!(file, "id,start,duration,length,")?;
         for (start, duration, length, id) in events {
             writeln!(
                 file,
@@ -262,8 +262,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                 length
                     .map(|l| l.to_string())
                     .unwrap_or_else(|| String::new()),
-            )
-            .map_err(ChronuxError::IoError)?;
+            )?;
         }
         return Ok(());
     }
@@ -284,9 +283,9 @@ fn run(args: Args) -> Result<(), ChronuxError> {
 
     if args.encoder == OutputWriter::Objects {
         // 只输出对象列表
-        let mut file = File::create(&output).map_err(ChronuxError::IoError)?;
+        let mut file = File::create(&output)?;
         for o in timeline.keys() {
-            writeln!(file, "{}", o).map_err(ChronuxError::IoError)?;
+            writeln!(file, "{}", o)?;
         }
         return Ok(());
     }

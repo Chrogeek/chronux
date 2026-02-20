@@ -31,6 +31,30 @@ impl From<toml::ser::Error> for ChronuxError {
     }
 }
 
+impl From<toml::de::Error> for ChronuxError {
+    fn from(value: toml::de::Error) -> Self {
+        ChronuxError::ConfigError(value)
+    }
+}
+
+impl From<std::io::Error> for ChronuxError {
+    fn from(value: std::io::Error) -> Self {
+        ChronuxError::IoError(value)
+    }
+}
+
+impl From<roxmltree::Error> for ChronuxError {
+    fn from(value: roxmltree::Error) -> Self {
+        ChronuxError::XmlError(value)
+    }
+}
+
+impl From<std::num::ParseFloatError> for ChronuxError {
+    fn from(value: std::num::ParseFloatError) -> Self {
+        ChronuxError::ParseFloatError(value)
+    }
+}
+
 impl Display for ChronuxError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

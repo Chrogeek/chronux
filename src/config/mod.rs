@@ -160,10 +160,10 @@ impl Config {
     pub fn load(files: &[String]) -> ChronuxResult<Config> {
         let config_data = files
             .iter()
-            .map(|f| std::fs::read_to_string(f).map_err(ChronuxError::IoError))
-            .collect::<ChronuxResult<Vec<_>>>()?
+            .map(|f| std::fs::read_to_string(f))
+            .collect::<Result<Vec<_>, _>>()?
             .join("\n");
-        let config: Config = toml::from_str(&config_data).map_err(ChronuxError::ConfigError)?;
+        let config: Config = toml::from_str(&config_data)?;
 
         if !is_compatible(&config.input.version) {
             return Err(ChronuxError::VersionError(config.input.version.clone()));

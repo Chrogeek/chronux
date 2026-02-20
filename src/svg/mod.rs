@@ -28,10 +28,10 @@ pub struct Svg {
 
 impl Svg {
     pub fn from_file(filename: PathBuf) -> ChronuxResult<Svg> {
-        let svg_text = std::fs::read_to_string(filename).map_err(ChronuxError::IoError)?;
+        let svg_text = std::fs::read_to_string(filename)?;
         // Leak the String to get a &'static str for Document
         let leaked_svg_text: &'static str = Box::leak(svg_text.clone().into_boxed_str());
-        let svg = Document::parse(leaked_svg_text).map_err(ChronuxError::XmlError)?;
+        let svg = Document::parse(leaked_svg_text)?;
 
         let root = svg
             .root_element()
@@ -45,8 +45,7 @@ impl Svg {
         let vb = attribute_str(&root, "viewBox")?
             .split_whitespace()
             .map(|s| s.parse::<f32>())
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(ChronuxError::ParseFloatError)?;
+            .collect::<Result<Vec<_>, _>>()?;
         if vb.len() != 4 {
             return Err(ChronuxError::SvgError(
                 "viewBox must have exactly 4 values".into(),

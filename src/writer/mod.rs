@@ -79,7 +79,7 @@ impl Writer {
         height: usize,
         max_possible_frames: usize,
     ) -> ChronuxResult<Writer> {
-        std::fs::create_dir_all(output_dir).map_err(ChronuxError::IoError)?;
+        std::fs::create_dir_all(output_dir)?;
         log::info!("Created output directory `{output_dir}`");
 
         Ok(Writer::PngSequence {
@@ -93,12 +93,7 @@ impl Writer {
     pub fn write_frame(&self, f: usize, raw: Vec<u8>) -> ChronuxResult<()> {
         match self {
             Writer::Ffmpeg { process, .. } => {
-                process
-                    .stdin
-                    .as_ref()
-                    .unwrap()
-                    .write_all(&raw)
-                    .map_err(ChronuxError::IoError)?;
+                process.stdin.as_ref().unwrap().write_all(&raw)?;
             }
             Writer::PngSequence {
                 width,
@@ -108,7 +103,7 @@ impl Writer {
             } => {
                 let output = std::path::Path::new(path)
                     .join(format!("frame_{f:0>0$}.png", max_frame_length));
-                let mut file = std::fs::File::create(output).map_err(ChronuxError::IoError)?;
+                let mut file = std::fs::File::create(output)?;
 
                 PngEncoder::new(&mut file)
                     .write_image(
@@ -138,21 +133,16 @@ impl Writer {
                 std::path::Path::new(path).join(wminfo_name).to_path_buf()
             }
         };
-        let mut file = File::create(&wm_info_path).map_err(ChronuxError::IoError)?;
+        let mut file = File::create(&wm_info_path)?;
         let wmstr = toml::to_string_pretty(wminfo).map_err(|e| Into::<ChronuxError>::into(e))?;
-        file.write_all(wmstr.as_ref())
-            .map_err(ChronuxError::IoError)
+        file.write_all(wmstr.as_ref())?;
+        Ok(())
     }
 
     pub fn finish(self) -> ChronuxResult<()> {
         match self {
             Writer::Ffmpeg { mut process, .. } => {
-                process
-                    .stdin
-                    .as_ref()
-                    .unwrap()
-                    .flush()
-                    .map_err(ChronuxError::IoError)?;
+                process.stdin.as_ref().unwrap().flush()?;
                 let status = process.wait().map_err(|e| {
                     ChronuxError::FfmpegError(format!("Failed to wait for ffmpeg: {e}"))
                 })?;
