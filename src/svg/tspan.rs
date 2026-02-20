@@ -11,7 +11,7 @@ use crate::{
         attribute_f32, attribute_str, attribute_transform, defs::SvgDef,
         placeholder_text::PlaceholderText,
     },
-    util::{ChronuxResult, TextAnchor, TextDrawPass, paint::ColorPaint, trim_control_chars},
+    util::{TextAnchor, TextDrawPass, error::ChronuxResult, paint::ColorPaint, trim_control_chars},
 };
 
 #[derive(Debug, Clone)]

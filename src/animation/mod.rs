@@ -8,7 +8,7 @@ use crate::{
     config::{counter::Counters, event::Event},
     parser::chain::ChainedPath,
     svg::element::{Object, Shape},
-    util::{ChronuxError, ChronuxResult},
+    util::error::{ChronuxError, ChronuxResult},
 };
 
 pub mod easing;

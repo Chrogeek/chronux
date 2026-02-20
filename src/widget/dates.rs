@@ -2,7 +2,7 @@ use skia_safe::{Canvas, ClipOp, Font, Paint, Rect, utils::text_utils::Align};
 
 use crate::{
     config::dates::{DatesAnimation, DatesConfig},
-    util::{ChronuxResult, fontmgr::get_font, parse_css_color},
+    util::{error::ChronuxResult, fontmgr::get_font, parse_css_color},
 };
 
 const DURATION_IN_OUT_SCALE: f32 = 2.0;

@@ -1,7 +1,7 @@
 use skia_safe::{Matrix, Path, PathDirection, Point, Vector, path::ArcSize};
 use svgtypes::{PathParser, PathSegment};
 
-use crate::util::{ChronuxError, ChronuxResult};
+use crate::util::error::{ChronuxError, ChronuxResult};
 
 pub fn svg_to_path(d: &str, mat: Matrix) -> ChronuxResult<Path> {
     let mut p = Path::new();

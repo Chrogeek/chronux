@@ -6,7 +6,7 @@ use crate::{
     animation::properties::Properties,
     config::{counter::Counters, extra_stroke::ExtraStrokeConfig},
     svg::{defs::SvgDef, element::Shape},
-    util::{ChronuxError, ChronuxResult, TextDrawPass, sort_paints},
+    util::{TextDrawPass, error::ChronuxError, error::ChronuxResult, sort_paints},
 };
 
 pub fn draw(

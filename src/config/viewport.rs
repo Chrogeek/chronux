@@ -2,7 +2,11 @@ use itertools::multizip;
 use serde::Deserialize;
 use skia_safe::{Path, PathMeasure};
 
-use crate::util::{ChronuxError, ChronuxResult, interpolator::Interpolator, vector::Vec3};
+use crate::util::{
+    error::{ChronuxError, ChronuxResult},
+    interpolator::Interpolator,
+    vector::Vec3,
+};
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(untagged)]

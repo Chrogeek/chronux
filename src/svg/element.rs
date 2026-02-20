@@ -9,7 +9,7 @@ use crate::{
     svg::{
         self, attribute_label, attribute_transform, placeholder_text::PlaceholderText, tspan::Tspan,
     },
-    util::{ChronuxError, ChronuxResult},
+    util::error::{ChronuxError, ChronuxResult},
 };
 
 #[derive(Debug, Clone)]

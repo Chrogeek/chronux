@@ -26,12 +26,12 @@ use crate::render::get_bounding_box;
 use crate::svg::defs::SvgDef;
 use crate::svg::element::{Object, Shape};
 use crate::util::version::CHRONUX_VERSION;
-use crate::util::{ChronuxResult, absolute_path, parse_css_color, timecode_rt};
+use crate::util::{
+    absolute_path, error::ChronuxError, error::ChronuxResult, parse_css_color, timecode_rt,
+};
 use crate::watermark::{WatermarkInfo, embed_wm, gen_samples};
 use crate::widget::WIDGET_CANVAS_WIDTH;
-use crate::{
-    animation::Animation, args::Args, config::Config, svg::Svg, util::ChronuxError, writer::Writer,
-};
+use crate::{animation::Animation, args::Args, config::Config, svg::Svg, writer::Writer};
 
 mod animation;
 mod args;

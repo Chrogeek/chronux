@@ -6,7 +6,7 @@ use serde_with::serde_as;
 use crate::{
     animation::easing::Easing,
     config::{event::Event, viewport::TimeKey},
-    util::{ChronuxError, ChronuxResult},
+    util::error::{ChronuxError, ChronuxResult},
 };
 
 #[derive(Debug, Deserialize, Clone)]

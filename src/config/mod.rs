@@ -23,7 +23,10 @@ use crate::{
     },
     svg::element::{Object, Shape},
     util::{
-        COLOR_DICT, ChronuxError, ChronuxResult, interpolator::Interpolator, version::is_compatible,
+        COLOR_DICT,
+        error::{ChronuxError, ChronuxResult},
+        interpolator::Interpolator,
+        version::is_compatible,
     },
 };
 

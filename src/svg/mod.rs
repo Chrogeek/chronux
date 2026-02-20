@@ -12,7 +12,7 @@ use crate::{
         defs::{SvgDef, get_def_node},
         element::Object,
     },
-    util::{ChronuxError, ChronuxResult},
+    util::error::{ChronuxError, ChronuxResult},
 };
 
 pub mod defs;

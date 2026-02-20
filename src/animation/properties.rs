@@ -11,8 +11,10 @@ use crate::{
     config::event::Event,
     svg::{defs::SvgDef, element::Shape},
     util::{
-        self, ChronuxError, ChronuxResult, TextAnchor, paint::ColorPaint, parse_color_or_image,
-        parse_font_weight, parse_href, parse_unit_value,
+        self, TextAnchor,
+        error::{ChronuxError, ChronuxResult},
+        paint::ColorPaint,
+        parse_color_or_image, parse_font_weight, parse_href, parse_unit_value,
     },
 };
 

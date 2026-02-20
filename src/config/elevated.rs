@@ -5,7 +5,7 @@ use serde::Deserialize;
 use crate::{
     animation::{properties::Properties, track_on_path},
     svg::element::{Object, Shape},
-    util::{ChronuxError, ChronuxResult},
+    util::error::{ChronuxError, ChronuxResult},
 };
 
 #[derive(Debug, Deserialize, Clone)]

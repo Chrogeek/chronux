@@ -10,7 +10,7 @@ use crate::{
         defs::SvgDef,
         element::{Object, Shape},
     },
-    util::ChronuxResult,
+    util::error::ChronuxResult,
 };
 
 pub fn draw(

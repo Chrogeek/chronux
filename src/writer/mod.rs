@@ -1,11 +1,14 @@
 use std::{
-    fs::File, io::Write, path::PathBuf, process::{Command, Stdio}
+    fs::File,
+    io::Write,
+    path::PathBuf,
+    process::{Command, Stdio},
 };
 
 use image::{ExtendedColorType, ImageEncoder, codecs::png::PngEncoder};
 
 use crate::{
-    util::{ChronuxError, ChronuxResult},
+    util::error::{ChronuxError, ChronuxResult},
     watermark::WatermarkInfo,
 };
 
