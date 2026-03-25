@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
 use roxmltree::Node;
 use skia_safe::{Data, Image, Matrix, Path, PathMeasure, Point, Rect, Vector};
@@ -9,7 +9,10 @@ use crate::{
     svg::{
         self, attribute_label, attribute_transform, placeholder_text::PlaceholderText, tspan::Tspan,
     },
-    util::error::{ChronuxError, ChronuxResult},
+    util::{
+        MaskMode,
+        error::{ChronuxError, ChronuxResult},
+    },
 };
 
 #[derive(Debug, Clone)]
@@ -18,6 +21,8 @@ pub struct Object {
     pub style: Properties,
     pub apply_transform: bool,
     pub transform: Matrix,
+    pub mask: Option<String>,
+    pub mask_mode: MaskMode,
 }
 
 #[derive(Debug, Clone)]
@@ -126,7 +131,17 @@ impl Object {
         mat: Matrix,
         base: PathBuf,
         apply_transform: bool,
+        masks: &HashMap<String, String>,
     ) -> ChronuxResult<Object> {
+        let mask_mode = if let Ok(mm) = svg::attribute_str(node, "chronux-mask-mode") {
+            if mm == "stroke" {
+                MaskMode::Stroke
+            } else {
+                MaskMode::Fill // 默认使用 fill 模式
+            }
+        } else {
+            MaskMode::Fill
+        };
         let style = Properties::from_style(
             &svg::attribute_str(node, "style").unwrap_or_default(),
             mat,
@@ -235,17 +250,27 @@ impl Object {
             }
             "g" => {
                 let mut objects = Vec::new();
-                flatten_group_dfs(node, &mut objects, mat, base.clone(), &id, apply_transform)?;
+                flatten_group_dfs(
+                    node,
+                    &mut objects,
+                    mat,
+                    base.clone(),
+                    &id,
+                    apply_transform,
+                    masks,
+                )?;
                 Shape::Group { objects }
             }
             _ => unreachable!("unexpected SVG element: {}", node.tag_name().name()),
         };
         let style = Properties { shape, ..style };
         Ok(Object {
+            mask: masks.get(&id).cloned(),
             id,
             style,
             apply_transform,
             transform: mat,
+            mask_mode,
         })
     }
 
@@ -281,6 +306,7 @@ fn flatten_group_dfs(
     base: PathBuf,
     base_id: &String,
     apply_transform: bool,
+    masks: &HashMap<String, String>,
 ) -> ChronuxResult<()> {
     if node.is_element() {
         match node.tag_name().name() {
@@ -295,6 +321,7 @@ fn flatten_group_dfs(
                     matrix,
                     base.clone(),
                     apply_transform,
+                    masks,
                 )?;
                 results.push(obj.style);
             }
@@ -306,7 +333,15 @@ fn flatten_group_dfs(
     for child in node.children() {
         let element_mat = attribute_transform(&child);
         let mat = matrix * element_mat;
-        flatten_group_dfs(&child, results, mat, base.clone(), base_id, apply_transform)?;
+        flatten_group_dfs(
+            &child,
+            results,
+            mat,
+            base.clone(),
+            base_id,
+            apply_transform,
+            masks,
+        )?;
     }
 
     Ok(())

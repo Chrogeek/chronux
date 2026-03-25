@@ -81,6 +81,7 @@ pub struct DrawingConfig {
     pub line_counters: HashMap<String, HashMap<String, f32>>,
     #[serde(rename = "watermark")]
     pub watermark: Option<WatermarkConfig>,
+    pub masks: HashMap<String, String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
