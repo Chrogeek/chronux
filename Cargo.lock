@@ -411,6 +411,7 @@ dependencies = [
  "serde",
  "serde_with",
  "simplecss",
+ "skia-bindings",
  "skia-safe",
  "svgtypes",
  "toml",

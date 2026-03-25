@@ -26,6 +26,7 @@ semver = "1.0.26"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_with = "3.14.0"
 simplecss = "0.2.2"
+skia-bindings = { version = "0.87", features = ["default", "textlayout"] }
 skia-safe = { version = "0.87", features = ["default", "textlayout"] }
 svgtypes = "0.15.3"
 toml = "0.8.23"

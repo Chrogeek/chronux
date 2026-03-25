@@ -71,7 +71,7 @@ impl Shape {
             } => Rect::from_xywh(*x, *y, *width, *height),
             Shape::Text { children, .. } => children
                 .iter()
-                .map(|c| c.bounds)
+                .map(|c| c.preshaped.bounds)
                 .reduce(|mut a, b| {
                     a.join(b);
                     a

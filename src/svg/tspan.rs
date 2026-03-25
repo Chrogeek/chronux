@@ -1,14 +1,20 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, mem::MaybeUninit};
 
 use roxmltree::Node;
-use skia_safe::{Canvas, Color, Matrix, Point, Rect, textlayout::TextDirection};
+use skia_bindings::SkTextBlob_Iter_ExperimentalRun;
+use skia_safe::{
+    Canvas, Color, Font, FourByteTag, Matrix, Path, Point, Rect, Shaper, TextBlobIter,
+    shaper::{Feature, TextBlobBuilderRunHandler},
+    textlayout::TextDirection,
+    wrapper::ValueWrapper,
+};
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
     animation::properties::Properties,
     config::counter::Counters,
     svg::{
-        attribute_f32, attribute_str, attribute_transform, defs::SvgDef,
+        attribute_f32, attribute_str, attribute_transform, defs::SvgDef, parse_font_features,
         placeholder_text::PlaceholderText,
     },
     util::{TextAnchor, TextDrawPass, error::ChronuxResult, paint::ColorPaint, trim_control_chars},
@@ -21,13 +27,27 @@ pub struct Tspan {
     pub text: TspanText,
     pub style: Properties,
     pub length: f32,
-    pub bounds: Rect,
+    pub preshaped: PreshapedText,
 }
 
 #[derive(Debug, Clone)]
 pub enum TspanText {
     Text(String),
     Placeholder(PlaceholderText),
+}
+
+#[derive(Debug, Clone)]
+pub struct PreshapedText {
+    pub ascent: f32,
+    pub bounds: skia_safe::Rect,
+    pub glyphs: Vec<PreshapedGlyph>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PreshapedGlyph {
+    pub path: Path,
+    pub pos: Point,
+    pub width: f32,
 }
 
 impl Tspan {
@@ -48,6 +68,8 @@ impl Tspan {
             result: &mut Vec<Tspan>,
             placeholder: &Option<PlaceholderText>,
         ) -> ChronuxResult<()> {
+            let style_str = attribute_str(node, "style").unwrap_or("".to_string());
+
             let base_style = match attribute_str(node, "style") {
                 Ok(style) => Properties::from_style(&style, mat, base_style)?,
                 Err(_) => base_style,
@@ -56,23 +78,34 @@ impl Tspan {
             for child in node.children() {
                 let x = attribute_f32(&child, "x").unwrap_or(x);
                 let y = attribute_f32(&child, "y").unwrap_or(y);
+                let dir = attribute_str(&child, "dir")
+                    .ok()
+                    .and_then(|s| match s.as_str() {
+                        "ltr" => Some(TextDirection::LTR),
+                        "rtl" => Some(TextDirection::RTL),
+                        _ => None,
+                    })
+                    .unwrap_or(base_style.dir);
                 if child.is_text() {
                     let text = child.text().unwrap_or("").to_string();
                     let text = trim_control_chars(&text);
                     let Point { x, y } = mat.map_point((x, y));
                     if !text.is_empty() {
                         let font = base_style.get_font()?;
-                        let (width, bounds_rect) = font.measure_str(text, None);
+                        // let (width, _) = font.measure_str(text, None);
+                        let features = parse_font_features(&style_str, 0, text.len());
+                        let preshaped = Tspan::preshape_text_align(&text, &font, dir, &features);
                         let tspan = Tspan {
                             x,
                             y,
                             style: base_style.clone(),
-                            length: width,
+                            length: preshaped.glyphs.last().map(|g| g.pos.x + g.width).unwrap(),
                             text: match placeholder {
                                 Some(formatter) => TspanText::Placeholder(formatter.clone()),
                                 None => TspanText::Text(text.to_string()),
                             },
-                            bounds: bounds_rect,
+                            // bounds: preshaped.bounds,
+                            preshaped,
                         };
                         result.push(tspan);
                     }
@@ -195,41 +228,219 @@ impl Tspan {
             // Do nothing here
         } else if tl < 1e-4 && tr > self.length - 1e-4 {
             let (x, y) = (self.x, self.y);
-            canvas.draw_text_align(
-                &text,
-                (x + tx, y + ty),
-                &font,
-                &paint,
-                self.style.text_anchor.to_align(self.style.dir),
-            );
-        } else {
-            let mut dlen = 0.0;
-            for g in text.graphemes(true) {
-                let c = self.style.measure_string(g)?;
-
-                if dlen + c < tl || dlen > tr {
-                    // draw nothing
-                } else {
-                    let tl = tl.max(dlen);
-                    let tr = tr.min(dlen + c);
-                    let alpha = (tr - tl) / c;
-                    let (x, y) = (self.x + (dlen - offset) * dir_coeff, self.y);
-
-                    let mut new_paint = paint.clone();
-
-                    new_paint.set_alpha((alpha * paint.alpha() as f32) as u8);
+            match &self.text {
+                TspanText::Placeholder(placeholder) => {
+                    let text = placeholder.format(counters);
                     canvas.draw_text_align(
-                        g,
+                        &text,
                         (x + tx, y + ty),
                         &font,
-                        &new_paint,
-                        TextAnchor::Start.to_align(self.style.dir),
+                        &paint,
+                        self.style.text_anchor.to_align(self.style.dir),
                     );
                 }
+                TspanText::Text(_) => {
+                    let PreshapedText {
+                        ascent,
+                        bounds: _,
+                        glyphs,
+                    } = &self.preshaped;
+                    // let offset_x = match self.style.text_anchor.to_align(self.style.dir) {
+                    //     Align::Left => 0.0,
+                    //     Align::Center => -bounds.width() / 2.0,
+                    //     Align::Right => -bounds.width(),
+                    // };
+                    for PreshapedGlyph { path, pos, .. } in glyphs {
+                        let mut translated_path = path.clone();
+                        translated_path.transform(&Matrix::translate(
+                            Point::new(x + tx, y + ty) + *pos + Point::new(-offset, *ascent),
+                        ));
+                        canvas.draw_path(&translated_path, &paint);
+                    }
+                }
+            }
+        } else {
+            match &self.text {
+                TspanText::Placeholder(_) => {
+                    let mut dlen = 0.0;
+                    for g in text.graphemes(true) {
+                        let c = self.style.measure_string(g)?;
 
-                dlen += c;
+                        if dlen + c < tl || dlen > tr {
+                            // draw nothing
+                        } else {
+                            let tl = tl.max(dlen);
+                            let tr = tr.min(dlen + c);
+                            let alpha = (tr - tl) / c;
+                            let (x, y) = (self.x + (dlen - offset) * dir_coeff, self.y);
+
+                            let mut new_paint = paint.clone();
+
+                            new_paint.set_alpha((alpha * paint.alpha() as f32) as u8);
+                            canvas.draw_text_align(
+                                g,
+                                (x + tx, y + ty),
+                                &font,
+                                &new_paint,
+                                TextAnchor::Start.to_align(self.style.dir),
+                            );
+                        }
+
+                        dlen += c;
+                    }
+                }
+                TspanText::Text(_) => {
+                    for g in self.preshaped.glyphs.iter() {
+                        let dlen = g.pos.x + g.path.bounds().left;
+
+                        let c = g.width;
+
+                        if dlen + c < tl || dlen > tr {
+                            // draw nothing
+                        } else {
+                            let tl = tl.max(dlen);
+                            let tr = tr.min(dlen + c);
+                            let alpha = (tr - tl) / c;
+
+                            let (x, y) = (self.x, self.y);
+
+                            let mut new_paint = paint.clone();
+                            new_paint.set_alpha((alpha * paint.alpha() as f32) as u8);
+
+                            let mut translated_path = g.path.clone();
+                            translated_path.transform(&Matrix::translate(
+                                Point::new(x + tx, y + ty)
+                                    + g.pos
+                                    + Point::new(-offset, self.preshaped.ascent),
+                            ));
+                            canvas.draw_path(&translated_path, &new_paint);
+                        }
+                    }
+                }
             }
         }
         Ok(())
+    }
+
+    fn preshape_text_align(
+        text: &str,
+        font: &Font,
+        dir: TextDirection,
+        features: &[Feature],
+    ) -> PreshapedText {
+        let fontmgr = skia_safe::FontMgr::new();
+        let shaper = Shaper::new(fontmgr.clone());
+
+        // Unicode 双向性迭代器（需要 ICU）
+        let mut bidi_iter = Shaper::new_bidi_run_iterator(
+            text,
+            match dir {
+                TextDirection::RTL => 1,
+                TextDirection::LTR => 0,
+            },
+        )
+        .unwrap();
+
+        // 脚本迭代器
+        // TODO: 目前写死了文种为 Hans，后续应考虑添加自定义文种的设置支持
+        let script_code = FourByteTag::from_chars('H', 'a', 'n', 's');
+        let mut script_iter = Shaper::new_script_run_iterator(text, script_code);
+
+        // 字体运行迭代器
+        let mut font_run_iter = Shaper::new_font_mgr_run_iterator(text, font, fontmgr);
+
+        // 语言迭代器
+        let mut lang_iter = Shaper::new_std_language_run_iterator(text).unwrap();
+
+        let mut rh = TextBlobBuilderRunHandler::new(text, Point::new(0.0, 0.0));
+
+        shaper.shape_with_iterators_and_features(
+            text,
+            &mut font_run_iter,
+            &mut bidi_iter,
+            &mut script_iter,
+            &mut lang_iter,
+            &features,
+            f32::INFINITY,
+            &mut rh,
+        );
+
+        let preshaped = rh.make_blob().unwrap();
+
+        let mut bounds = Rect::new_empty();
+
+        let mut iter = TextBlobIter::new(&preshaped);
+        let iter = iter.inner_mut();
+        let mut glyphs = Vec::new();
+        let mut ascent = 0.0f32;
+        loop {
+            let mut run = SkTextBlob_Iter_ExperimentalRun {
+                font: font.clone().unwrap(),
+                count: 0,
+                glyphs: std::ptr::null(),
+                positions: std::ptr::null(),
+            };
+            unsafe {
+                if iter.experimentalNext(&mut run) {
+                    let glyph_count = run.count;
+
+                    let tff = run.font;
+
+                    let run_glyphs = std::slice::from_raw_parts(run.glyphs, glyph_count as usize);
+                    let paths = run_glyphs.iter().map(|g| {
+                        let mut p = Path::new().unwrap();
+                        tff.getPath(*g, &mut p);
+                        Path::wrap(p)
+                    });
+
+                    let mut widths = vec![0.0f32; glyph_count as usize];
+                    tff.getWidthsBounds(
+                        run_glyphs.as_ptr(),
+                        run_glyphs.len() as i32,
+                        widths.as_mut_ptr(),
+                        std::ptr::null_mut(),
+                        std::ptr::null_mut(),
+                    );
+
+                    #[allow(invalid_value)]
+                    let mut metrics = MaybeUninit::uninit().assume_init();
+                    tff.getMetrics(&mut metrics);
+
+                    ascent = ascent.min(metrics.fAscent);
+
+                    let pos = std::slice::from_raw_parts(run.positions, glyph_count as usize)
+                        .iter()
+                        .map(|p| Point::new(p.fX, p.fY))
+                        .collect::<Vec<_>>();
+
+                    for (p, pa) in pos.iter().zip(paths.clone()) {
+                        bounds.join(Rect::new(
+                            p.x,
+                            p.y,
+                            p.x + pa.bounds().width(),
+                            p.y + pa.bounds().height(),
+                        ));
+                    }
+
+                    glyphs.extend(
+                        paths
+                            .zip(pos.into_iter())
+                            .zip(widths.into_iter())
+                            .map(|((path, pos), width)| PreshapedGlyph { pos, width, path }),
+                    );
+                } else {
+                    break;
+                }
+            }
+        }
+
+        // 强制从左到右排序
+        glyphs.sort_by(|g1, g2| g1.pos.x.partial_cmp(&g2.pos.x).unwrap());
+
+        PreshapedText {
+            ascent,
+            bounds,
+            glyphs,
+        }
     }
 }

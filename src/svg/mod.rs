@@ -4,7 +4,7 @@ use std::{
 };
 
 use roxmltree::{Document, Node};
-use skia_safe::Matrix;
+use skia_safe::{FourByteTag, Matrix, shaper::Feature};
 use svgtypes::{TransformListParser, TransformListToken};
 
 use crate::{
@@ -296,4 +296,91 @@ pub fn parse_transform(transform: &str) -> ChronuxResult<Matrix> {
         mat = mat * t;
     }
     Ok(mat)
+}
+
+pub fn parse_font_features(style: &str, start: usize, end: usize) -> Vec<Feature> {
+    let rules = style
+        .split(';')
+        .filter_map(|s| s.trim().split_once(':'))
+        .map(|(k, v)| (k.trim(), v.trim()))
+        .collect::<std::collections::HashMap<_, _>>();
+
+    let mut features = HashMap::new();
+
+    match rules.get("font-variant-numeric") {
+        Some(&"lining-nums") => {
+            features.insert("lnum".to_string(), 1);
+        }
+        Some(&"oldstyle-nums") => {
+            features.insert("onum".to_string(), 1);
+        }
+        Some(&"proportional-nums") => {
+            features.insert("pnum".to_string(), 1);
+        }
+        Some(&"tabular-nums") => {
+            features.insert("tnum".to_string(), 1);
+        }
+        Some(&"diagonal-fractions") => {
+            features.insert("frac".to_string(), 1);
+        }
+        Some(&"stacked-fractions") => {
+            features.insert("afrc".to_string(), 1);
+        }
+        Some(&"ordinal") => {
+            features.insert("ordn".to_string(), 1);
+        }
+        Some(&"slashed-zero") => {
+            features.insert("zero".to_string(), 1);
+        }
+        _ => {}
+    }
+
+    if let Some(f) = rules.get("font-feature-settings") {
+        f.split(',')
+            .filter_map(|s| {
+                let s = s.trim();
+                if s.is_empty() {
+                    return None;
+                }
+                let mut parts = s.split_whitespace();
+                let tag = parts.next()?;
+                let tag = if tag.len() == 6
+                    && (tag.starts_with("\"") || tag.starts_with("'"))
+                    && (tag.ends_with("\"") || tag.ends_with("'"))
+                {
+                    tag[1..5].to_string()
+                } else if tag.len() == 4 {
+                    tag.to_string()
+                } else {
+                    return None;
+                };
+                let value = match parts.next() {
+                    Some("on") => 1,
+                    Some("off") => 0,
+                    None => 1,
+                    Some(x) => x.parse::<u32>().ok()?,
+                };
+                Some((tag, value))
+            })
+            .for_each(|(tag, value)| {
+                features.insert(tag, value);
+            });
+    }
+
+    features
+        .into_iter()
+        .filter_map(|(tag, value)| {
+            let tag = tag.trim();
+            if tag.len() != 4 {
+                return None;
+            }
+            let tag = tag.chars().collect::<Vec<_>>();
+            Some(Feature {
+                tag: *FourByteTag::from_chars(tag[0], tag[1], tag[2], tag[3]),
+                value,
+                start,
+                end,
+            })
+        })
+        .collect()
 }
