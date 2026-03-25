@@ -138,6 +138,13 @@ pub struct ScaleConfig {
     #[serde(rename = "fill-color")]
     #[serde(deserialize_with = "crate::util::deserialize_hex_color")]
     pub fill_color: Color,
+    #[serde(rename = "font-weight")]
+    #[serde(default = "default_scale_weight")]
+    pub font_weight: f32,
+}
+
+fn default_scale_weight() -> f32 {
+    1.0
 }
 
 #[derive(Debug, Deserialize, Clone)]

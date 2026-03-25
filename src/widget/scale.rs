@@ -73,7 +73,7 @@ pub fn draw(
     let maj_len = major / resolution;
     let min_len = minor / resolution;
 
-    let font = get_font(font_family, 10.0, 400)?;
+    let font = get_font(font_family, 10.0, (400.0 * scale.font_weight) as i32)?;
     let height = font.measure_str("0", Some(&fill)).1.height();
 
     // 在画布的指定位置绘制比例尺

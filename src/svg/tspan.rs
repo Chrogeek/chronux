@@ -92,19 +92,18 @@ impl Tspan {
                     let Point { x, y } = mat.map_point((x, y));
                     if !text.is_empty() {
                         let font = base_style.get_font()?;
-                        // let (width, _) = font.measure_str(text, None);
                         let features = parse_font_features(&style_str, 0, text.len());
-                        let preshaped = Tspan::preshape_text_align(&text, &font, dir, &features);
+                        let (preshaped, width) =
+                            Tspan::preshape_text_align(&text, &font, dir, &features);
                         let tspan = Tspan {
                             x,
                             y,
                             style: base_style.clone(),
-                            length: preshaped.glyphs.last().map(|g| g.pos.x + g.width).unwrap(),
+                            length: width,
                             text: match placeholder {
                                 Some(formatter) => TspanText::Placeholder(formatter.clone()),
                                 None => TspanText::Text(text.to_string()),
                             },
-                            // bounds: preshaped.bounds,
                             preshaped,
                         };
                         result.push(tspan);
@@ -245,11 +244,6 @@ impl Tspan {
                         bounds: _,
                         glyphs,
                     } = &self.preshaped;
-                    // let offset_x = match self.style.text_anchor.to_align(self.style.dir) {
-                    //     Align::Left => 0.0,
-                    //     Align::Center => -bounds.width() / 2.0,
-                    //     Align::Right => -bounds.width(),
-                    // };
                     for PreshapedGlyph { path, pos, .. } in glyphs {
                         let mut translated_path = path.clone();
                         translated_path.transform(&Matrix::translate(
@@ -327,13 +321,15 @@ impl Tspan {
         font: &Font,
         dir: TextDirection,
         features: &[Feature],
-    ) -> PreshapedText {
+    ) -> (PreshapedText, f32) {
+        let text = text.to_string() + "\u{200B}"; // 添加零宽空格以确保最后一个字符的宽度被正确计算
+
         let fontmgr = skia_safe::FontMgr::new();
         let shaper = Shaper::new(fontmgr.clone());
 
         // Unicode 双向性迭代器（需要 ICU）
         let mut bidi_iter = Shaper::new_bidi_run_iterator(
-            text,
+            &text,
             match dir {
                 TextDirection::RTL => 1,
                 TextDirection::LTR => 0,
@@ -344,18 +340,18 @@ impl Tspan {
         // 脚本迭代器
         // TODO: 目前写死了文种为 Hans，后续应考虑添加自定义文种的设置支持
         let script_code = FourByteTag::from_chars('H', 'a', 'n', 's');
-        let mut script_iter = Shaper::new_script_run_iterator(text, script_code);
+        let mut script_iter = Shaper::new_script_run_iterator(&text, script_code);
 
         // 字体运行迭代器
-        let mut font_run_iter = Shaper::new_font_mgr_run_iterator(text, font, fontmgr);
+        let mut font_run_iter = Shaper::new_font_mgr_run_iterator(&text, font, fontmgr);
 
         // 语言迭代器
-        let mut lang_iter = Shaper::new_std_language_run_iterator(text).unwrap();
+        let mut lang_iter = Shaper::new_std_language_run_iterator(&text).unwrap();
 
-        let mut rh = TextBlobBuilderRunHandler::new(text, Point::new(0.0, 0.0));
+        let mut rh = TextBlobBuilderRunHandler::new(&text, Point::new(0.0, 0.0));
 
         shaper.shape_with_iterators_and_features(
-            text,
+            &text,
             &mut font_run_iter,
             &mut bidi_iter,
             &mut script_iter,
@@ -434,13 +430,16 @@ impl Tspan {
             }
         }
 
-        // 强制从左到右排序
-        glyphs.sort_by(|g1, g2| g1.pos.x.partial_cmp(&g2.pos.x).unwrap());
+        let width = glyphs.last().map(|g| g.pos.x).unwrap_or(0.0);
+        glyphs.pop(); // 移除零宽空格对应的字形
 
-        PreshapedText {
-            ascent,
-            bounds,
-            glyphs,
-        }
+        (
+            PreshapedText {
+                ascent,
+                bounds,
+                glyphs,
+            },
+            width,
+        )
     }
 }
