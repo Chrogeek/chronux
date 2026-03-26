@@ -192,39 +192,34 @@ impl Svg {
                     if let Some(href) = href {
                         let href_id = href.trim_start_matches('#');
                         if let Some(base_def) = defs.get(href_id) {
-                            if let SvgDef::LinearGradient {
+                            let SvgDef::LinearGradient {
                                 p1: _,
                                 p2: _,
                                 stops: b_stops,
                                 href: b_href,
                                 ..
-                            } = base_def
-                            {
-                                let new_stops = if stops.is_empty() {
-                                    b_stops.clone()
-                                } else {
-                                    stops.clone()
-                                };
-                                new_defs.insert(
-                                    id.clone(),
-                                    SvgDef::LinearGradient {
-                                        p1: *p1,
-                                        p2: *p2,
-                                        stops: new_stops,
-                                        href: b_href.clone(),
-                                        gradient_transform: *gradient_transform,
-                                    },
-                                );
-                                continue;
-                            }
+                            } = base_def;
+                            let new_stops = if stops.is_empty() {
+                                b_stops.clone()
+                            } else {
+                                stops.clone()
+                            };
+                            new_defs.insert(
+                                id.clone(),
+                                SvgDef::LinearGradient {
+                                    p1: *p1,
+                                    p2: *p2,
+                                    stops: new_stops,
+                                    href: b_href.clone(),
+                                    gradient_transform: *gradient_transform,
+                                },
+                            );
+                            continue;
                         }
                     }
                     // href 指向的不是线性渐变，或
                     // href 指向的 id 不存在，或
                     // 自己没有 href，直接插入原始定义
-                    new_defs.insert(id.clone(), def.clone());
-                }
-                _ => {
                     new_defs.insert(id.clone(), def.clone());
                 }
             }

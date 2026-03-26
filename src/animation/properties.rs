@@ -46,6 +46,7 @@ pub struct Properties {
     pub dash_offset: f32,
     pub dash_array: Vec<f32>,
     pub shape: Shape,
+    pub blur: Option<f32>,
 }
 
 impl Default for Properties {
@@ -77,6 +78,7 @@ impl Default for Properties {
             dash_offset: 0.0,
             dash_array: Vec::new(),
             shape: Shape::None,
+            blur: None,
         }
     }
 }

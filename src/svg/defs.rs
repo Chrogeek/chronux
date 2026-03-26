@@ -15,10 +15,6 @@ pub enum SvgDef {
         href: Option<String>,
         gradient_transform: Matrix,
     },
-    GaussianBlur {
-        stddev_x: f32,
-        stddev_y: f32,
-    },
 }
 
 #[derive(Debug, Clone)]
@@ -95,30 +91,6 @@ pub fn get_def_node(node: &Node) -> Option<(String, SvgDef)> {
                     gradient_transform,
                 },
             ))
-        }
-        "filter" => {
-            let id = attribute_str(node, "id").unwrap_or_default();
-            let (mut stddev_x, mut stddev_y) = (0.0, 0.0);
-
-            for child in node.children().filter(|n| n.is_element()) {
-                if child.tag_name().name() == "feGaussianBlur" {
-                    let std_deviation =
-                        attribute_str(&child, "stdDeviation").unwrap_or("0.0".to_string());
-                    let stddev = std_deviation
-                        .split_whitespace()
-                        .map(|s| s.parse::<f32>().ok())
-                        .collect::<Option<Vec<_>>>();
-                    if let Some(stddev) = stddev {
-                        if stddev.len() == 1 {
-                            (stddev_x, stddev_y) = (stddev[0], stddev[0])
-                        } else if stddev.len() >= 2 {
-                            (stddev_x, stddev_y) = (stddev[0], stddev[1])
-                        }
-                    }
-                }
-            }
-
-            Some((id, SvgDef::GaussianBlur { stddev_x, stddev_y }))
         }
         _ => None,
     }

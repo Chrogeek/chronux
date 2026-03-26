@@ -142,11 +142,15 @@ impl Object {
         } else {
             MaskMode::Fill
         };
+        let blur = svg::attribute_f32(node, "chronux-blur").ok();
+
         let style = Properties::from_style(
             &svg::attribute_str(node, "style").unwrap_or_default(),
             mat,
             Default::default(),
         )?;
+        let style = Properties { blur, ..style };
+
         let shape = match node.tag_name().name() {
             "path" => Shape::Path {
                 d: svg::path::svg_to_path(&svg::attribute_str(node, "d")?, mat)?,

@@ -1,6 +1,10 @@
 use std::collections::HashMap;
 
-use skia_safe::{Canvas, Matrix, Paint, PaintStyle, Rect, TileMode, Vector, image_filters::blur};
+use skia_safe::{
+    Canvas, ClipOp, Matrix, Paint, PaintStyle, RRect, Rect, TileMode, Vector,
+    canvas::{SaveLayerFlags, SaveLayerRec},
+    image_filters::blur,
+};
 
 use crate::{
     animation::properties::Properties,
@@ -23,6 +27,8 @@ pub fn draw(
         return Ok(());
     }
 
+    let restore_handle = canvas.save();
+
     let mat = canvas.local_to_device_as_3x3();
     let min_stroke_width = mat
         .invert()
@@ -34,20 +40,9 @@ pub fn draw(
         .map_vector(Vector::new(min_stroke_width, 0.0))
         .length();
 
-    let mut fill = properties.get_fill_paint(defs, element_transform);
+    let fill = properties.get_fill_paint(defs, element_transform);
     let mut stroke = properties.get_stroke_paint(defs, element_transform);
     stroke.set_stroke_width(stroke.stroke_width().max(min_stroke_width));
-
-    if let Some(href) = &properties.filter {
-        let filter = defs
-            .get(href)
-            .ok_or_else(|| ChronuxError::HrefError(format!("Filter with id '{href}' not found")))?;
-        if let SvgDef::GaussianBlur { stddev_x, stddev_y } = filter {
-            let filter = blur((*stddev_x, *stddev_y), TileMode::Decal, None, None);
-            fill.set_image_filter(filter.clone());
-            stroke.set_image_filter(filter);
-        }
-    }
 
     let paints = sort_paints(properties.paint_order, stroke, fill);
 
@@ -55,17 +50,13 @@ pub fn draw(
         get_bounding_box(properties).map(|(l, t, r, b)| ((l + r) * 0.5, (t + b) * 0.5));
 
     // 将画布绕 bboxcenter 点旋转 properties.rotate 角度(deg)
-    let restore_handle = if properties.rotate.abs() > 1e-4
+    if properties.rotate.abs() > 1e-4
         && let Some((cx, cy)) = bboxcenter
     {
         let cx = cx + properties.translate_x;
         let cy = cy + properties.translate_y;
-        let restore_handle = canvas.save();
         canvas.rotate(properties.rotate, Some((cx, cy).into()));
-        Some(restore_handle)
-    } else {
-        None
-    };
+    }
 
     match &properties.shape {
         Shape::None => {}
@@ -82,6 +73,18 @@ pub fn draw(
             // TODO: 这里的缩放操作可能与预期不同，后期使用时需要检查
             canvas.scale((properties.scale_x, properties.scale_y));
 
+            properties.blur.inspect(|bl| {
+                let blur_bounds = d.bounds();
+                blur((*bl, *bl), TileMode::Clamp, None, blur_bounds).inspect(|filter| {
+                    canvas.clip_path(&d, ClipOp::Intersect, true);
+                    let save_layer_rec = SaveLayerRec::default()
+                        .bounds(d.bounds())
+                        .backdrop(&filter)
+                        .flags(SaveLayerFlags::INIT_WITH_PREVIOUS);
+                    canvas.save_layer(&save_layer_rec);
+                });
+            });
+
             canvas.draw_path(&d, &paints[0]);
             canvas.draw_path(&d, &paints[1]);
 
@@ -94,6 +97,9 @@ pub fn draw(
                 r * properties.scale_x,
                 r * properties.scale_y,
             );
+            properties.blur.inspect(|_| {
+                log::warn!("Blur effect for Circle is not implemented, skipping blur");
+            });
             let (sweep_start, sweep_end) = properties.sweep;
             for paint in paints {
                 canvas.draw_arc(
@@ -125,6 +131,25 @@ pub fn draw(
                 x + width * 0.5 + w * 0.5,
                 y + height * 0.5 + h * 0.5,
             );
+            properties.blur.inspect(|bl| {
+                let blur_bounds = rect;
+                blur((*bl, *bl), TileMode::Clamp, None, blur_bounds).inspect(|filter| {
+                    if rx > 1e-4 || ry > 1e-4 {
+                        canvas.clip_rrect(
+                            &RRect::new_rect_xy(rect, rx, ry),
+                            ClipOp::Intersect,
+                            true,
+                        );
+                    } else {
+                        canvas.clip_rect(rect, ClipOp::Intersect, true);
+                    }
+                    let save_layer_rec = SaveLayerRec::default()
+                        .bounds(&rect)
+                        .backdrop(&filter)
+                        .flags(SaveLayerFlags::INIT_WITH_PREVIOUS);
+                    canvas.save_layer(&save_layer_rec);
+                });
+            });
             for paint in paints {
                 if rx > 1e-4 || ry > 1e-4 {
                     canvas.draw_round_rect(rect, rx, ry, &paint);
@@ -141,6 +166,10 @@ pub fn draw(
 
             let start = start * total_len;
             let end = end * total_len;
+
+            properties.blur.inspect(|_| {
+                log::warn!("Blur effect for Text is not implemented, skipping blur");
+            });
 
             // 文本强制按照 描边-填充 顺序绘制
             for pass in [TextDrawPass::Stroke, TextDrawPass::Fill] {
@@ -182,6 +211,17 @@ pub fn draw(
                     x + properties.translate_x + width * 0.5 + w * 0.5,
                     y + properties.translate_y + height * 0.5 + h * 0.5,
                 );
+                properties.blur.inspect(|bl| {
+                    let blur_bounds = dst_rect;
+                    blur((*bl, *bl), TileMode::Clamp, None, blur_bounds).inspect(|filter| {
+                        canvas.clip_rect(dst_rect, ClipOp::Intersect, true);
+                        let save_layer_rec = SaveLayerRec::default()
+                            .bounds(&dst_rect)
+                            .backdrop(&filter)
+                            .flags(SaveLayerFlags::INIT_WITH_PREVIOUS);
+                        canvas.save_layer(&save_layer_rec);
+                    });
+                });
                 let mut paint = Paint::default();
                 paint.set_alpha((properties.opacity * 255.0) as u8);
                 canvas.draw_image_rect(skia_img, None, dst_rect, &paint);
@@ -203,10 +243,7 @@ pub fn draw(
         }
     }
 
-    if let Some(restore_handle) = restore_handle {
-        canvas.restore_to_count(restore_handle);
-    }
-
+    canvas.restore_to_count(restore_handle);
     Ok(())
 }
 
