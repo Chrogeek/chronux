@@ -101,6 +101,13 @@ pub struct MinimapConfig {
     #[serde(rename = "fill-color")]
     #[serde(deserialize_with = "crate::util::deserialize_hex_color")]
     pub fill_color: Color,
+    #[serde(rename = "stroke-color")]
+    #[serde(deserialize_with = "crate::util::deserialize_hex_color")]
+    pub stroke_color: Color,
+    #[serde(rename = "stroke-width", default)]
+    pub stroke_width: f32,
+    #[serde(rename = "backdrop-blur", default)]
+    pub backdrop_blur: f32,
     #[serde(rename = "expand-speed")]
     pub expand_speed: f32,
 }

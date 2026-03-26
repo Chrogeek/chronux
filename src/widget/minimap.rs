@@ -1,6 +1,10 @@
 use std::collections::HashMap;
 
-use skia_safe::{Canvas, ClipOp, RRect, Rect};
+use skia_safe::{
+    Canvas, ClipOp, RRect, Rect, TileMode,
+    canvas::{SaveLayerFlags, SaveLayerRec},
+    image_filters::blur,
+};
 
 use crate::{
     animation::timeline::Timeline,
@@ -85,13 +89,35 @@ pub fn draw(
         ),
     };
 
+    let minimap_rect = Rect::from_xywh(rx1, ry1, rx2 - rx1, ry2 - ry1);
+
+    canvas.clip_rrect(
+        RRect::new_rect_xy(minimap_rect, minimap.corner_radius, minimap.corner_radius),
+        ClipOp::Intersect,
+        true,
+    );
+
+    if minimap.backdrop_blur > 0.0 {
+        let blur_bounds = minimap_rect;
+        blur(
+            (minimap.backdrop_blur, minimap.backdrop_blur),
+            TileMode::Clamp,
+            None,
+            blur_bounds,
+        )
+        .inspect(|filter| {
+            let save_layer_rec = SaveLayerRec::default()
+                .bounds(&minimap_rect)
+                .backdrop(&filter)
+                .flags(SaveLayerFlags::INIT_WITH_PREVIOUS);
+            canvas.save_layer(&save_layer_rec);
+        });
+    }
+
     let mut fill = skia_safe::Paint::default();
     fill.set_anti_alias(true);
     fill.set_color(minimap.fill_color);
     fill.set_style(skia_safe::PaintStyle::Fill);
-
-    let minimap_rect = Rect::from_xywh(rx1, ry1, rx2 - rx1, ry2 - ry1);
-
     canvas.draw_round_rect(
         minimap_rect,
         minimap.corner_radius,
@@ -99,11 +125,19 @@ pub fn draw(
         &fill,
     );
 
-    canvas.clip_rrect(
-        RRect::new_rect_xy(minimap_rect, minimap.corner_radius, minimap.corner_radius),
-        ClipOp::Intersect,
-        true,
-    );
+    if minimap.stroke_width > 0.0 {
+        let mut stroke = skia_safe::Paint::default();
+        stroke.set_anti_alias(true);
+        stroke.set_color(minimap.stroke_color);
+        stroke.set_stroke_width(minimap.stroke_width);
+        stroke.set_style(skia_safe::PaintStyle::Stroke);
+        canvas.draw_round_rect(
+            minimap_rect,
+            minimap.corner_radius,
+            minimap.corner_radius,
+            &stroke,
+        );
+    }
 
     canvas
         .translate((x1, y1))
