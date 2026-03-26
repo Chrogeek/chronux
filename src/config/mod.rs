@@ -108,6 +108,8 @@ pub struct MinimapConfig {
     pub stroke_width: f32,
     #[serde(rename = "backdrop-blur", default)]
     pub backdrop_blur: f32,
+    #[serde(default)]
+    pub shadow: f32,
     #[serde(rename = "expand-speed")]
     pub expand_speed: f32,
 }

@@ -1,8 +1,8 @@
 use std::{collections::HashMap, str::FromStr};
 
 use skia_safe::{
-    Color, Font, Matrix, PaintCap, PaintJoin, PathEffect, gradient_shader,
-    textlayout::TextDirection,
+    Color, Font, Matrix, Paint, PaintCap, PaintJoin, PaintStyle, PathEffect, gradient_shader,
+    image_filters::drop_shadow_only, textlayout::TextDirection,
 };
 use svgtypes::PaintOrder;
 
@@ -47,6 +47,7 @@ pub struct Properties {
     pub dash_array: Vec<f32>,
     pub shape: Shape,
     pub blur: Option<f32>,
+    pub shadow: Option<f32>,
 }
 
 impl Default for Properties {
@@ -79,6 +80,7 @@ impl Default for Properties {
             dash_array: Vec::new(),
             shape: Shape::None,
             blur: None,
+            shadow: None,
         }
     }
 }
@@ -529,6 +531,18 @@ impl Properties {
         }
 
         paint
+    }
+
+    pub fn get_shadow_paint(&self) -> Option<skia_safe::Paint> {
+        let sh = self.shadow?;
+        let shadow_color = Color::BLACK;
+        let shadow_filter = drop_shadow_only((0.0, 0.0), (sh, sh), shadow_color, None, None, None)?;
+        let mut shadow_paint = Paint::default();
+        shadow_paint
+            .set_image_filter(shadow_filter)
+            .set_style(PaintStyle::Stroke)
+            .set_anti_alias(true);
+        Some(shadow_paint)
     }
 
     pub fn get_effects(&self) -> Option<skia_safe::PathEffect> {

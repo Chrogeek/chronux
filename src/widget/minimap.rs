@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
 use skia_safe::{
-    Canvas, ClipOp, RRect, Rect, TileMode,
+    Canvas, ClipOp, Color, Paint, PaintStyle, RRect, Rect, TileMode,
     canvas::{SaveLayerFlags, SaveLayerRec},
-    image_filters::blur,
+    image_filters::{blur, drop_shadow_only},
 };
 
 use crate::{
@@ -90,6 +90,24 @@ pub fn draw(
     };
 
     let minimap_rect = Rect::from_xywh(rx1, ry1, rx2 - rx1, ry2 - ry1);
+
+    if minimap.shadow > 0.0 {
+        let sh = minimap.shadow;
+        let shadow_color = Color::BLACK;
+        let shadow_filter =
+            drop_shadow_only((0.0, 0.0), (sh, sh), shadow_color, None, None, None).unwrap();
+        let mut shadow_paint = Paint::default();
+        shadow_paint
+            .set_image_filter(shadow_filter)
+            .set_style(PaintStyle::Stroke)
+            .set_anti_alias(true);
+        canvas.draw_round_rect(
+            minimap_rect,
+            minimap.corner_radius,
+            minimap.corner_radius,
+            &shadow_paint,
+        );
+    }
 
     canvas.clip_rrect(
         RRect::new_rect_xy(minimap_rect, minimap.corner_radius, minimap.corner_radius),

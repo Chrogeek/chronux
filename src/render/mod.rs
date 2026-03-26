@@ -10,7 +10,11 @@ use crate::{
     animation::properties::Properties,
     config::{counter::Counters, extra_stroke::ExtraStrokeConfig},
     svg::{defs::SvgDef, element::Shape},
-    util::{TextDrawPass, error::ChronuxError, error::ChronuxResult, sort_paints},
+    util::{
+        TextDrawPass,
+        error::{ChronuxError, ChronuxResult},
+        sort_paints,
+    },
 };
 
 pub fn draw(
@@ -44,6 +48,8 @@ pub fn draw(
     let mut stroke = properties.get_stroke_paint(defs, element_transform);
     stroke.set_stroke_width(stroke.stroke_width().max(min_stroke_width));
 
+    let mut shadow = properties.get_shadow_paint();
+
     let paints = sort_paints(properties.paint_order, stroke, fill);
 
     let bboxcenter =
@@ -64,7 +70,11 @@ pub fn draw(
             let mut paints = paints;
             if let Some(e) = properties.get_effects() {
                 paints[0].set_path_effect(e.clone());
-                paints[1].set_path_effect(e);
+                paints[1].set_path_effect(e.clone());
+                shadow = shadow.map(|mut s| {
+                    s.set_path_effect(e);
+                    s
+                });
             }
 
             let restore_handle = canvas.save();
@@ -73,6 +83,9 @@ pub fn draw(
             // TODO: 这里的缩放操作可能与预期不同，后期使用时需要检查
             canvas.scale((properties.scale_x, properties.scale_y));
 
+            shadow.inspect(|sh| {
+                canvas.draw_path(&d, &sh);
+            });
             properties.blur.inspect(|bl| {
                 let blur_bounds = d.bounds();
                 blur((*bl, *bl), TileMode::Clamp, None, blur_bounds).inspect(|filter| {
@@ -84,7 +97,6 @@ pub fn draw(
                     canvas.save_layer(&save_layer_rec);
                 });
             });
-
             canvas.draw_path(&d, &paints[0]);
             canvas.draw_path(&d, &paints[1]);
 
@@ -97,10 +109,19 @@ pub fn draw(
                 r * properties.scale_x,
                 r * properties.scale_y,
             );
+            let (sweep_start, sweep_end) = properties.sweep;
+            shadow.inspect(|sh| {
+                canvas.draw_arc(
+                    Rect::new(cx - rx, cy - ry, cx + rx, cy + ry),
+                    -90.0 + sweep_start * 360.0,
+                    (sweep_end - sweep_start) * 360.0,
+                    false,
+                    &sh,
+                );
+            });
             properties.blur.inspect(|_| {
                 log::warn!("Blur effect for Circle is not implemented, skipping blur");
             });
-            let (sweep_start, sweep_end) = properties.sweep;
             for paint in paints {
                 canvas.draw_arc(
                     Rect::new(cx - rx, cy - ry, cx + rx, cy + ry),
@@ -131,6 +152,13 @@ pub fn draw(
                 x + width * 0.5 + w * 0.5,
                 y + height * 0.5 + h * 0.5,
             );
+            shadow.inspect(|sh| {
+                if rx > 1e-4 || ry > 1e-4 {
+                    canvas.draw_round_rect(rect, rx, ry, &sh);
+                } else {
+                    canvas.draw_rect(rect, &sh);
+                }
+            });
             properties.blur.inspect(|bl| {
                 let blur_bounds = rect;
                 blur((*bl, *bl), TileMode::Clamp, None, blur_bounds).inspect(|filter| {
@@ -172,7 +200,11 @@ pub fn draw(
             });
 
             // 文本强制按照 描边-填充 顺序绘制
-            for pass in [TextDrawPass::Stroke, TextDrawPass::Fill] {
+            for pass in [
+                TextDrawPass::Shadow,
+                TextDrawPass::Stroke,
+                TextDrawPass::Fill,
+            ] {
                 let mut drawn_length = 0.0;
                 for c in children.iter() {
                     let l = start.max(drawn_length);
@@ -211,6 +243,9 @@ pub fn draw(
                     x + properties.translate_x + width * 0.5 + w * 0.5,
                     y + properties.translate_y + height * 0.5 + h * 0.5,
                 );
+                shadow.inspect(|sh| {
+                    canvas.draw_rect(dst_rect, &sh);
+                });
                 properties.blur.inspect(|bl| {
                     let blur_bounds = dst_rect;
                     blur((*bl, *bl), TileMode::Clamp, None, blur_bounds).inspect(|filter| {

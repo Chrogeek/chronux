@@ -189,6 +189,11 @@ impl Tspan {
         };
 
         let color_style = match pass {
+            TextDrawPass::Shadow => Properties {
+                fill_color: ColorPaint::Color(Color::TRANSPARENT),
+                stroke_color: ColorPaint::Color(Color::TRANSPARENT),
+                ..color_style
+            },
             TextDrawPass::Stroke => Properties {
                 fill_color: ColorPaint::Color(Color::TRANSPARENT),
                 ..color_style
@@ -202,6 +207,14 @@ impl Tspan {
         let font = self.style.get_font()?;
 
         let paint = match pass {
+            TextDrawPass::Shadow => {
+                if let Some(sh) = color_style.get_shadow_paint() {
+                    sh
+                } else {
+                    // 如果没有阴影，则不绘制任何内容
+                    return Ok(());
+                }
+            }
             TextDrawPass::Stroke => color_style.get_stroke_paint(defs, element_transform),
             TextDrawPass::Fill => color_style.get_fill_paint(defs, element_transform),
         };

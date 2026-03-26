@@ -21,6 +21,7 @@ pub static COLOR_DICT: OnceCell<HashMap<String, Color>> = OnceCell::new();
 
 #[derive(Copy, Clone, Debug)]
 pub enum TextDrawPass {
+    Shadow,
     Fill,
     Stroke,
 }
