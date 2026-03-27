@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::path::PathBuf;
 
 use roxmltree::Node;
 use skia_safe::{Data, Image, Matrix, Path, PathMeasure, Point, Rect, Vector};
@@ -9,10 +9,7 @@ use crate::{
     svg::{
         self, attribute_label, attribute_transform, placeholder_text::PlaceholderText, tspan::Tspan,
     },
-    util::{
-        MaskMode,
-        error::{ChronuxError, ChronuxResult},
-    },
+    util::error::{ChronuxError, ChronuxResult},
 };
 
 #[derive(Debug, Clone)]
@@ -21,8 +18,13 @@ pub struct Object {
     pub style: Properties,
     pub apply_transform: bool,
     pub transform: Matrix,
-    pub mask: Option<String>,
-    pub mask_mode: MaskMode,
+    pub mask: Option<Mask>,
+}
+
+#[derive(Debug, Clone)]
+pub enum Mask {
+    Fill(String),
+    Stroke(String),
 }
 
 #[derive(Debug, Clone)]
@@ -131,17 +133,12 @@ impl Object {
         mat: Matrix,
         base: PathBuf,
         apply_transform: bool,
-        masks: &HashMap<String, String>,
     ) -> ChronuxResult<Object> {
-        let mask_mode = if let Ok(mm) = svg::attribute_str(node, "chronux-mask-mode") {
-            if mm == "stroke" {
-                MaskMode::Stroke
-            } else {
-                MaskMode::Fill // 默认使用 fill 模式
-            }
-        } else {
-            MaskMode::Fill
-        };
+        let mask = svg::attribute_str(node, "chronux-mask-mode")
+            .map(|s| Mask::try_from(s))
+            .flatten()
+            .ok();
+
         let blur = svg::attribute_f32(node, "chronux-blur").ok();
         let shadow = svg::attribute_f32(node, "chronux-shadow").ok();
 
@@ -259,27 +256,18 @@ impl Object {
             }
             "g" => {
                 let mut objects = Vec::new();
-                flatten_group_dfs(
-                    node,
-                    &mut objects,
-                    mat,
-                    base.clone(),
-                    &id,
-                    apply_transform,
-                    masks,
-                )?;
+                flatten_group_dfs(node, &mut objects, mat, base.clone(), &id, apply_transform)?;
                 Shape::Group { objects }
             }
             _ => unreachable!("unexpected SVG element: {}", node.tag_name().name()),
         };
         let style = Properties { shape, ..style };
         Ok(Object {
-            mask: masks.get(&id).cloned(),
+            mask,
             id,
             style,
             apply_transform,
             transform: mat,
-            mask_mode,
         })
     }
 
@@ -315,7 +303,6 @@ fn flatten_group_dfs(
     base: PathBuf,
     base_id: &String,
     apply_transform: bool,
-    masks: &HashMap<String, String>,
 ) -> ChronuxResult<()> {
     if node.is_element() {
         match node.tag_name().name() {
@@ -330,7 +317,6 @@ fn flatten_group_dfs(
                     matrix,
                     base.clone(),
                     apply_transform,
-                    masks,
                 )?;
                 results.push(obj.style);
             }
@@ -342,16 +328,32 @@ fn flatten_group_dfs(
     for child in node.children() {
         let element_mat = attribute_transform(&child);
         let mat = matrix * element_mat;
-        flatten_group_dfs(
-            &child,
-            results,
-            mat,
-            base.clone(),
-            base_id,
-            apply_transform,
-            masks,
-        )?;
+        flatten_group_dfs(&child, results, mat, base.clone(), base_id, apply_transform)?;
     }
 
     Ok(())
+}
+
+impl TryFrom<String> for Mask {
+    type Error = ChronuxError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        // value should be either "stroke(<id>)" or "fill(<id>)"
+        if let Some(id) = value
+            .strip_prefix("stroke(")
+            .and_then(|s| s.strip_suffix(')'))
+        {
+            Ok(Mask::Stroke(id.to_string()))
+        } else if let Some(id) = value
+            .strip_prefix("fill(")
+            .and_then(|s| s.strip_suffix(')'))
+        {
+            Ok(Mask::Fill(id.to_string()))
+        } else {
+            Err(ChronuxError::ArgError(format!(
+                "Invalid mask string: {}",
+                value
+            )))
+        }
+    }
 }

@@ -82,7 +82,6 @@ impl Svg {
         labels: &HashSet<String>,
         base: PathBuf,
         apply_transform: bool,
-        masks: &HashMap<String, String>,
     ) -> ChronuxResult<Vec<Object>> {
         fn search_labels_dfs(
             node: &Node,
@@ -92,7 +91,6 @@ impl Svg {
             matrix: Matrix,
             base: PathBuf,
             apply_transform: bool,
-            masks: &HashMap<String, String>,
         ) -> ChronuxResult<()> {
             let this_label = attribute_label(node);
 
@@ -107,7 +105,6 @@ impl Svg {
                         mat,
                         base.clone(),
                         apply_transform,
-                        masks,
                     )?);
                 }
 
@@ -120,7 +117,6 @@ impl Svg {
                             mat,
                             base.clone(),
                             apply_transform,
-                            masks,
                         )?);
                     }
                 }
@@ -135,7 +131,6 @@ impl Svg {
                     mat,
                     base.clone(),
                     apply_transform,
-                    masks,
                 )?;
             }
 
@@ -151,7 +146,6 @@ impl Svg {
             self.transform,
             base,
             apply_transform,
-            masks,
         )?;
 
         Ok(results)

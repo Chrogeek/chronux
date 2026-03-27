@@ -25,8 +25,7 @@ use crate::config::counter::{Counters, add_sum_counter_item, update_counters};
 use crate::config::extra_viewport::ExtraViewport;
 use crate::render::get_bounding_box;
 use crate::svg::defs::SvgDef;
-use crate::svg::element::{Object, Shape};
-use crate::util::MaskMode;
+use crate::svg::element::{Mask, Object, Shape};
 use crate::util::version::CHRONUX_VERSION;
 use crate::util::{
     absolute_path, error::ChronuxError, error::ChronuxResult, parse_css_color, timecode_rt,
@@ -139,7 +138,6 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             .ok_or(ChronuxError::HrefError("incorrect href".to_string()))?
             .to_path_buf(),
         true,
-        &conf.drawing.masks,
     )?;
     log::info!("Extracted {} objects in SVG", objs.len());
 
@@ -163,7 +161,6 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                 .ok_or(ChronuxError::HrefError("incorrect href".to_string()))?
                 .to_path_buf(),
             false,
-            &conf.drawing.masks,
         )?;
 
         objs.extend(osvg_objs);
@@ -965,40 +962,51 @@ fn draw(
             continue;
         } else if let Some(tl) = timeline.get(&o.id) {
             let properties = tl.interpolate(t, &path_length_dict, &shape_dict);
-            let mask_object = if let Some(mask_id) = &o.mask {
-                let mobj_props = timeline
-                    .get(mask_id)
-                    .map(|tl| tl.interpolate(t, &path_length_dict, &shape_dict))
-                    .unwrap();
+            let mask_object = match &o.mask {
+                Some(Mask::Stroke(mask_id)) => {
+                    let mobj_props = timeline
+                        .get(mask_id)
+                        .map(|tl| tl.interpolate(t, &path_length_dict, &shape_dict))
+                        .unwrap();
 
-                let mut stroke_paint = mobj_props.get_stroke_paint(defs, o.transform);
-                if let Some(e) = mobj_props.get_effects() {
-                    stroke_paint.set_path_effect(e);
-                }
-
-                if let Some(Shape::Path { d }) = shape_dict.get(mask_id) {
-                    match o.mask_mode {
-                        MaskMode::Stroke => {
-                            let mut path_stroke = Path::new();
-                            if fill_path_with_paint(
-                                d,
-                                &stroke_paint,
-                                &mut path_stroke,
-                                None,
-                                Matrix::scale((1.0, 1.0)),
-                            ) {
-                                Some(path_stroke)
-                            } else {
-                                None
-                            }
-                        }
-                        MaskMode::Fill => Some(d.clone()),
+                    let mut stroke_paint = mobj_props.get_stroke_paint(defs, o.transform);
+                    if let Some(e) = mobj_props.get_effects() {
+                        stroke_paint.set_path_effect(e);
                     }
-                } else {
-                    None
+                    if let Some(Shape::Path { d }) = shape_dict.get(mask_id) {
+                        let mut path_stroke = Path::new();
+                        if fill_path_with_paint(
+                            d,
+                            &stroke_paint,
+                            &mut path_stroke,
+                            None,
+                            Matrix::scale((1.0, 1.0)),
+                        ) {
+                            Some(path_stroke)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
                 }
-            } else {
-                None
+                Some(Mask::Fill(mask_id)) => {
+                    let mobj_props = timeline
+                        .get(mask_id)
+                        .map(|tl| tl.interpolate(t, &path_length_dict, &shape_dict))
+                        .unwrap();
+
+                    let mut stroke_paint = mobj_props.get_stroke_paint(defs, o.transform);
+                    if let Some(e) = mobj_props.get_effects() {
+                        stroke_paint.set_path_effect(e);
+                    }
+                    if let Some(Shape::Path { d }) = shape_dict.get(mask_id) {
+                        Some(d.clone())
+                    } else {
+                        None
+                    }
+                }
+                None => None,
             };
             let restore_count = canvas.save();
             if let Some(mask) = mask_object {

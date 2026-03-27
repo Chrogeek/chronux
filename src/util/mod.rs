@@ -46,12 +46,6 @@ impl TextAnchor {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-pub enum MaskMode {
-    Stroke,
-    Fill,
-}
-
 pub fn parse_css_color(color: &str, opacity: f32) -> ChronuxResult<Color> {
     if color == "none" {
         return Ok(Color::TRANSPARENT);
