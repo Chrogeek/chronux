@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use skia_safe::{
-    Canvas, ClipOp, Matrix, Paint, PaintStyle, RRect, Rect, TileMode, Vector,
+    Canvas, ClipOp, Matrix, Paint, PaintStyle, Path, RRect, Rect, StrokeRec, TileMode, Vector,
     canvas::{SaveLayerFlags, SaveLayerRec},
     image_filters::blur,
 };
@@ -288,28 +288,25 @@ pub fn get_bounding_box(properties: &Properties) -> Option<(f32, f32, f32, f32)>
     }
     match &properties.shape {
         Shape::Path { d } => {
-            const SEGMENTS: usize = 20;
-            let mut pm = skia_safe::PathMeasure::new(d, false, None);
-            let length = pm.length();
-            let (tl, tr) = properties.trim;
-            if (tr - tl) * length < 1e-4 {
-                return None; // 没有有效的长度
-            }
-            let mut rect: Option<(f32, f32, f32, f32)> = None;
-            (0..SEGMENTS).for_each(|i| {
-                let dis = (i as f32 / (SEGMENTS - 1) as f32 * (tr - tl) + tl) * length;
-                let pt = if let Some(pt) = pm.pos_tan(dis) {
-                    pt.0
+            if let Some(effects) = properties.get_effects() {
+                let mut res = Path::new();
+                effects.filter_path_inplace(
+                    &mut res,
+                    d,
+                    &mut StrokeRec::new_hairline(),
+                    Rect::new(-f32::INFINITY, -f32::INFINITY, f32::INFINITY, f32::INFINITY),
+                );
+
+                let bounds = res.bounds();
+                if bounds.is_empty() {
+                    None
                 } else {
-                    return;
-                };
-                if let Some((rl, rt, rr, rb)) = rect {
-                    rect = Some((rl.min(pt.x), rt.min(pt.y), rr.max(pt.x), rb.max(pt.y)));
-                } else {
-                    rect = Some((pt.x, pt.y, pt.x, pt.y));
+                    Some((bounds.left, bounds.top, bounds.right, bounds.bottom))
                 }
-            });
-            rect
+            } else {
+                let bounds = d.bounds();
+                Some((bounds.left, bounds.top, bounds.right, bounds.bottom))
+            }
         }
         _ => {
             // log::warn!("Bounding box calculation for {shape:?} is not implemented");
