@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::Write;
 use std::process::ExitCode;
 use std::str::FromStr;
-use std::time::Instant;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use bitvec::order::Lsb0;
 use bitvec::vec::BitVec;
@@ -742,6 +742,10 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                 seed_lo: lo,
                 shape: wm_shape,
                 total_frames: max_frames as u32,
+                unix_timestamp: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs(),
             },
         )?;
     }

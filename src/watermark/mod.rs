@@ -17,6 +17,7 @@ pub struct WatermarkInfo {
     pub shape: (u32, u32),
     #[serde(rename = "total-frames")]
     pub total_frames: u32,
+    pub unix_timestamp: u64,
 }
 
 /// 在 total 个帧中，随机选取 samples 个采样，其中每个采样延续 len 个帧，且采样之间没有重复帧
