@@ -47,7 +47,6 @@ pub struct PreshapedText {
 pub struct PreshapedGlyph {
     pub path: Path,
     pub pos: Point,
-    pub width: f32,
 }
 
 impl Tspan {
@@ -298,8 +297,7 @@ impl Tspan {
                 }
                 TspanText::Text(_) => {
                     for g in self.preshaped.glyphs.iter() {
-                        let dlen = (g.pos.x + g.path.bounds().left).max(0.0);
-
+                        let dlen = g.pos.x + g.path.bounds().left;
                         let c = g.path.bounds().width();
 
                         if dlen + c < tl || dlen > tr {
@@ -402,15 +400,6 @@ impl Tspan {
                         Path::wrap(p)
                     });
 
-                    let mut widths = vec![0.0f32; glyph_count as usize];
-                    tff.getWidthsBounds(
-                        run_glyphs.as_ptr(),
-                        run_glyphs.len() as i32,
-                        widths.as_mut_ptr(),
-                        std::ptr::null_mut(),
-                        std::ptr::null_mut(),
-                    );
-
                     #[allow(invalid_value)]
                     let mut metrics = MaybeUninit::uninit().assume_init();
                     tff.getMetrics(&mut metrics);
@@ -434,8 +423,7 @@ impl Tspan {
                     glyphs.extend(
                         paths
                             .zip(pos.into_iter())
-                            .zip(widths.into_iter())
-                            .map(|((path, pos), width)| PreshapedGlyph { pos, width, path }),
+                            .map(|(path, pos)| PreshapedGlyph { pos, path }),
                     );
                 } else {
                     break;

@@ -15,7 +15,6 @@ pub struct WatermarkInfo {
     pub seed_hi: u32,
     pub seed_lo: u32,
     pub shape: (u32, u32),
-    #[serde(rename = "total-frames")]
     pub total_frames: u32,
     pub unix_timestamp: u64,
 }
