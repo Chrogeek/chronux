@@ -298,9 +298,9 @@ impl Tspan {
                 }
                 TspanText::Text(_) => {
                     for g in self.preshaped.glyphs.iter() {
-                        let dlen = g.pos.x + g.path.bounds().left;
+                        let dlen = (g.pos.x + g.path.bounds().left).max(0.0);
 
-                        let c = g.width;
+                        let c = g.path.bounds().width();
 
                         if dlen + c < tl || dlen > tr {
                             // draw nothing
