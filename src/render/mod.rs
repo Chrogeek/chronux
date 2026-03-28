@@ -87,8 +87,9 @@ pub fn draw(
                 canvas.draw_path(&d, &sh);
             });
             properties.blur.inspect(|bl| {
+                let bl = bl * properties.opacity;
                 let blur_bounds = d.bounds();
-                blur((*bl, *bl), TileMode::Clamp, None, blur_bounds).inspect(|filter| {
+                blur((bl, bl), TileMode::Clamp, None, blur_bounds).inspect(|filter| {
                     canvas.clip_path(&d, ClipOp::Intersect, true);
                     let save_layer_rec = SaveLayerRec::default()
                         .bounds(d.bounds())
@@ -160,8 +161,9 @@ pub fn draw(
                 }
             });
             properties.blur.inspect(|bl| {
+                let bl = bl * properties.opacity;
                 let blur_bounds = rect;
-                blur((*bl, *bl), TileMode::Clamp, None, blur_bounds).inspect(|filter| {
+                blur((bl, bl), TileMode::Clamp, None, blur_bounds).inspect(|filter| {
                     if rx > 1e-4 || ry > 1e-4 {
                         canvas.clip_rrect(
                             &RRect::new_rect_xy(rect, rx, ry),
@@ -247,8 +249,9 @@ pub fn draw(
                     canvas.draw_rect(dst_rect, &sh);
                 });
                 properties.blur.inspect(|bl| {
+                    let bl = bl * properties.opacity;
                     let blur_bounds = dst_rect;
-                    blur((*bl, *bl), TileMode::Clamp, None, blur_bounds).inspect(|filter| {
+                    blur((bl, bl), TileMode::Clamp, None, blur_bounds).inspect(|filter| {
                         canvas.clip_rect(dst_rect, ClipOp::Intersect, true);
                         let save_layer_rec = SaveLayerRec::default()
                             .bounds(&dst_rect)

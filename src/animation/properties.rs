@@ -535,7 +535,7 @@ impl Properties {
 
     pub fn get_shadow_paint(&self) -> Option<skia_safe::Paint> {
         let sh = self.shadow?;
-        let shadow_color = Color::BLACK;
+        let shadow_color = Color::from_argb((self.opacity * 255.0) as u8, 0, 0, 0);
         let shadow_filter = drop_shadow_only((0.0, 0.0), (sh, sh), shadow_color, None, None, None)?;
         let mut shadow_paint = Paint::default();
         shadow_paint
