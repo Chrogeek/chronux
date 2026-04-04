@@ -1,8 +1,8 @@
 use std::{collections::HashMap, str::FromStr};
 
 use skia_safe::{
-    Color, Font, Matrix, Paint, PaintCap, PaintJoin, PaintStyle, PathEffect, gradient_shader,
-    image_filters::drop_shadow_only, textlayout::TextDirection,
+    Color4f, Font, Matrix, Paint, PaintCap, PaintJoin, PaintStyle, PathEffect, colors::TRANSPARENT,
+    gradient_shader, image_filters::drop_shadow_only, textlayout::TextDirection,
 };
 use svgtypes::PaintOrder;
 
@@ -434,8 +434,9 @@ impl Properties {
                             stops
                                 .iter()
                                 .map(|s| {
-                                    let c = s.color;
-                                    c.with_a((c.a() as f32 * self.opacity) as u8)
+                                    let mut c = s.color;
+                                    c.a *= self.opacity;
+                                    c
                                 })
                                 .collect::<Vec<_>>()
                                 .as_slice(),
@@ -454,15 +455,16 @@ impl Properties {
                     // log::warn!(
                     //     "Linear gradient url(href) has incomplete properties: p1 = {p1:?}, p2 = {p2:?}"
                     // );
-                    paint.set_color(Color::TRANSPARENT);
+                    paint.set_color4f(TRANSPARENT, None);
                 } else {
                     // log::warn!("Linear gradient url(href) not found: {href}");
-                    paint.set_color(Color::TRANSPARENT);
+                    paint.set_color4f(TRANSPARENT, None);
                 }
             }
             ColorPaint::Color(c) => {
-                let sc = c.with_a((c.a() as f32 * self.opacity) as u8);
-                paint.set_color(sc);
+                let mut sc = c;
+                sc.a *= self.opacity;
+                paint.set_color4f(sc, None);
             }
         }
 
@@ -498,8 +500,9 @@ impl Properties {
                             stops
                                 .iter()
                                 .map(|s| {
-                                    let c = s.color;
-                                    c.with_a((c.a() as f32 * self.opacity) as u8)
+                                    let mut c = s.color;
+                                    c.a *= self.opacity;
+                                    c
                                 })
                                 .collect::<Vec<_>>()
                                 .as_slice(),
@@ -518,15 +521,16 @@ impl Properties {
                     // log::warn!(
                     //     "Linear gradient url(href) has incomplete properties: p1 = {p1:?}, p2 = {p2:?}"
                     // );
-                    paint.set_color(Color::TRANSPARENT);
+                    paint.set_color4f(TRANSPARENT, None);
                 } else {
                     // log::warn!("Linear gradient url(href) not found: {href}");
-                    paint.set_color(Color::TRANSPARENT);
+                    paint.set_color4f(TRANSPARENT, None);
                 }
             }
             ColorPaint::Color(c) => {
-                let fc = c.with_a((c.a() as f32 * self.opacity) as u8);
-                paint.set_color(fc);
+                let mut fc = c;
+                fc.a *= self.opacity;
+                paint.set_color4f(fc, None);
             }
         }
 
@@ -535,7 +539,7 @@ impl Properties {
 
     pub fn get_shadow_paint(&self) -> Option<skia_safe::Paint> {
         let sh = self.shadow?;
-        let shadow_color = Color::from_argb((self.opacity * 255.0) as u8, 0, 0, 0);
+        let shadow_color = Color4f::new(0.0, 0.0, 0.0, self.opacity);
         let shadow_filter = drop_shadow_only((0.0, 0.0), (sh, sh), shadow_color, None, None, None)?;
         let mut shadow_paint = Paint::default();
         shadow_paint
@@ -630,12 +634,12 @@ impl Properties {
     }
 }
 
-fn tween_color(start: Color, end: Color, t: f32) -> Color {
-    let a = (start.a() as f32 + t * (end.a() as f32 - start.a() as f32)) as u8;
-    let r = (start.r() as f32 + t * (end.r() as f32 - start.r() as f32)) as u8;
-    let g = (start.g() as f32 + t * (end.g() as f32 - start.g() as f32)) as u8;
-    let b = (start.b() as f32 + t * (end.b() as f32 - start.b() as f32)) as u8;
-    Color::from_argb(a, r, g, b)
+fn tween_color(start: Color4f, end: Color4f, t: f32) -> Color4f {
+    let a = start.a + t * (end.a - start.a);
+    let r = start.r + t * (end.r - start.r);
+    let g = start.g + t * (end.g - start.g);
+    let b = start.b + t * (end.b - start.b);
+    Color4f::new(r, g, b, a)
 }
 
 fn tween_color_or_image(start: ColorPaint, end: ColorPaint, t: f32) -> ColorPaint {

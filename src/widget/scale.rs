@@ -16,25 +16,25 @@ pub fn draw(
 ) -> ChronuxResult<()> {
     let mut fill = skia_safe::Paint::default();
     fill.set_anti_alias(true);
-    fill.set_color(scale.fill_color);
+    fill.set_color4f(scale.fill_color, None);
     fill.set_style(skia_safe::PaintStyle::Fill);
 
     let mut stroke_text = skia_safe::Paint::default();
     stroke_text.set_anti_alias(true);
-    stroke_text.set_color(scale.stroke_color);
+    stroke_text.set_color4f(scale.stroke_color, None);
     stroke_text.set_stroke_width(2.0);
     stroke_text.set_style(skia_safe::PaintStyle::Stroke);
 
     let mut stroke_scale = skia_safe::Paint::default();
     stroke_scale.set_anti_alias(true);
-    stroke_scale.set_color(scale.fill_color);
+    stroke_scale.set_color4f(scale.fill_color, None);
     stroke_scale.set_stroke_width(2.0);
     stroke_scale.set_style(skia_safe::PaintStyle::Stroke);
     stroke_scale.set_stroke_cap(skia_safe::PaintCap::Round);
 
     let mut stroke_scale_thicker = skia_safe::Paint::default();
     stroke_scale_thicker.set_anti_alias(true);
-    stroke_scale_thicker.set_color(scale.stroke_color);
+    stroke_scale_thicker.set_color4f(scale.stroke_color, None);
     stroke_scale_thicker.set_stroke_width(4.0);
     stroke_scale_thicker.set_style(skia_safe::PaintStyle::Stroke);
     stroke_scale_thicker.set_stroke_cap(skia_safe::PaintCap::Round);

@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 
 use serde::Deserialize;
 use serde_with::serde_as;
-use skia_safe::{Color, PathMeasure};
+use skia_safe::{Color4f, PathMeasure};
 
 use crate::{
     animation::{Animation, properties::Properties, timeline::Timeline, track, track_on_path},
@@ -25,6 +25,7 @@ use crate::{
     util::{
         COLOR_DICT,
         error::{ChronuxError, ChronuxResult},
+        gamma_correction,
         interpolator::Interpolator,
         version::is_compatible,
     },
@@ -99,10 +100,10 @@ pub struct MinimapConfig {
     pub max_size: f32,
     #[serde(rename = "fill-color")]
     #[serde(deserialize_with = "crate::util::deserialize_hex_color")]
-    pub fill_color: Color,
+    pub fill_color: Color4f,
     #[serde(rename = "stroke-color")]
     #[serde(deserialize_with = "crate::util::deserialize_hex_color")]
-    pub stroke_color: Color,
+    pub stroke_color: Color4f,
     #[serde(rename = "stroke-width", default)]
     pub stroke_width: f32,
     #[serde(rename = "backdrop-blur", default)]
@@ -143,10 +144,10 @@ pub struct ScaleConfig {
     pub size: f32,
     #[serde(rename = "stroke-color")]
     #[serde(deserialize_with = "crate::util::deserialize_hex_color")]
-    pub stroke_color: Color,
+    pub stroke_color: Color4f,
     #[serde(rename = "fill-color")]
     #[serde(deserialize_with = "crate::util::deserialize_hex_color")]
-    pub fill_color: Color,
+    pub fill_color: Color4f,
     #[serde(rename = "font-weight")]
     #[serde(default = "default_scale_weight")]
     pub font_weight: f32,
@@ -593,15 +594,15 @@ where
 {
     let colors = HashMap::<String, String>::deserialize(deserializer)?
         .into_iter()
-        .map(|(k, v)| -> ChronuxResult<(String, Color)> {
+        .map(|(k, v)| -> ChronuxResult<(String, Color4f)> {
             let [r, g, b, a] = csscolorparser::parse(&v)
                 .map_err(|e| {
                     ChronuxError::ColorParseError(format!(
                         "cannot parse color literal '{v}' for color key '{k}': {e}"
                     ))
                 })?
-                .to_rgba8();
-            Ok((k, Color::from_argb(a, r, g, b)))
+                .to_linear_rgba();
+            Ok((k, gamma_correction(Color4f::new(r, g, b, a))))
         })
         .collect::<Result<HashMap<_, _>, _>>()
         .map_err(|e| serde::de::Error::custom(format!("Failed to parse color dictionary: {e}")))?;

@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use skia_safe::Color;
+use skia_safe::Color4f;
 
 use crate::util::{parse_css_color, toml_value_as_number};
 
@@ -8,8 +8,8 @@ pub struct Tween {
     pub opacity: Option<f32>,
     pub font_size: Option<f32>,
     pub font_weight: Option<f32>,
-    pub fill_color: Option<Color>,
-    pub stroke_color: Option<Color>,
+    pub fill_color: Option<Color4f>,
+    pub stroke_color: Option<Color4f>,
     pub stroke_width: Option<f32>,
     pub translate_x: Option<f32>,
     pub translate_y: Option<f32>,

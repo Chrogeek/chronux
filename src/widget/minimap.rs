@@ -134,7 +134,7 @@ pub fn draw(
 
     let mut fill = skia_safe::Paint::default();
     fill.set_anti_alias(true);
-    fill.set_color(minimap.fill_color);
+    fill.set_color4f(minimap.fill_color, None);
     fill.set_style(skia_safe::PaintStyle::Fill);
     canvas.draw_round_rect(
         minimap_rect,
@@ -146,7 +146,7 @@ pub fn draw(
     if minimap.stroke_width > 0.0 {
         let mut stroke = skia_safe::Paint::default();
         stroke.set_anti_alias(true);
-        stroke.set_color(minimap.stroke_color);
+        stroke.set_color4f(minimap.stroke_color, None);
         stroke.set_stroke_width(minimap.stroke_width);
         stroke.set_style(skia_safe::PaintStyle::Stroke);
         canvas.draw_round_rect(

@@ -633,7 +633,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             let mut paint = skia_safe::Paint::default();
             paint.set_anti_alias(true);
             paint.set_style(skia_safe::paint::Style::Stroke);
-            paint.set_color(extra_vp.border_color);
+            paint.set_color4f(extra_vp.border_color, None);
             paint.set_stroke_width(extra_vp.border_width);
             paint.set_stroke_join(skia_safe::PaintJoin::Round);
 
@@ -933,10 +933,10 @@ fn draw(
                     let mut paint_gap = path_props.get_stroke_paint(&defs, o.transform);
 
                     paint_gap
-                        .set_color(parse_css_color(
-                            &elevated_config.gap_color,
-                            path_props.opacity,
-                        )?)
+                        .set_color4f(
+                            parse_css_color(&elevated_config.gap_color, path_props.opacity)?,
+                            None,
+                        )
                         .set_stroke_width(path_props.stroke_width + elevated_config.gap * 2.0);
 
                     for (is, ie) in intervals {
@@ -1037,7 +1037,7 @@ fn draw(
                     let properties = timeline[path].interpolate(t, &path_length_dict, &shape_dict);
                     let mut extra_paint = properties.get_stroke_paint(&defs, o.transform);
                     extra_paint
-                        .set_color(parse_css_color(&es.stroke_color, 1.0)?)
+                        .set_color4f(parse_css_color(&es.stroke_color, 1.0)?, None)
                         .set_stroke_width(es.stroke_width);
                     if let Some(e) = properties.get_effects() {
                         extra_paint.set_path_effect(e);

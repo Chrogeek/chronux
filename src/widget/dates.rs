@@ -75,7 +75,7 @@ pub fn draw(
             // 5.3. 绘制日期
             let mut paint = Paint::default();
             paint.set_anti_alias(true);
-            paint.set_color(parse_css_color(&config.fill_color, 1.0)?);
+            paint.set_color4f(parse_css_color(&config.fill_color, 1.0)?, None);
             let font = get_font(
                 &config
                     .font_family
@@ -229,7 +229,7 @@ pub fn draw(
                     // 6.4. 绘制年份
                     let mut paint = Paint::default();
                     paint.set_anti_alias(true);
-                    paint.set_color(parse_css_color(&config.fill_color, 1.0)?);
+                    paint.set_color4f(parse_css_color(&config.fill_color, 1.0)?, None);
                     let font = get_font(
                         &config
                             .font_family

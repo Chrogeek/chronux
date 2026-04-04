@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use skia_safe::Color;
+use skia_safe::Color4f;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct OutputConfig {
@@ -12,7 +12,7 @@ pub struct OutputConfig {
     pub time_end: f32,
     #[serde(deserialize_with = "crate::util::deserialize_hex_color")]
     #[serde(rename = "background-color")]
-    pub background_color: Color,
+    pub background_color: Color4f,
 }
 
 fn default_output_time() -> f32 {

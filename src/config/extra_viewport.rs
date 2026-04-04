@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use skia_safe::Color;
+use skia_safe::Color4f;
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct ExtraViewport {
@@ -18,5 +18,5 @@ pub struct ExtraViewportConfig {
     pub border_width: f32,
     #[serde(rename = "border-color")]
     #[serde(deserialize_with = "crate::util::deserialize_hex_color")]
-    pub border_color: Color,
+    pub border_color: Color4f,
 }

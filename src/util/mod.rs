@@ -2,7 +2,7 @@ use std::{collections::HashMap, path::PathBuf};
 
 use once_cell::sync::OnceCell;
 use serde::Deserialize;
-use skia_safe::{Color, Paint, textlayout::TextDirection, utils::text_utils::Align};
+use skia_safe::{Color4f, Paint, textlayout::TextDirection, utils::text_utils::Align};
 use svgtypes::PaintOrder;
 
 use crate::util::{
@@ -17,7 +17,9 @@ pub mod paint;
 pub mod vector;
 pub mod version;
 
-pub static COLOR_DICT: OnceCell<HashMap<String, Color>> = OnceCell::new();
+pub static COLOR_DICT: OnceCell<HashMap<String, Color4f>> = OnceCell::new();
+
+pub const TRANSPARENT: Color4f = Color4f::new(0.0, 0.0, 0.0, 0.0);
 
 #[derive(Copy, Clone, Debug)]
 pub enum TextDrawPass {
@@ -46,9 +48,9 @@ impl TextAnchor {
     }
 }
 
-pub fn parse_css_color(color: &str, opacity: f32) -> ChronuxResult<Color> {
+pub fn parse_css_color(color: &str, opacity: f32) -> ChronuxResult<Color4f> {
     if color == "none" {
-        return Ok(Color::TRANSPARENT);
+        return Ok(TRANSPARENT);
     }
     if let Some(dict) = COLOR_DICT.get()
         && let Some(c) = dict.get(color)
@@ -59,9 +61,17 @@ pub fn parse_css_color(color: &str, opacity: f32) -> ChronuxResult<Color> {
         .map_err(|e| {
             ChronuxError::ColorParseError(format!("cannot parse color literal '{color}': {e}"))
         })?
-        .to_rgba8();
-    let a = (opacity * a as f32).clamp(0.0, 255.0) as u8;
-    Ok(Color::from_argb(a, r, g, b))
+        .to_linear_rgba();
+    let a = opacity * a;
+    Ok(gamma_correction(Color4f::new(r, g, b, a)))
+}
+
+pub fn gamma_correction(c: Color4f) -> Color4f {
+    const GAMMA: f32 = 1.0 / 2.2;
+    let r = c.r.powf(GAMMA);
+    let g = c.g.powf(GAMMA);
+    let b = c.b.powf(GAMMA);
+    Color4f::new(r, g, b, c.a)
 }
 
 pub fn parse_color_or_image(color: &str, opacity: f32) -> ChronuxResult<ColorPaint> {
@@ -138,7 +148,7 @@ pub fn parse_font_weight(weight: &str) -> ChronuxResult<f32> {
     }
 }
 
-pub fn deserialize_hex_color<'de, D>(deserializer: D) -> Result<Color, D::Error>
+pub fn deserialize_hex_color<'de, D>(deserializer: D) -> Result<Color4f, D::Error>
 where
     D: serde::Deserializer<'de>,
 {

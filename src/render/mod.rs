@@ -261,7 +261,7 @@ pub fn draw(
                     });
                 });
                 let mut paint = Paint::default();
-                paint.set_alpha((properties.opacity * 255.0) as u8);
+                paint.set_alpha_f(properties.opacity);
                 canvas.draw_image_rect(skia_img, None, dst_rect, &paint);
             }
         }

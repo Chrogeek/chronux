@@ -1,5 +1,5 @@
 use roxmltree::Node;
-use skia_safe::{Color, Matrix, Point};
+use skia_safe::{Color4f, Matrix, Point};
 
 use crate::{
     svg::{attribute_f32, attribute_namespace_str, attribute_str, parse_transform},
@@ -20,7 +20,7 @@ pub enum SvgDef {
 #[derive(Debug, Clone)]
 pub struct SvgGradientStop {
     pub offset: f32,
-    pub color: Color,
+    pub color: Color4f,
 }
 
 pub fn get_def_node(node: &Node) -> Option<(String, SvgDef)> {

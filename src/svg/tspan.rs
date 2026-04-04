@@ -3,7 +3,7 @@ use std::{collections::HashMap, mem::MaybeUninit};
 use roxmltree::Node;
 use skia_bindings::SkTextBlob_Iter_ExperimentalRun;
 use skia_safe::{
-    Canvas, Color, Font, FourByteTag, Matrix, Path, Point, Rect, Shaper, TextBlobIter,
+    Canvas, Font, FourByteTag, Matrix, Path, Point, Rect, Shaper, TextBlobIter,
     shaper::{Feature, TextBlobBuilderRunHandler},
     textlayout::TextDirection,
     wrapper::ValueWrapper,
@@ -17,7 +17,10 @@ use crate::{
         attribute_f32, attribute_str, attribute_transform, defs::SvgDef, parse_font_features,
         placeholder_text::PlaceholderText,
     },
-    util::{TextAnchor, TextDrawPass, error::ChronuxResult, paint::ColorPaint, trim_control_chars},
+    util::{
+        TRANSPARENT, TextAnchor, TextDrawPass, error::ChronuxResult, paint::ColorPaint,
+        trim_control_chars,
+    },
 };
 
 #[derive(Debug, Clone)]
@@ -189,16 +192,16 @@ impl Tspan {
 
         let color_style = match pass {
             TextDrawPass::Shadow => Properties {
-                fill_color: ColorPaint::Color(Color::TRANSPARENT),
-                stroke_color: ColorPaint::Color(Color::TRANSPARENT),
+                fill_color: ColorPaint::Color(TRANSPARENT),
+                stroke_color: ColorPaint::Color(TRANSPARENT),
                 ..color_style
             },
             TextDrawPass::Stroke => Properties {
-                fill_color: ColorPaint::Color(Color::TRANSPARENT),
+                fill_color: ColorPaint::Color(TRANSPARENT),
                 ..color_style
             },
             TextDrawPass::Fill => Properties {
-                stroke_color: ColorPaint::Color(Color::TRANSPARENT),
+                stroke_color: ColorPaint::Color(TRANSPARENT),
                 ..color_style
             },
         };
