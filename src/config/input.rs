@@ -6,7 +6,7 @@ use serde::Deserialize;
 pub struct InputConfig {
     pub version: String,
     pub svg: String,
-    #[serde(rename = "overlay")]
+    #[serde(rename = "hud")]
     pub overlay_svg: Option<String>,
     #[serde(default = "HashSet::new")]
     pub pinned: HashSet<String>,

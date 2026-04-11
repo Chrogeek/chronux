@@ -387,7 +387,7 @@ dependencies = [
 
 [[package]]
 name = "chronux"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "bitvec",
  "blind_watermark",
