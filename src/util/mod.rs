@@ -10,6 +10,7 @@ use crate::util::{
     paint::ColorPaint,
 };
 
+pub mod dict;
 pub mod error;
 pub mod fontmgr;
 pub mod interpolator;

@@ -8,7 +8,10 @@ use crate::{
     config::{counter::Counters, event::Event},
     parser::chain::ChainedPath,
     svg::element::{Object, Shape},
-    util::error::{ChronuxError, ChronuxResult},
+    util::{
+        dict::RenderDict,
+        error::{ChronuxError, ChronuxResult},
+    },
 };
 
 pub mod easing;
@@ -81,7 +84,7 @@ pub fn track(
     event: &Event,
     x: f32,
     y: f32,
-    dict: &HashMap<String, f32>,
+    dict: &RenderDict,
 ) -> ChronuxResult<(f32, f32)> {
     // 先求出不加缓动函数前提下，最近的位置t
     let (t, dis2) = track_inner(chained_path, objs, objmap, x, y, dict)?;
@@ -116,7 +119,7 @@ fn track_inner(
     objmap: &HashMap<String, usize>,
     x: f32,
     y: f32,
-    dict: &HashMap<String, f32>,
+    dict: &RenderDict,
 ) -> ChronuxResult<(f32, f32)> {
     // 先求出不加缓动函数前提下，最近的位置t
     let (t, dis2) = match chained_path {

@@ -26,6 +26,7 @@ use crate::config::extra_viewport::ExtraViewport;
 use crate::render::get_bounding_box;
 use crate::svg::defs::SvgDef;
 use crate::svg::element::{Mask, Object, Shape};
+use crate::util::dict::RenderDict;
 use crate::util::version::CHRONUX_VERSION;
 use crate::util::{
     absolute_path, error::ChronuxError, error::ChronuxResult, parse_css_color, timecode_rt,
@@ -181,6 +182,11 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         .filter_map(|o| o.get_length().map(|l| (o.id.clone(), l)))
         .collect::<HashMap<_, _>>();
 
+    let dict = RenderDict {
+        shape_dict,
+        path_length_dict,
+    };
+
     if !conf.drawing.extra_strokes.is_empty() {
         // 根据 es 中指定的路径组，将 objs 重排顺序，使得每个路径组的对象都在一起
         // 首先给每个对象指定一个编号：如果不在任何一个路径组中则编号等于 objs 中的下标，否则编号指定为该路径组中所有对象的最大下标
@@ -210,7 +216,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     let objs = objs;
 
     // 计算每个动画的起始时间
-    conf.calc_start_times(&objs, &path_length_dict)?;
+    conf.calc_start_times(&objs, &dict)?;
     log::info!("Calculated start times for objects");
 
     // 计算所有动画全部结束的时间
@@ -241,14 +247,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         let mut events = conf
             .events
             .into_iter()
-            .map(|(id, e)| {
-                (
-                    e.start,
-                    e.duration,
-                    e.object.length(&path_length_dict),
-                    id.clone(),
-                )
-            })
+            .map(|(id, e)| (e.start, e.duration, e.object.length(&dict), id.clone()))
             .collect::<Vec<_>>();
         events.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
         let mut file = File::create(&output)?;
@@ -397,7 +396,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                     for o in objs.iter() {
                         if minimap.paths.contains(&o.id) {
                             let properties = match timeline.get(&o.id) {
-                                Some(tl) => tl.interpolate(t, &path_length_dict, &shape_dict),
+                                Some(tl) => tl.interpolate(t, &dict),
                                 None => {
                                     return Err(ChronuxError::ArgError(format!(
                                         "Object '{}' in minimap.paths not in timeline",
@@ -462,7 +461,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
 
         // 计算与路径可见性挂钩的计数器
         for (path, line_counters) in conf.drawing.line_counters.iter() {
-            let properties = timeline[path].interpolate(t, &path_length_dict, &shape_dict);
+            let properties = timeline[path].interpolate(t, &dict);
             let (tl, tr) = properties.trim;
             let t = (tr - tl) * properties.opacity;
             for (k, v) in line_counters {
@@ -503,8 +502,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             &defs,
             t,
             &elevated,
-            &path_length_dict,
-            &shape_dict,
+            &dict,
             &obj_map,
             &viewport_rect,
             &Rect::from_xywh(0.0, 0.0, width as f32, height as f32),
@@ -544,7 +542,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             } else if o.apply_transform {
                 continue;
             } else if let Some(tl) = timeline.get(&o.id) {
-                let properties = tl.interpolate(t, &path_length_dict, &shape_dict);
+                let properties = tl.interpolate(t, &dict);
                 render::draw(
                     surface.canvas(),
                     &properties,
@@ -560,8 +558,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
 
         // 绘制小地图
         if let Some(minimap) = conf.drawing.minimap.as_ref() {
-            let minimap_props =
-                timeline[&minimap.position].interpolate(t, &path_length_dict, &shape_dict);
+            let minimap_props = timeline[&minimap.position].interpolate(t, &dict);
             let (x, y) = objs[obj_map[&minimap.position]].get_position(&minimap_props);
             widget::minimap::draw(
                 surface.canvas(),
@@ -574,15 +571,13 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                 x,
                 y,
                 bounds.as_ref().unwrap()[f - frame_start],
-                &path_length_dict,
-                &shape_dict,
+                &dict,
             )?;
         }
 
         // 绘制比例尺
         if let Some(scale) = conf.drawing.scale.as_ref() {
-            let scale_props =
-                timeline[&scale.position].interpolate(t, &path_length_dict, &shape_dict);
+            let scale_props = timeline[&scale.position].interpolate(t, &dict);
             let (x, y) = objs[obj_map[&scale.position]].get_position(&scale_props);
             widget::scale::draw(surface.canvas(), scale, vw, &conf.drawing.ascii_font, x, y)?;
         }
@@ -592,20 +587,10 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             && let Some(dates_keyframes) = dates_keyframes.as_ref()
         {
             let save = surface.canvas().save();
-            let position_year_props = timeline[&dates_config.position_year].interpolate(
-                t,
-                &path_length_dict,
-                &shape_dict,
-            );
-            let position_date_props = timeline[&dates_config.position_date].interpolate(
-                t,
-                &path_length_dict,
-                &shape_dict,
-            );
-            let area_year_props =
-                timeline[&dates_config.area_year].interpolate(t, &path_length_dict, &shape_dict);
-            let area_date_props =
-                timeline[&dates_config.area_date].interpolate(t, &path_length_dict, &shape_dict);
+            let position_year_props = timeline[&dates_config.position_year].interpolate(t, &dict);
+            let position_date_props = timeline[&dates_config.position_date].interpolate(t, &dict);
+            let area_year_props = timeline[&dates_config.area_year].interpolate(t, &dict);
+            let area_date_props = timeline[&dates_config.area_date].interpolate(t, &dict);
 
             let position_year =
                 objs[obj_map[&dates_config.position_year]].get_position(&position_year_props);
@@ -638,7 +623,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             paint.set_stroke_join(skia_safe::PaintJoin::Round);
 
             for ExtraViewport { target, x, y, w, h } in extra_vp.viewports.iter() {
-                let vp_props = timeline[target].interpolate(t, &path_length_dict, &shape_dict);
+                let vp_props = timeline[target].interpolate(t, &dict);
                 let Rect {
                     left,
                     top,
@@ -664,8 +649,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                     &defs,
                     t,
                     &elevated,
-                    &path_length_dict,
-                    &shape_dict,
+                    &dict,
                     &obj_map,
                     &Rect::from_xywh(x1, y1, *w, *h),
                     &tr,
@@ -781,8 +765,7 @@ fn draw(
     defs: &HashMap<String, SvgDef>,
     t: f32,
     elevated: &Option<HashMap<String, Vec<(f32, f32)>>>,
-    path_length_dict: &HashMap<String, f32>,
-    shape_dict: &HashMap<String, Shape>,
+    dict: &RenderDict,
     obj_map: &HashMap<String, usize>,
     viewport_rect: &Rect,
     target_rect: &Rect,
@@ -855,7 +838,7 @@ fn draw(
             for o in objs.iter() {
                 let path = &o.id;
                 if let Some(intervals) = elevated.get(path) {
-                    let path_props = timeline[path].interpolate(t, &path_length_dict, &shape_dict);
+                    let path_props = timeline[path].interpolate(t, &dict);
 
                     let d = match &path_props.shape {
                         Shape::Path { d } => d,
@@ -906,7 +889,7 @@ fn draw(
             for o in objs.iter() {
                 let path = &o.id;
                 if let Some(intervals) = elevated.get(path) {
-                    let path_props = timeline[path].interpolate(t, &path_length_dict, &shape_dict);
+                    let path_props = timeline[path].interpolate(t, &dict);
                     let d = match &path_props.shape {
                         Shape::Path { d } => d,
                         _ => {
@@ -965,19 +948,19 @@ fn draw(
         } else if !o.apply_transform {
             continue;
         } else if let Some(tl) = timeline.get(&o.id) {
-            let properties = tl.interpolate(t, &path_length_dict, &shape_dict);
+            let properties = tl.interpolate(t, &dict);
             let mask_object = match &o.mask {
                 Some(Mask::Stroke(mask_id)) => {
                     let mobj_props = timeline
                         .get(mask_id)
-                        .map(|tl| tl.interpolate(t, &path_length_dict, &shape_dict))
+                        .map(|tl| tl.interpolate(t, &dict))
                         .unwrap();
 
                     let mut stroke_paint = mobj_props.get_stroke_paint(defs, o.transform);
                     if let Some(e) = mobj_props.get_effects() {
                         stroke_paint.set_path_effect(e);
                     }
-                    if let Some(Shape::Path { d }) = shape_dict.get(mask_id) {
+                    if let Some(Shape::Path { d }) = dict.shape_dict.get(mask_id) {
                         let mut path_stroke = Path::new();
                         if fill_path_with_paint(
                             d,
@@ -997,14 +980,14 @@ fn draw(
                 Some(Mask::Fill(mask_id)) => {
                     let mobj_props = timeline
                         .get(mask_id)
-                        .map(|tl| tl.interpolate(t, &path_length_dict, &shape_dict))
+                        .map(|tl| tl.interpolate(t, &dict))
                         .unwrap();
 
                     let mut stroke_paint = mobj_props.get_stroke_paint(defs, o.transform);
                     if let Some(e) = mobj_props.get_effects() {
                         stroke_paint.set_path_effect(e);
                     }
-                    if let Some(Shape::Path { d }) = shape_dict.get(mask_id) {
+                    if let Some(Shape::Path { d }) = dict.shape_dict.get(mask_id) {
                         Some(d.clone())
                     } else {
                         None
@@ -1034,7 +1017,7 @@ fn draw(
             if *esc == 0 {
                 let es = &conf.drawing.extra_strokes[*esg];
                 for path in es.paths.iter() {
-                    let properties = timeline[path].interpolate(t, &path_length_dict, &shape_dict);
+                    let properties = timeline[path].interpolate(t, &dict);
                     let mut extra_paint = properties.get_stroke_paint(&defs, o.transform);
                     extra_paint
                         .set_color4f(parse_css_color(&es.stroke_color, 1.0)?, None)

@@ -12,6 +12,7 @@ use crate::{
     svg::{defs::SvgDef, element::Shape},
     util::{
         self, TextAnchor,
+        dict::RenderDict,
         error::{ChronuxError, ChronuxResult},
         paint::ColorPaint,
         parse_color_or_image, parse_font_weight, parse_href, parse_unit_value,
@@ -86,14 +87,7 @@ impl Default for Properties {
 }
 
 impl Properties {
-    pub fn apply(
-        &self,
-        event: &Event,
-        t: f32,
-        object: &str,
-        dict: &HashMap<String, f32>,
-        shape_dict: &HashMap<String, Shape>,
-    ) -> Properties {
+    pub fn apply(&self, event: &Event, t: f32, object: &str, dict: &RenderDict) -> Properties {
         match &event.animation {
             Animation::None => self.clone(),
             Animation::TrimPath { reverse } => {
@@ -204,7 +198,7 @@ impl Properties {
                 }
                 if let Some(s) = &tween.shape {
                     // todo: handle shape tweening
-                    let dst_shape = &shape_dict[s];
+                    let dst_shape = &dict.shape_dict[s];
                     let src_shape = &self.shape;
                     match (src_shape, dst_shape) {
                         (Shape::Path { d: src_d }, Shape::Path { d: dst_d }) => {

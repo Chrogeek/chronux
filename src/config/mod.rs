@@ -24,6 +24,7 @@ use crate::{
     svg::element::{Object, Shape},
     util::{
         COLOR_DICT,
+        dict::RenderDict,
         error::{ChronuxError, ChronuxResult},
         gamma_correction,
         interpolator::Interpolator,
@@ -195,7 +196,7 @@ impl Config {
         stack: &mut Vec<String>,
         objs: &Vec<Object>,
         objmap: &HashMap<String, usize>,
-        dict: &HashMap<String, f32>,
+        dict: &RenderDict,
     ) -> ChronuxResult<f32> {
         let mut after_start_time = 0.0f32;
         let mut with_start_time = 0.0f32;
@@ -261,11 +262,7 @@ impl Config {
         Ok(start_time)
     }
 
-    pub fn calc_start_times(
-        &mut self,
-        objs: &Vec<Object>,
-        dict: &HashMap<String, f32>,
-    ) -> ChronuxResult<()> {
+    pub fn calc_start_times(&mut self, objs: &Vec<Object>, dict: &RenderDict) -> ChronuxResult<()> {
         let mut visited = HashMap::new();
         let mut stack = Vec::new();
 

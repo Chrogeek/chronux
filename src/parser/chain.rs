@@ -14,9 +14,11 @@
 
 */
 
-use std::{collections::HashMap, fmt::Display};
+use std::fmt::Display;
 
 use serde::Serialize;
+
+use crate::util::dict::RenderDict;
 
 #[derive(Debug, Clone)]
 pub enum ChainedPath {
@@ -96,9 +98,9 @@ impl ChainedPath {
     //     }
     // }
 
-    pub fn length(&self, dict: &HashMap<String, f32>) -> Option<f32> {
+    pub fn length(&self, dict: &RenderDict) -> Option<f32> {
         match self {
-            ChainedPath::Atom(o) => dict.get(o).cloned(),
+            ChainedPath::Atom(o) => dict.path_length_dict.get(o).cloned(),
             ChainedPath::Seq(chained_paths) => {
                 chained_paths
                     .iter()
@@ -120,11 +122,11 @@ impl ChainedPath {
     }
 
     // 定位 atom 路径在整个 chained_path 上的起止位置，返回 Option<(start, end)>
-    pub fn locate(&self, atom: &str, dict: &HashMap<String, f32>) -> Option<(f32, f32)> {
+    pub fn locate(&self, atom: &str, dict: &RenderDict) -> Option<(f32, f32)> {
         match self {
             ChainedPath::Atom(o) => {
                 if o == atom {
-                    dict.get(o).cloned().map(|len| (0.0, len))
+                    dict.path_length_dict.get(o).cloned().map(|len| (0.0, len))
                 } else {
                     None
                 }
