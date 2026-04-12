@@ -4,6 +4,8 @@ use crate::svg::element::Shape;
 
 #[derive(Clone, Debug)]
 pub struct RenderDict {
-    pub shape_dict: HashMap<String, Shape>,
-    pub path_length_dict: HashMap<String, f32>,
+    // shape-id => shape
+    pub shapes: HashMap<String, Shape>,
+    // path-id => path length
+    pub path_lengths: HashMap<String, f32>,
 }

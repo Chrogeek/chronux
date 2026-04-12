@@ -100,7 +100,7 @@ impl ChainedPath {
 
     pub fn length(&self, dict: &RenderDict) -> Option<f32> {
         match self {
-            ChainedPath::Atom(o) => dict.path_length_dict.get(o).cloned(),
+            ChainedPath::Atom(o) => dict.path_lengths.get(o).cloned(),
             ChainedPath::Seq(chained_paths) => {
                 chained_paths
                     .iter()
@@ -126,7 +126,7 @@ impl ChainedPath {
         match self {
             ChainedPath::Atom(o) => {
                 if o == atom {
-                    dict.path_length_dict.get(o).cloned().map(|len| (0.0, len))
+                    dict.path_lengths.get(o).cloned().map(|len| (0.0, len))
                 } else {
                     None
                 }

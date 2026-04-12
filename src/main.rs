@@ -183,8 +183,8 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         .collect::<HashMap<_, _>>();
 
     let dict = RenderDict {
-        shape_dict,
-        path_length_dict,
+        shapes: shape_dict,
+        path_lengths: path_length_dict,
     };
 
     if !conf.drawing.extra_strokes.is_empty() {
@@ -960,7 +960,7 @@ fn draw(
                     if let Some(e) = mobj_props.get_effects() {
                         stroke_paint.set_path_effect(e);
                     }
-                    if let Some(Shape::Path { d }) = dict.shape_dict.get(mask_id) {
+                    if let Some(Shape::Path { d }) = dict.shapes.get(mask_id) {
                         let mut path_stroke = Path::new();
                         if fill_path_with_paint(
                             d,
@@ -987,7 +987,7 @@ fn draw(
                     if let Some(e) = mobj_props.get_effects() {
                         stroke_paint.set_path_effect(e);
                     }
-                    if let Some(Shape::Path { d }) = dict.shape_dict.get(mask_id) {
+                    if let Some(Shape::Path { d }) = dict.shapes.get(mask_id) {
                         Some(d.clone())
                     } else {
                         None

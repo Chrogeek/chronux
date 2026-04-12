@@ -198,7 +198,7 @@ impl Properties {
                 }
                 if let Some(s) = &tween.shape {
                     // todo: handle shape tweening
-                    let dst_shape = &dict.shape_dict[s];
+                    let dst_shape = &dict.shapes[s];
                     let src_shape = &self.shape;
                     match (src_shape, dst_shape) {
                         (Shape::Path { d: src_d }, Shape::Path { d: dst_d }) => {
