@@ -1,8 +1,9 @@
 use std::{collections::HashMap, str::FromStr};
 
 use skia_safe::{
-    Color4f, Font, Matrix, Paint, PaintCap, PaintJoin, PaintStyle, PathEffect, colors::TRANSPARENT,
-    gradient_shader, image_filters::drop_shadow_only, textlayout::TextDirection,
+    Color4f, Font, Matrix, Paint, PaintCap, PaintJoin, PaintStyle, PathEffect, PathFillType,
+    colors::TRANSPARENT, gradient_shader, image_filters::drop_shadow_only,
+    textlayout::TextDirection,
 };
 use svgtypes::PaintOrder;
 
@@ -49,6 +50,7 @@ pub struct Properties {
     pub shape: Shape,
     pub blur: Option<f32>,
     pub shadow: Option<f32>,
+    pub fill_rule: PathFillType,
 }
 
 impl Default for Properties {
@@ -82,6 +84,7 @@ impl Default for Properties {
             shape: Shape::None,
             blur: None,
             shadow: None,
+            fill_rule: PathFillType::EvenOdd,
         }
     }
 }
@@ -267,6 +270,14 @@ impl Properties {
                     .and_then(|v| v.parse::<f32>().ok())
                     .unwrap_or(1.0),
             )?;
+        }
+
+        if let Some(rule) = rules.get("fill-rule") {
+            result.fill_rule = match *rule {
+                "nonzero" => PathFillType::Winding,
+                "evenodd" => PathFillType::EvenOdd,
+                _ => PathFillType::EvenOdd,
+            };
         }
 
         if let Some(color) = rules.get("stroke") {

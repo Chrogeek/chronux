@@ -98,6 +98,10 @@ pub fn draw(
                     canvas.save_layer(&save_layer_rec);
                 });
             });
+
+            let mut d = d.clone();
+            d.set_fill_type(properties.fill_rule);
+
             canvas.draw_path(&d, &paints[0]);
             canvas.draw_path(&d, &paints[1]);
 
