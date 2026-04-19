@@ -141,6 +141,7 @@ impl Object {
 
         let blur = svg::attribute_f32(node, "chronux-blur").ok();
         let shadow = svg::attribute_f32(node, "chronux-shadow").ok();
+        let small_fraction = svg::attribute_f32(node, "chronux-small-fraction").unwrap_or(1.0);
 
         let style = Properties::from_style(
             &svg::attribute_str(node, "style").unwrap_or_default(),
@@ -150,6 +151,7 @@ impl Object {
         let style = Properties {
             blur,
             shadow,
+            small_fraction,
             ..style
         };
 

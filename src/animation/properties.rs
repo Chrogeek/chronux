@@ -51,6 +51,7 @@ pub struct Properties {
     pub blur: Option<f32>,
     pub shadow: Option<f32>,
     pub fill_rule: PathFillType,
+    pub small_fraction: f32,
 }
 
 impl Default for Properties {
@@ -85,6 +86,7 @@ impl Default for Properties {
             blur: None,
             shadow: None,
             fill_rule: PathFillType::EvenOdd,
+            small_fraction: 1.0,
         }
     }
 }
@@ -585,6 +587,14 @@ impl Properties {
 
     pub fn get_font(&self) -> ChronuxResult<Font> {
         util::fontmgr::get_font(&self.font_family, self.font_size, self.font_weight as i32)
+    }
+
+    pub fn get_frac_font(&self) -> ChronuxResult<Font> {
+        util::fontmgr::get_font(
+            &self.font_family,
+            self.font_size * self.small_fraction,
+            (self.font_weight / self.small_fraction).round_ties_even() as i32,
+        )
     }
 
     pub fn measure_string(&self, text: &str) -> ChronuxResult<f32> {

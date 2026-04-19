@@ -6,6 +6,7 @@ use skia_safe::{
     Canvas, Font, FourByteTag, Matrix, Path, Point, Rect, Shaper, TextBlobIter,
     shaper::{Feature, TextBlobBuilderRunHandler},
     textlayout::TextDirection,
+    utils::text_utils::Align,
     wrapper::ValueWrapper,
 };
 use unicode_segmentation::UnicodeSegmentation;
@@ -245,13 +246,41 @@ impl Tspan {
             match &self.text {
                 TspanText::Placeholder(placeholder) => {
                     let text = placeholder.format(counters);
-                    canvas.draw_text_align(
-                        &text,
-                        (x + tx, y + ty),
-                        &font,
-                        &paint,
-                        self.style.text_anchor.to_align(self.style.dir),
-                    );
+                    if self.style.small_fraction != 1.0
+                        && let Some(pos) = text.find(".")
+                    {
+                        // split integer and fractional parts
+                        let (int_part, frac_part) = text.split_at(pos + 1);
+                        let width_int = font.measure_str(int_part, None).0;
+
+                        let font_frac = self.style.get_frac_font()?;
+                        let width_frac = font_frac.measure_str(frac_part, None).0;
+
+                        let total_width = width_int + width_frac;
+                        let offset = match self.style.text_anchor {
+                            TextAnchor::Start => 0.0,
+                            TextAnchor::Middle => total_width / 2.0,
+                            TextAnchor::End => total_width,
+                        };
+
+                        let sx = x + tx - offset;
+                        canvas.draw_text_align(int_part, (sx, y + ty), &font, &paint, Align::Left);
+                        canvas.draw_text_align(
+                            frac_part,
+                            (sx + width_int, y + ty),
+                            &font_frac,
+                            &paint,
+                            Align::Left,
+                        );
+                    } else {
+                        canvas.draw_text_align(
+                            &text,
+                            (x + tx, y + ty),
+                            &font,
+                            &paint,
+                            self.style.text_anchor.to_align(self.style.dir),
+                        );
+                    }
                 }
                 TspanText::Text(_) => {
                     let PreshapedText {
