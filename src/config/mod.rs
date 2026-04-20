@@ -10,6 +10,7 @@ use crate::{
     config::{
         counter::{Counters, update_counters},
         dates::DatesConfig,
+        earthquake::{EarthquakeEntry, ParsedEarthquake},
         elevated::ElevatedConfig,
         event::Event,
         extra_stroke::ExtraStrokeConfig,
@@ -34,6 +35,7 @@ use crate::{
 
 pub mod counter;
 pub mod dates;
+pub mod earthquake;
 pub mod elevated;
 pub mod event;
 pub mod extra_stroke;
@@ -56,6 +58,7 @@ pub struct Config {
     pub trackers: Vec<Tracker>,
     #[serde(rename = "viewports")]
     pub viewport_tracks: Vec<ViewportTrack>,
+    pub earthquakes: Vec<EarthquakeEntry>,
 }
 
 #[serde_as]
@@ -547,6 +550,31 @@ impl Config {
             }
         }
         Ok(seq)
+    }
+
+    pub fn calc_earthquakes(&self) -> ChronuxResult<Vec<ParsedEarthquake>> {
+        self.earthquakes
+            .iter()
+            .map(|e| {
+                let (dep, time, duration_coeff) = match &e.time {
+                    TimeKey::WithPrevious { depends, delay } => (depends, delay, 0.0),
+                    TimeKey::AfterPrevious { depends, offset } => (depends, offset, 1.0),
+                };
+
+                if let Some(ev) = self.events.get(dep) {
+                    let time = ev.start + time + ev.duration * duration_coeff;
+                    Ok(ParsedEarthquake {
+                        start: time,
+                        duration: e.duration,
+                        max_amp: e.max_amp,
+                    })
+                } else {
+                    Err(ChronuxError::BrokenDependency(format!(
+                        "a viewport keyframe depends on non-existent event {dep}"
+                    )))
+                }
+            })
+            .collect()
     }
 
     pub fn get_counters(&self, time: f32) -> Counters {

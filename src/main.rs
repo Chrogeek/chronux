@@ -27,6 +27,8 @@ use crate::render::get_bounding_box;
 use crate::svg::defs::SvgDef;
 use crate::svg::element::{Mask, Object, Shape};
 use crate::util::dict::RenderDict;
+use crate::util::earthquake::earthquake;
+use crate::util::vector::Vec3;
 use crate::util::version::CHRONUX_VERSION;
 use crate::util::{
     absolute_path, error::ChronuxError, error::ChronuxResult, parse_css_color, timecode_rt,
@@ -278,6 +280,9 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     // 计算镜头路径跟踪动画
     let viewport_sequence = conf.calc_viewport_tracks(&objs)?;
 
+    // 计算镜头摇晃动画
+    let earthquakes = conf.calc_earthquakes()?;
+
     // 计算每个对象的时间线
     let mut timeline = conf.calc_timeline()?;
 
@@ -474,8 +479,17 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             add_sum_counter_item(&mut counters, sum_counter, sub_counters);
         }
 
+        // 计算当前摇晃偏移
+        let (eqx, eqy) = earthquakes
+            .iter()
+            .map(|e| {
+                let elapsed = t - e.start;
+                earthquake(elapsed, e.duration, e.max_amp)
+            })
+            .fold((0.0, 0.0), |acc, cur| (acc.0 + cur.0, acc.1 + cur.1));
+
         // 计算当前镜头位置
-        let vb = viewport_sequence.interpolate_vp(t)?;
+        let vb = viewport_sequence.interpolate_vp(t)? + Vec3(eqx, eqy, 0.0);
 
         let (cx, cy, vw, vh) = (vb.0, vb.1, vb.2, vb.2 * height as f32 / width as f32);
         let (vx, vy) = (cx - vw / 2.0, cy - vh / 2.0);
