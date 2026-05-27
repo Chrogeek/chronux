@@ -330,6 +330,16 @@ pub fn parse_font_features(style: &str, start: usize, end: usize) -> Vec<Feature
         _ => {}
     }
 
+    match rules.get("font-variant-position") {
+        Some(&"sub") => {
+            features.insert("subs".to_string(), 1);
+        }
+        Some(&"super") => {
+            features.insert("sups".to_string(), 1);
+        }
+        _ => {}
+    }
+
     if let Some(f) = rules.get("font-feature-settings") {
         f.split(',')
             .filter_map(|s| {
