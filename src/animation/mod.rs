@@ -60,6 +60,10 @@ pub enum Animation {
     StretchIn,
     #[serde(rename = "stretch-out")]
     StretchOut,
+    #[serde(rename = "pie-in")]
+    PieIn,
+    #[serde(rename = "pie-out")]
+    PieOut,
 }
 
 #[derive(Debug, Deserialize, Clone)]

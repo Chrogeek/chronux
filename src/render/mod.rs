@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
 use skia_safe::{
-    Canvas, ClipOp, Matrix, Paint, PaintStyle, Path, RRect, Rect, StrokeRec, TileMode, Vector,
+    Canvas, ClipOp, Matrix, Paint, PaintStyle, Path, PathDirection, RRect, Rect, StrokeRec,
+    TileMode, Vector,
     canvas::{SaveLayerFlags, SaveLayerRec},
     image_filters::blur,
 };
@@ -52,8 +53,34 @@ pub fn draw(
 
     let paints = sort_paints(properties.paint_order, stroke, fill);
 
-    let bboxcenter =
-        get_bounding_box(properties).map(|(l, t, r, b)| ((l + r) * 0.5, (t + b) * 0.5));
+    let bounding_box = get_bounding_box(properties);
+    let bboxcenter = bounding_box.map(|(l, t, r, b)| ((l + r) * 0.5, (t + b) * 0.5));
+
+    // 圆形展开效果 (pie_in)
+    if properties.pie_in <= 0.0 {
+        canvas.restore_to_count(restore_handle);
+        return Ok(());
+    }
+
+    if properties.pie_in < 1.0
+        && let Some((bl, bt, br, bb)) = bounding_box
+    {
+        println!(
+            "Applying pie_in effect with pie_in={}, bbox=({}, {}, {}, {})",
+            properties.pie_in, bl, bt, br, bb
+        );
+        let pie_radius = (br - bl).hypot(bb - bt)
+            * 0.5
+            * properties.pie_in
+            * properties.scale_x.max(properties.scale_y);
+        let pie_center = Vector::new(
+            (bl + br) * 0.5 + properties.translate_x,
+            (bt + bb) * 0.5 + properties.translate_y,
+        );
+        let mut pie_clip = Path::new();
+        pie_clip.add_circle(pie_center, pie_radius, PathDirection::CW);
+        canvas.clip_path(&pie_clip, ClipOp::Intersect, true);
+    }
 
     // 将画布绕 bboxcenter 点旋转 properties.rotate 角度(deg)
     if properties.rotate.abs() > 1e-4
@@ -315,8 +342,40 @@ pub fn get_bounding_box(properties: &Properties) -> Option<(f32, f32, f32, f32)>
                 Some((bounds.left, bounds.top, bounds.right, bounds.bottom))
             }
         }
+        Shape::Circle { cx, cy, r } => Some((cx - r, cy - r, cx + r, cy + r)),
+        Shape::Rect {
+            x,
+            y,
+            width,
+            height,
+            ..
+        }
+        | Shape::Image {
+            x,
+            y,
+            width,
+            height,
+            ..
+        } => Some((*x, *y, x + width, y + height)),
+        Shape::Group { objects } => {
+            let mut bbox: Option<(f32, f32, f32, f32)> = None;
+            for obj in objects {
+                let child_bbox = get_bounding_box(&obj)?;
+                bbox = Some(match bbox {
+                    None => child_bbox,
+                    Some((l, t, r, b)) => {
+                        let (cl, ct, cr, cb) = child_bbox;
+                        (l.min(cl), t.min(ct), r.max(cr), b.max(cb))
+                    }
+                });
+            }
+            bbox
+        }
         _ => {
-            // log::warn!("Bounding box calculation for {shape:?} is not implemented");
+            // log::warn!(
+            //     "Bounding box calculation for {:?} is not implemented",
+            //     properties.shape
+            // );
             None
         }
     }

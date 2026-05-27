@@ -329,6 +329,10 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                         tl.start.scale_y = 0.0;
                         break;
                     }
+                    Animation::PieIn => {
+                        tl.start.pie_in = 0.0;
+                        break;
+                    }
                     // 下面这些不是出现动画，什么都不用做
                     Animation::None
                     | Animation::TypewriterOut { .. }
@@ -337,7 +341,8 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                     | Animation::FadeOut
                     | Animation::TrimPathOut { .. }
                     | Animation::Move { .. }
-                    | Animation::StretchOut => {}
+                    | Animation::StretchOut
+                    | Animation::PieOut => {}
                 }
             }
         }

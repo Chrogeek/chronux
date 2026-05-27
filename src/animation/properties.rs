@@ -52,6 +52,7 @@ pub struct Properties {
     pub shadow: Option<f32>,
     pub fill_rule: PathFillType,
     pub small_fraction: f32,
+    pub pie_in: f32,
 }
 
 impl Default for Properties {
@@ -87,6 +88,7 @@ impl Default for Properties {
             shadow: None,
             fill_rule: PathFillType::EvenOdd,
             small_fraction: 1.0,
+            pie_in: 1.0,
         }
     }
 }
@@ -246,6 +248,14 @@ impl Properties {
             Animation::StretchOut => Properties {
                 scale_x: 1.0 - t,
                 scale_y: 1.0 - t,
+                ..self.clone()
+            },
+            Animation::PieIn => Properties {
+                pie_in: t,
+                ..self.clone()
+            },
+            Animation::PieOut => Properties {
+                pie_in: 1.0 - t,
                 ..self.clone()
             },
         }
