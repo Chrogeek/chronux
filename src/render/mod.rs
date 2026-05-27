@@ -65,10 +65,6 @@ pub fn draw(
     if properties.pie_in < 1.0
         && let Some((bl, bt, br, bb)) = bounding_box
     {
-        println!(
-            "Applying pie_in effect with pie_in={}, bbox=({}, {}, {}, {})",
-            properties.pie_in, bl, bt, br, bb
-        );
         let pie_radius = (br - bl).hypot(bb - bt)
             * 0.5
             * properties.pie_in
