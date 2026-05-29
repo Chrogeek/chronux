@@ -15,4 +15,5 @@ pub struct ParsedEarthquake {
     pub start: f32,
     pub duration: f32,
     pub max_amp: f32,
+    pub seed: u64,
 }

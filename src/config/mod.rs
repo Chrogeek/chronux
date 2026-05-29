@@ -1,6 +1,7 @@
 use core::f32;
 use std::collections::{HashMap, HashSet};
 
+use rand::Rng;
 use serde::Deserialize;
 use serde_with::serde_as;
 use skia_safe::{Color4f, PathMeasure};
@@ -563,10 +564,12 @@ impl Config {
 
                 if let Some(ev) = self.events.get(dep) {
                     let time = ev.start + time + ev.duration * duration_coeff;
+                    let mut rng = rand::rng();
                     Ok(ParsedEarthquake {
                         start: time,
                         duration: e.duration,
                         max_amp: e.max_amp,
+                        seed: rng.next_u64(),
                     })
                 } else {
                     Err(ChronuxError::BrokenDependency(format!(

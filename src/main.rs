@@ -489,7 +489,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             .iter()
             .map(|e| {
                 let elapsed = t - e.start;
-                earthquake(elapsed, e.duration, e.max_amp)
+                earthquake(elapsed, e.duration, e.max_amp, e.seed)
             })
             .fold((0.0, 0.0), |acc, cur| (acc.0 + cur.0, acc.1 + cur.1));
 
