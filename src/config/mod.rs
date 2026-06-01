@@ -117,6 +117,12 @@ pub struct MinimapConfig {
     pub shadow: f32,
     #[serde(rename = "expand-speed")]
     pub expand_speed: f32,
+    #[serde(rename = "base-x")]
+    pub base_x: f32,
+    #[serde(rename = "base-y")]
+    pub base_y: f32,
+    #[serde(rename = "base-size")]
+    pub base_size: f32,
 }
 
 #[derive(Debug, Deserialize, Clone)]
