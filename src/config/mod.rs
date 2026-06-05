@@ -20,7 +20,7 @@ use crate::{
         input::InputConfig,
         output::OutputConfig,
         tracker::Tracker,
-        viewport::{TimeKey, ViewportSequence, ViewportTrack},
+        viewport::{TimeKey, ViewportPoint, ViewportSequence, ViewportTrack},
         wm::WatermarkConfig,
     },
     svg::element::{Object, Shape},
@@ -59,6 +59,7 @@ pub struct Config {
     pub trackers: Vec<Tracker>,
     #[serde(rename = "viewports")]
     pub viewport_tracks: Vec<ViewportTrack>,
+    #[serde(default)]
     pub earthquakes: Vec<EarthquakeEntry>,
 }
 
@@ -456,24 +457,36 @@ impl Config {
                         TimeKey::AfterPrevious { depends, offset } => (depends, offset, 1.0),
                     };
 
-                    let position = if let Some(kx) = k.x
-                        && let Some(ky) = k.y
-                    {
-                        if d_length < 1e-4 {
-                            0.0
-                        } else {
-                            let (pt, len, _) = track_on_path(d, kx, ky);
-                            // total_time=0.0 since in this case (not animating) we don't care it
-                            pt * len
+                    let position = match k.point {
+                        Some(ViewportPoint::Coordinate { x: kx, y: ky }) => {
+                            if d_length < 1e-4 {
+                                0.0
+                            } else {
+                                let (pt, len, _) = track_on_path(d, kx, ky);
+                                // total_time=0.0 since in this case (not animating) we don't care it
+                                pt * len
+                            }
                         }
-                    } else if id == 0 {
-                        0.0
-                    } else if id == num_keyframes - 1 {
-                        d_length
-                    } else {
-                        return Err(ChronuxError::ArgError(format!(
-                            "Viewport keyframe {id} has no position defined"
-                        )));
+                        Some(ViewportPoint::At{t}) => {
+                            if t < 0.0 || t > 1.0 {
+                                return Err(ChronuxError::ArgError(format!(
+                                    "Viewport keyframe {} has invalid position t = {} (must be in [0, 1])",
+                                    id, t
+                                )));
+                            }
+                            t * d_length
+                        }
+                        None => {
+                            if id == 0 {
+                                0.0
+                            } else if id == num_keyframes - 1 {
+                                d_length
+                            } else {
+                                return Err(ChronuxError::ArgError(format!(
+                                    "Viewport keyframe {id} has no position defined"
+                                )));
+                            }
+                        }
                     };
 
                     if let Some(ev) = self.events.get(dep) {

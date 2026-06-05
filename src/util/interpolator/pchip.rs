@@ -155,9 +155,9 @@ impl PchipInterpolator {
 
         // check if t is strictly increasing
         for i in 1..n {
-            if t[i] - t[i - 1] < 1e-4 {
+            if t[i] < t[i - 1] {
                 return Err(ChronuxError::ArgError(format!(
-                    "Time points must be strictly increasing: t[{}] = {}, t[{}] = {}",
+                    "Time points must be non-decreasing: t[{}] = {}, t[{}] = {}",
                     i - 1,
                     t[i - 1],
                     i,

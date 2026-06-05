@@ -23,8 +23,8 @@ pub enum TimeKey {
 pub struct ViewportKeyframe {
     #[serde(flatten)]
     pub time: TimeKey,
-    pub x: Option<f32>,
-    pub y: Option<f32>,
+    #[serde(flatten)]
+    pub point: Option<ViewportPoint>,
     #[serde(rename = "width")]
     pub size: Option<f32>,
 }
@@ -34,6 +34,13 @@ pub struct ViewportTrack {
     #[serde(rename = "tracked-path")]
     pub tracked_path: String,
     pub keyframes: Vec<ViewportKeyframe>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum ViewportPoint {
+    Coordinate { x: f32, y: f32 },
+    At { t: f32 },
 }
 
 #[derive(Debug, Clone, Default)]
