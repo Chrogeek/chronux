@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use skia_safe::{
     Canvas, ClipOp, Color, Paint, PaintStyle, RRect, Rect, TileMode,
@@ -26,6 +26,7 @@ pub fn draw(
     y: f32,
     bounds: Option<(f32, f32, f32, f32)>,
     dict: &RenderDict,
+    phantom: &HashSet<String>,
 ) -> ChronuxResult<()> {
     if bounds.is_none() {
         // 小地图为空，什么都不画
@@ -159,7 +160,7 @@ pub fn draw(
         .translate((-bb.0, -bb.1));
 
     for o in objs.iter() {
-        if minimap.paths.contains(&o.id) {
+        if minimap.paths.contains(&o.id) && !phantom.contains(&o.id) {
             let properties = match timeline.get(&o.id) {
                 Some(tl) => tl.interpolate(t, dict),
                 None => o.style.clone(),

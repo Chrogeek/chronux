@@ -313,7 +313,7 @@ pub fn draw(
 }
 
 pub fn get_bounding_box(properties: &Properties) -> Option<(f32, f32, f32, f32)> {
-    if properties.opacity < 1e-4 || !properties.visible {
+    if !properties.is_visible() {
         return None; // 不可见，无边界框
     }
     match &properties.shape {

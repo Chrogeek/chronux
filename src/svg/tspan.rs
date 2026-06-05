@@ -70,6 +70,7 @@ impl Tspan {
             base_style: Properties,
             result: &mut Vec<Tspan>,
             placeholder: &Option<PlaceholderText>,
+            parent_features: &[Feature],
         ) -> ChronuxResult<()> {
             let style_str = attribute_str(node, "style").unwrap_or("".to_string());
 
@@ -95,7 +96,13 @@ impl Tspan {
                     let Point { x, y } = mat.map_point((x, y));
                     if !text.is_empty() {
                         let font = base_style.get_font()?;
+                        // TODO: 这里的feature继承并不完全正确，后续应该根据MDN的文档进行调整（继承和覆盖）
                         let features = parse_font_features(&style_str, 0, text.len());
+                        let features = parent_features
+                            .iter()
+                            .cloned()
+                            .chain(features.into_iter())
+                            .collect::<Vec<_>>();
                         let (preshaped, width) =
                             Tspan::preshape_text_align(&text, &font, dir, &features);
                         let tspan = Tspan {
@@ -113,8 +120,23 @@ impl Tspan {
                     }
                     continue;
                 } else {
+                    let features = parse_font_features(&style_str, 0, 0);
+                    let features = parent_features
+                        .iter()
+                        .cloned()
+                        .chain(features.into_iter())
+                        .collect::<Vec<_>>();
                     let mat = mat * attribute_transform(&child);
-                    dfs_node(&child, mat, x, y, base_style.clone(), result, placeholder)?;
+                    dfs_node(
+                        &child,
+                        mat,
+                        x,
+                        y,
+                        base_style.clone(),
+                        result,
+                        placeholder,
+                        &features,
+                    )?;
                 }
             }
             Ok(())
@@ -128,7 +150,16 @@ impl Tspan {
             TextAnchor::End => 1.0,
         };
 
-        dfs_node(node, mat, x, y, base_style, &mut result, placeholder)?;
+        dfs_node(
+            node,
+            mat,
+            x,
+            y,
+            base_style,
+            &mut result,
+            placeholder,
+            &vec![],
+        )?;
 
         if result.is_empty() {
             return Ok(result);

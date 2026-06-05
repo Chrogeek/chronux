@@ -591,6 +591,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                 y,
                 bounds.as_ref().unwrap()[f - frame_start],
                 &dict,
+                &conf.drawing.phantom,
             )?;
         }
 

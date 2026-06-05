@@ -94,6 +94,24 @@ impl Default for Properties {
 }
 
 impl Properties {
+    pub fn is_visible(&self) -> bool {
+        if !self.visible {
+            false
+        } else if self.opacity < 1e-4 {
+            false
+        } else if self.trim.0 >= self.trim.1 {
+            false
+        } else if self.typewriter.0 >= self.typewriter.1 {
+            false
+        } else if self.sweep.0 >= self.sweep.1 {
+            false
+        } else if self.pie_in < 1e-4 {
+            false
+        } else {
+            true
+        }
+    }
+
     pub fn apply(&self, event: &Event, t: f32, object: &str, dict: &RenderDict) -> Properties {
         match &event.animation {
             Animation::None => self.clone(),
