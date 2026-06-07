@@ -934,6 +934,7 @@ fn draw(
                     }
 
                     let mut paint_gap = path_props.get_stroke_paint(&defs, o.transform);
+                    paint_gap.set_shader(None); // 空隙部分只支持纯色，需要先清除原路径的渐变色
 
                     paint_gap
                         .set_color4f(
