@@ -471,11 +471,13 @@ fn run(args: Args) -> Result<(), ChronuxError> {
 
         // 计算与路径可见性挂钩的计数器
         for (path, line_counters) in conf.drawing.line_counters.iter() {
-            let properties = timeline[path].interpolate(t, &dict);
-            let (tl, tr) = properties.trim;
-            let t = (tr - tl) * properties.opacity;
-            for (k, v) in line_counters {
-                update_counters(&mut counters, k, *v * t);
+            if let Some(timeline) = timeline.get(path) {
+                let properties = timeline.interpolate(t, &dict);
+                let (tl, tr) = properties.trim;
+                let t = (tr - tl) * properties.opacity;
+                for (k, v) in line_counters {
+                    update_counters(&mut counters, k, *v * t);
+                }
             }
         }
 
