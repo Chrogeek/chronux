@@ -2,6 +2,7 @@
 name = "chronux"
 version = "0.8.1"
 edition = "2024"
+rust-version = "1.97"
 
 [dependencies]
 bitvec = "1.0.1"

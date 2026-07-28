@@ -3,7 +3,7 @@ use clap_derive::{Parser, ValueEnum};
 use crate::util::version::CHRONUX_VERSION;
 
 #[derive(Parser, Debug)]
-#[command(version = CHRONUX_VERSION, about = "A CLI tool for creating simple animations", long_about = None)]
+#[command(version = CHRONUX_VERSION, about = "Declarative, event-driven animation render tool.", long_about = None)]
 pub struct Args {
     #[arg(short = 'i', long)]
     pub config: Vec<String>,
