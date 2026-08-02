@@ -541,29 +541,19 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         // 绘制包装部分的图形元素（要求 apply_transform = false）
         // TODO: 目前要求包装 svg 的画幅大小为 1920x1080，暂不支持其他比例（会导致位置错乱）
         for o in objs.iter() {
-            if !o.apply_transform && conf.input.pinned.contains(&o.id) {
-                let properties = o.style.clone();
-                render::draw(
-                    surface.canvas(),
-                    &properties,
-                    0.0,
-                    &counters,
-                    &viewport_rect,
-                    &conf.drawing.extra_strokes,
-                    &defs,
-                    o.transform,
-                )?;
-            }
-        }
-
-        for o in objs.iter() {
             if conf.drawing.phantom.contains(&o.id) {
                 // 忽略 phantom 对象
                 continue;
             } else if o.apply_transform {
                 continue;
-            } else if let Some(tl) = timeline.get(&o.id) {
-                let properties = tl.interpolate(t, &dict);
+            } else {
+                let properties = if let Some(tl) = timeline.get(&o.id) {
+                    tl.interpolate(t, &dict)
+                } else if conf.input.pinned.contains(&o.id) {
+                    o.style.clone()
+                } else {
+                    continue;
+                };
                 render::draw(
                     surface.canvas(),
                     &properties,
@@ -836,23 +826,6 @@ fn draw(
         .flatten()
         .collect::<HashMap<_, _>>();
 
-    // 固定对象直接绘制
-    for o in objs.iter() {
-        if o.apply_transform && conf.input.pinned.contains(&o.id) {
-            let properties = o.style.clone();
-            render::draw(
-                canvas,
-                &properties,
-                0.0,
-                &counters,
-                &viewport_rect,
-                &conf.drawing.extra_strokes,
-                &defs,
-                o.transform,
-            )?;
-        }
-    }
-
     // 绘制地上段（elevated）路径
     if let Some(elevated) = &elevated {
         let elevated_config = conf.drawing.elevated.as_ref().unwrap();
@@ -970,8 +943,16 @@ fn draw(
             continue;
         } else if !o.apply_transform {
             continue;
-        } else if let Some(tl) = timeline.get(&o.id) {
-            let properties = tl.interpolate(t, &dict);
+        } else {
+            let properties = if let Some(tl) = timeline.get(&o.id) {
+                // 有时间轴的对象
+                tl.interpolate(t, &dict)
+            } else if conf.input.pinned.contains(&o.id) {
+                // 固定对象直接绘制
+                o.style.clone()
+            } else {
+                continue;
+            };
             let mask_object = match &o.mask {
                 Some(Mask::Stroke(mask_id)) => {
                     let mobj_props = timeline
