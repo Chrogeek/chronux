@@ -958,7 +958,7 @@ fn draw(
                     let mobj_props = timeline
                         .get(mask_id)
                         .map(|tl| tl.interpolate(t, &dict))
-                        .unwrap();
+                        .expect(&format!("Mask object '{}' not found in SVG", mask_id));
 
                     let mut stroke_paint = mobj_props.get_stroke_paint(defs, o.transform);
                     if let Some(e) = mobj_props.get_effects() {
