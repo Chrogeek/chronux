@@ -128,7 +128,7 @@ fn track_inner(
     // 先求出不加缓动函数前提下，最近的位置t
     let (t, dis2) = match chained_path {
         ChainedPath::Atom(o) => {
-            let obj = &objs[objmap[o]];
+            let obj = &objs[*objmap.get(o).expect(&format!("Path atom {o} not found"))];
             if let Shape::Path { d } = &obj.style.shape {
                 let (t, _, dis2) = track_on_path(d, x, y);
                 Ok((t, dis2))
