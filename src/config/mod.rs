@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 use rand::Rng;
 use serde::Deserialize;
 use serde_with::serde_as;
-use skia_safe::{Color4f, PathMeasure};
+use skia_safe::Color4f;
 
 use crate::{
     animation::{Animation, properties::Properties, timeline::Timeline, track, track_on_path},
@@ -28,6 +28,7 @@ use crate::{
         error::{ChronuxError, ChronuxResult},
         gamma_correction,
         interpolator::Interpolator,
+        path_length,
         version::is_compatible,
     },
 };
@@ -423,10 +424,7 @@ impl Config {
                 }
             };
 
-            let d_length = {
-                let mut pm = PathMeasure::new(d, false, Some(2.0));
-                pm.length()
-            };
+            let d_length = path_length(d);
 
             let num_keyframes = viewport.keyframes.len();
             let keyframes = viewport

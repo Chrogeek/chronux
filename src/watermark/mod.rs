@@ -93,15 +93,15 @@ pub fn embed_wm(raw: &[u8], wm_bits: &BitSlice<u8>, seed: u64, width: u32, heigh
         for x in 0..width {
             let c = raw_processed.get_pixel(x, y);
             let (r, g, b, a) = (
-                c[0].clamp(0.0, 1.0) * 255.0,
-                c[1].clamp(0.0, 1.0) * 255.0,
-                c[2].clamp(0.0, 1.0) * 255.0,
-                c[3].clamp(0.0, 1.0) * 255.0,
+                (c[0] * 256.0).floor().clamp(0.0, 255.0) as u8,
+                (c[1] * 256.0).floor().clamp(0.0, 255.0) as u8,
+                (c[2] * 256.0).floor().clamp(0.0, 255.0) as u8,
+                (c[3] * 256.0).floor().clamp(0.0, 255.0) as u8,
             );
-            raw.push(r as u8);
-            raw.push(g as u8);
-            raw.push(b as u8);
-            raw.push(a as u8);
+            raw.push(r);
+            raw.push(g);
+            raw.push(b);
+            raw.push(a);
         }
     }
 

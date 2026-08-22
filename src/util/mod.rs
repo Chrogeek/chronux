@@ -2,7 +2,9 @@ use std::{collections::HashMap, path::PathBuf};
 
 use once_cell::sync::OnceCell;
 use serde::Deserialize;
-use skia_safe::{Color4f, Paint, textlayout::TextDirection, utils::text_utils::Align};
+use skia_safe::{
+    Color4f, Paint, Path, PathMeasure, textlayout::TextDirection, utils::text_utils::Align,
+};
 use svgtypes::PaintOrder;
 
 use crate::util::{
@@ -237,4 +239,9 @@ pub fn absolute_path(base: &str, relative: &str) -> PathBuf {
             .unwrap()
             .into()
     }
+}
+
+pub fn path_length(d: &Path) -> f32 {
+    let mut pm = PathMeasure::new(d, false, Some(2.0));
+    pm.length()
 }

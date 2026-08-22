@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use skia_safe::{
-    Canvas, ClipOp, Matrix, Paint, PaintStyle, Path, PathDirection, RRect, Rect, StrokeRec,
-    TileMode, Vector,
+    Canvas, ClipOp, Matrix, Paint, PaintCap, PaintStyle, Path, PathDirection, PathMeasure, Point,
+    RRect, Rect, StrokeRec, TileMode, Vector,
     canvas::{SaveLayerFlags, SaveLayerRec},
     image_filters::blur,
 };
@@ -124,15 +124,66 @@ pub fn draw(
             let mut d = d.clone();
             d.set_fill_type(properties.fill_rule);
 
-            if properties.trim.0 >= 0.0 || properties.trim.1 <= 1.0 {
+            let (ts, te) = properties.trim;
+
+            if (ts >= 0.0 && ts <= 1.0) || (te >= 0.0 && te <= 1.0) || (ts <= 0.0 && te >= 1.0) {
                 // 正常绘制路径
                 canvas.draw_path(&d, &paints[0]);
                 canvas.draw_path(&d, &paints[1]);
-            } else if properties.trim.1 <= 0.0 {
-                // 绘制起点端头（stroke cap 的一部分）和起点端头的填充
-                // stroke cap 的长度等于 stroke width 的一半
-                // properties.trim.0 = -(stroke width * 0.5) / path length 对应端头的起点
-                // properties.trim.1 = 0.0 对应端头的终点
+            } else {
+                // 裁切区段不可见时，尝试绘制端头
+                match properties.stroke_linecap {
+                    PaintCap::Round => {
+                        // 绘制端头
+                        let mut pm = PathMeasure::new(&d, false, Some(2.0));
+                        let path_len = pm.length();
+                        let stroke_width = properties.stroke_width;
+                        let cap_ratio = (stroke_width * 0.5) / path_len;
+
+                        let (alpha, beta, pt) = if te <= 0.0 && te >= -cap_ratio {
+                            let (pt, tan) = pm
+                                .pos_tan(0.0)
+                                .expect("Failed to get pos/tan at start of path");
+                            let beta = tan.y.atan2(tan.x).to_degrees();
+                            let alpha = (-te / cap_ratio).asin().to_degrees();
+
+                            (alpha, beta, pt)
+                        } else if ts >= 1.0 && ts <= 1.0 + cap_ratio {
+                            let (pt, tan) = pm
+                                .pos_tan(path_len)
+                                .expect("Failed to get pos/tan at end of path");
+                            let beta = tan.y.atan2(tan.x).to_degrees() + 180.0;
+                            let alpha = ((ts - 1.0) / cap_ratio).asin().to_degrees();
+
+                            (alpha, beta, pt)
+                        } else {
+                            (-1.0, 0.0, Point::new(0.0, 0.0))
+                        };
+
+                        if alpha >= 0.0 {
+                            for paint in paints {
+                                if paint.style() == PaintStyle::Stroke {
+                                    let mut npt = paint.clone();
+                                    npt.set_style(PaintStyle::Fill);
+                                    canvas.draw_arc(
+                                        Rect::new(
+                                            pt.x - stroke_width * 0.5,
+                                            pt.y - stroke_width * 0.5,
+                                            pt.x + stroke_width * 0.5,
+                                            pt.y + stroke_width * 0.5,
+                                        ),
+                                        alpha * 2.0 + beta,
+                                        360.0 - 4.0 * alpha,
+                                        false,
+                                        &npt,
+                                    );
+                                }
+                            }
+                        }
+                    }
+                    PaintCap::Square => {} // TODO: 其他端点类型暂不支持
+                    PaintCap::Butt => {}   // 无线头，什么都不用画
+                }
             }
 
             canvas.restore_to_count(restore_handle);
@@ -321,6 +372,12 @@ pub fn draw(
 pub fn get_bounding_box(properties: &Properties) -> Option<(f32, f32, f32, f32)> {
     if !properties.is_visible() {
         return None; // 不可见，无边界框
+    }
+    if properties.trim.1 <= 0.0
+        || properties.trim.0 >= 1.0
+        || properties.trim.1 - properties.trim.0 < 1e-4
+    {
+        return None; // 裁切区段不可见，无边界框
     }
     match &properties.shape {
         Shape::Path { d } => {

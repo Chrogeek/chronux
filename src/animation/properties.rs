@@ -596,7 +596,7 @@ impl Properties {
             effects.push(dash_effect);
         }
 
-        if self.trim.0 > 0.0 || self.trim.1 < 1.0 {
+        if (self.trim.0 > 0.0 && self.trim.0 <= 1.0) || (self.trim.1 >= 0.0 && self.trim.1 < 1.0) {
             effects.push(skia_safe::trim_path_effect::new(
                 self.trim.0,
                 self.trim.1,
