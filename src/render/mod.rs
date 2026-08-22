@@ -9,7 +9,7 @@ use skia_safe::{
 
 use crate::{
     animation::properties::Properties,
-    config::{counter::Counters, extra_stroke::ExtraStrokeConfig},
+    config::counter::Counters,
     svg::{defs::SvgDef, element::Shape},
     util::{
         TextDrawPass,
@@ -24,7 +24,6 @@ pub fn draw(
     min_stroke_width: f32,
     counters: &Counters,
     viewport_rect: &Rect,
-    extra_strokes: &Vec<ExtraStrokeConfig>,
     defs: &HashMap<String, SvgDef>,
     element_transform: Matrix,
 ) -> ChronuxResult<()> {
@@ -125,8 +124,16 @@ pub fn draw(
             let mut d = d.clone();
             d.set_fill_type(properties.fill_rule);
 
-            canvas.draw_path(&d, &paints[0]);
-            canvas.draw_path(&d, &paints[1]);
+            if properties.trim.0 >= 0.0 || properties.trim.1 <= 1.0 {
+                // 正常绘制路径
+                canvas.draw_path(&d, &paints[0]);
+                canvas.draw_path(&d, &paints[1]);
+            } else if properties.trim.1 <= 0.0 {
+                // 绘制起点端头（stroke cap 的一部分）和起点端头的填充
+                // stroke cap 的长度等于 stroke width 的一半
+                // properties.trim.0 = -(stroke width * 0.5) / path length 对应端头的起点
+                // properties.trim.1 = 0.0 对应端头的终点
+            }
 
             canvas.restore_to_count(restore_handle);
         }
@@ -300,7 +307,6 @@ pub fn draw(
                     min_stroke_width,
                     counters,
                     viewport_rect,
-                    extra_strokes,
                     defs,
                     element_transform,
                 )?;

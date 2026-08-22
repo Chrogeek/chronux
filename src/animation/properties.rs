@@ -129,10 +129,10 @@ impl Properties {
                     let chain_len = chain.length(dict).unwrap_or(0.0);
                     let (start, end) = if *reverse { (1.0 - t, 1.0) } else { (0.0, t) };
                     let (start, end) = (start * chain_len, end * chain_len);
-                    let (start, end) = (
-                        start.clamp(segment.0, segment.1),
-                        end.clamp(segment.0, segment.1),
-                    );
+                    // let (start, end) = (
+                    //     start.clamp(segment.0, segment.1),
+                    //     end.clamp(segment.0, segment.1),
+                    // );
                     let (start, end) = (
                         (start - segment.0) / seglength,
                         (end - segment.0) / seglength,
@@ -157,10 +157,10 @@ impl Properties {
                     let chain_len = chain.length(dict).unwrap_or(0.0);
                     let (start, end) = if *reverse { (t, 1.0) } else { (0.0, 1.0 - t) };
                     let (start, end) = (start * chain_len, end * chain_len);
-                    let (start, end) = (
-                        start.clamp(segment.0, segment.1),
-                        end.clamp(segment.0, segment.1),
-                    );
+                    // let (start, end) = (
+                    //     start.clamp(segment.0, segment.1),
+                    //     end.clamp(segment.0, segment.1),
+                    // );
                     let (start, end) = (
                         (start - segment.0) / seglength,
                         (end - segment.0) / seglength,

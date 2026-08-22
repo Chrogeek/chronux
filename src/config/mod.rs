@@ -12,9 +12,7 @@ use crate::{
         counter::{Counters, update_counters},
         dates::DatesConfig,
         earthquake::{EarthquakeEntry, ParsedEarthquake},
-        elevated::ElevatedConfig,
         event::Event,
-        extra_stroke::ExtraStrokeConfig,
         extra_viewport::ExtraViewportConfig,
         group::Group,
         input::InputConfig,
@@ -37,9 +35,7 @@ use crate::{
 pub mod counter;
 pub mod dates;
 pub mod earthquake;
-pub mod elevated;
 pub mod event;
-pub mod extra_stroke;
 pub mod extra_viewport;
 pub mod group;
 pub mod input;
@@ -78,10 +74,6 @@ pub struct DrawingConfig {
     #[serde_with(as = "OneOrMany<_, PreferOne>")]
     pub phantom: HashSet<String>,
     pub dates: Option<DatesConfig>,
-    #[serde(rename = "extra-strokes", default)]
-    #[serde_with(as = "OneOrMany<_, PreferOne>")]
-    pub extra_strokes: Vec<ExtraStrokeConfig>,
-    pub elevated: Option<ElevatedConfig>,
     #[serde(rename = "extra-viewports")]
     pub extra_viewports: Option<ExtraViewportConfig>,
     #[serde(rename = "line-counters", default)]
@@ -355,16 +347,6 @@ impl Config {
             objects.insert(dates.position_year.clone());
             objects.insert(dates.area_date.clone());
             objects.insert(dates.area_year.clone());
-        }
-
-        if let Some(elevated) = &self.drawing.elevated {
-            for points in elevated.points.values() {
-                for point in points {
-                    if point != "" {
-                        objects.insert(point.to_string());
-                    }
-                }
-            }
         }
 
         if let Some(minimap) = &self.drawing.minimap {
