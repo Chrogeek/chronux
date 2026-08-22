@@ -16,7 +16,7 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use skia_safe::path_utils::fill_path_with_paint;
 use skia_safe::{
     AlphaType, Canvas, ClipOp, ColorSpace, ColorType, ImageInfo, Matrix, Path, Rect, SurfaceProps,
-    surfaces, trim_path_effect,
+    surfaces,
 };
 
 use crate::animation::timeline::Timeline;
@@ -30,9 +30,7 @@ use crate::util::dict::RenderDict;
 use crate::util::earthquake::earthquake;
 use crate::util::vector::Vec3;
 use crate::util::version::CHRONUX_VERSION;
-use crate::util::{
-    absolute_path, error::ChronuxError, error::ChronuxResult, parse_css_color, timecode_rt,
-};
+use crate::util::{absolute_path, error::ChronuxError, error::ChronuxResult, timecode_rt};
 use crate::watermark::{WatermarkInfo, embed_wm, gen_samples};
 use crate::widget::WIDGET_CANVAS_WIDTH;
 use crate::{animation::Animation, args::Args, config::Config, svg::Svg, writer::Writer};
@@ -189,32 +187,6 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         path_lengths: path_length_dict,
     };
 
-    if !conf.drawing.extra_strokes.is_empty() {
-        // 根据 es 中指定的路径组，将 objs 重排顺序，使得每个路径组的对象都在一起
-        // 首先给每个对象指定一个编号：如果不在任何一个路径组中则编号等于 objs 中的下标，否则编号指定为该路径组中所有对象的最大下标
-
-        let mut obj_id = objs
-            .iter()
-            .enumerate()
-            .map(|(i, o)| (o.id.clone(), i))
-            .collect::<HashMap<_, _>>();
-
-        for es in conf.drawing.extra_strokes.iter() {
-            if es.paths.len() <= 1 {
-                continue;
-            }
-            let max = es.paths.iter().map(|p| obj_id[p]).max().unwrap();
-            es.paths.iter().for_each(|p| {
-                if max > obj_id[p] {
-                    obj_id.insert(p.clone(), max);
-                }
-            });
-        }
-
-        // 按照路径组编号排序
-        objs.sort_by_key(|o| obj_id[&o.id]);
-    }
-
     let objs = objs;
 
     // 计算每个动画的起始时间
@@ -294,13 +266,6 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         }
         return Ok(());
     }
-
-    // 计算线路的地上段
-    let elevated = if let Some(e) = conf.drawing.elevated.as_ref() {
-        Some(e.parse_points(&objs)?)
-    } else {
-        None
-    };
 
     // 设置每个对象时间线的起始属性，如有出现(appear)动画则将起始状态置为默认值（未开始）
     for o in objs.iter() {
@@ -474,7 +439,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             if let Some(timeline) = timeline.get(path) {
                 let properties = timeline.interpolate(t, &dict);
                 let (tl, tr) = properties.trim;
-                let t = (tr - tl) * properties.opacity;
+                let t = (tr.clamp(0.0, 1.0) - tl.clamp(0.0, 1.0)) * properties.opacity;
                 for (k, v) in line_counters {
                     update_counters(&mut counters, k, *v * t);
                 }
@@ -522,9 +487,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             &counters,
             &defs,
             t,
-            &elevated,
             &dict,
-            &obj_map,
             &viewport_rect,
             &Rect::from_xywh(0.0, 0.0, width as f32, height as f32),
         )?;
@@ -560,7 +523,6 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                     0.0,
                     &counters,
                     &viewport_rect,
-                    &conf.drawing.extra_strokes,
                     &defs,
                     o.transform,
                 )?;
@@ -660,9 +622,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                     &counters,
                     &defs,
                     t,
-                    &elevated,
                     &dict,
-                    &obj_map,
                     &Rect::from_xywh(x1, y1, *w, *h),
                     &tr,
                 )?;
@@ -776,9 +736,7 @@ fn draw(
     counters: &Counters,
     defs: &HashMap<String, SvgDef>,
     t: f32,
-    elevated: &Option<HashMap<String, Vec<(f32, f32)>>>,
     dict: &RenderDict,
-    obj_map: &HashMap<String, usize>,
     viewport_rect: &Rect,
     target_rect: &Rect,
 ) -> ChronuxResult<()> {
@@ -807,134 +765,6 @@ fn draw(
         .translate((-vx, -vy));
 
     canvas.clip_rect(viewport_rect, ClipOp::Intersect, true);
-
-    // 为 extra-stroke 准备数据结构
-    // TODO: 暂不支持一条路径添加多个 extra-stroke
-    let mut es_count = conf
-        .drawing
-        .extra_strokes
-        .iter()
-        .enumerate()
-        .map(|(id, es)| (id, es.paths.len()))
-        .collect::<HashMap<_, _>>();
-    let es_group = conf
-        .drawing
-        .extra_strokes
-        .iter()
-        .enumerate()
-        .map(|(id, es)| es.paths.iter().map(move |p| (p.clone(), id)))
-        .flatten()
-        .collect::<HashMap<_, _>>();
-
-    // 绘制地上段（elevated）路径
-    if let Some(elevated) = &elevated {
-        let elevated_config = conf.drawing.elevated.as_ref().unwrap();
-        if elevated_config.stroke_width > 1e-4 {
-            for o in objs.iter() {
-                let path = &o.id;
-                if let Some(intervals) = elevated.get(path) {
-                    let path_props = timeline[path].interpolate(t, &dict);
-
-                    let d = match &path_props.shape {
-                        Shape::Path { d } => d,
-                        _ => {
-                            return Err(ChronuxError::ArgError(format!(
-                                "Invalid shape for elevated point: {}, must be a path",
-                                o.id
-                            )));
-                        }
-                    };
-
-                    let mut pm = skia_safe::PathMeasure::new(d, false, Some(2.0));
-                    let path_length = pm.length();
-
-                    let (ps, pe) = path_props.trim;
-
-                    if path_props.stroke_width < 1e-4
-                        || path_props.opacity < 1e-4
-                        || (pe - ps) * path_length < 1e-4
-                    {
-                        // 没有描边/不可见就不需要绘制地上段
-                        continue;
-                    }
-
-                    let mut paint_line = path_props.get_stroke_paint(&defs, o.transform);
-                    paint_line.set_stroke_width(
-                        path_props.stroke_width
-                            + (elevated_config.gap + elevated_config.stroke_width) * 2.0,
-                    );
-
-                    for (is, ie) in intervals {
-                        let start = ps.max(*is);
-                        let end = pe.min(*ie);
-
-                        if (end - start) * path_length > 1e-4 {
-                            let effect =
-                                trim_path_effect::new(start, end, trim_path_effect::Mode::Normal);
-
-                            let mut paint_line = paint_line.clone();
-                            paint_line.set_path_effect(effect);
-                            canvas.draw_path(d, &paint_line);
-                        }
-                    }
-                }
-            }
-        }
-        if elevated_config.gap > 1e-4 {
-            for o in objs.iter() {
-                let path = &o.id;
-                if let Some(intervals) = elevated.get(path) {
-                    let path_props = timeline[path].interpolate(t, &dict);
-                    let d = match &path_props.shape {
-                        Shape::Path { d } => d,
-                        _ => {
-                            return Err(ChronuxError::ArgError(format!(
-                                "Invalid shape for elevated point: {}, must be a path",
-                                o.id
-                            )));
-                        }
-                    };
-
-                    let mut pm = skia_safe::PathMeasure::new(d, false, Some(2.0));
-                    let path_length = pm.length();
-
-                    let (ps, pe) = path_props.trim;
-
-                    if path_props.stroke_width < 1e-4
-                        || path_props.opacity < 1e-4
-                        || (pe - ps) * path_length < 1e-4
-                    {
-                        // 没有描边/不可见就不需要绘制地上段
-                        continue;
-                    }
-
-                    let mut paint_gap = path_props.get_stroke_paint(&defs, o.transform);
-                    paint_gap.set_shader(None); // 空隙部分只支持纯色，需要先清除原路径的渐变色
-
-                    paint_gap
-                        .set_color4f(
-                            parse_css_color(&elevated_config.gap_color, path_props.opacity)?,
-                            None,
-                        )
-                        .set_stroke_width(path_props.stroke_width + elevated_config.gap * 2.0);
-
-                    for (is, ie) in intervals {
-                        let start = ps.max(*is);
-                        let end = pe.min(*ie);
-
-                        if (end - start) * path_length > 1e-4 {
-                            let effect =
-                                trim_path_effect::new(start, end, trim_path_effect::Mode::Normal);
-
-                            let mut paint_gap = paint_gap.clone();
-                            paint_gap.set_path_effect(effect.clone());
-                            canvas.draw_path(d, &paint_gap);
-                        }
-                    }
-                }
-            }
-        }
-    }
 
     // 绘制每个图形（动态部分，要求 apply_transform = true）
     for o in objs.iter() {
@@ -1009,34 +839,10 @@ fn draw(
                 0.0,
                 &counters,
                 &viewport_rect,
-                &conf.drawing.extra_strokes,
                 &defs,
                 o.transform,
             )?;
             canvas.restore_to_count(restore_count);
-        }
-        if let Some(esg) = es_group.get(&o.id) {
-            let esc = es_count.get_mut(esg).unwrap();
-            *esc -= 1;
-            if *esc == 0 {
-                let es = &conf.drawing.extra_strokes[*esg];
-                for path in es.paths.iter() {
-                    let properties = timeline[path].interpolate(t, &dict);
-                    let mut extra_paint = properties.get_stroke_paint(&defs, o.transform);
-                    extra_paint
-                        .set_color4f(parse_css_color(&es.stroke_color, 1.0)?, None)
-                        .set_stroke_width(es.stroke_width);
-                    if let Some(e) = properties.get_effects() {
-                        extra_paint.set_path_effect(e);
-                    }
-                    match &objs[obj_map[path]].style.shape {
-                        Shape::Path { d } => {
-                            canvas.draw_path(d, &extra_paint);
-                        }
-                        _ => unreachable!("extra stroke only supports paths"),
-                    }
-                }
-            }
         }
     }
 
