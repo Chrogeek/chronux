@@ -1,5 +1,3 @@
-use std::f32::NAN;
-
 use serde::Deserialize;
 use serde_with::{OneOrMany, formats::PreferOne, serde_as};
 
@@ -55,7 +53,7 @@ impl Tracker {
                 object: self.object.clone(),
                 easing: self.easing.clone(),
                 offset: self.offset.clone(),
-                start: NAN,
+                start: f32::NAN,
                 duration: self.duration,
                 animation: self.animation.clone(),
                 counters: self.counters.clone(),

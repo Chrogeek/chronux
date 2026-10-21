@@ -111,10 +111,13 @@ pub struct MinimapConfig {
     pub shadow: f32,
     #[serde(rename = "expand-speed")]
     pub expand_speed: f32,
+    #[expect(dead_code, reason = "控制小地图大小的预留参数，暂未实现")]
     #[serde(rename = "base-x")]
     pub base_x: f32,
+    #[expect(dead_code, reason = "控制小地图大小的预留参数，暂未实现")]
     #[serde(rename = "base-y")]
     pub base_y: f32,
+    #[expect(dead_code, reason = "控制小地图大小的预留参数，暂未实现")]
     #[serde(rename = "base-size")]
     pub base_size: f32,
 }
