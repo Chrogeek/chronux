@@ -9,6 +9,7 @@ use crate::{
     parser::chain::ChainedPath,
     svg::element::{Object, Shape},
     util::{
+        EPS,
         dict::RenderDict,
         error::{ChronuxError, ChronuxResult},
     },
@@ -104,7 +105,7 @@ pub fn track(
 
     // 根据event的缓动函数设置，二分法求出正确的t
     let (mut tl, mut tr, mut tm) = (0.0, 1.0, 0.5);
-    while tr - tl > 1e-4 {
+    while tr - tl > EPS {
         if event.easing.evaluate(tm) < t {
             tl = tm;
         } else {

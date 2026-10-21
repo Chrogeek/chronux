@@ -12,7 +12,10 @@ use crate::{
         defs::{SvgDef, get_def_node},
         element::Object,
     },
-    util::error::{ChronuxError, ChronuxResult},
+    util::{
+        EPS,
+        error::{ChronuxError, ChronuxResult},
+    },
 };
 
 pub mod defs;
@@ -64,7 +67,7 @@ impl Svg {
             )));
         }
 
-        if ((vb.2 / width) / (vb.3 / height) - 1.0).abs() > 1e-4 {
+        if ((vb.2 / width) / (vb.3 / height) - 1.0).abs() > EPS {
             log::warn!(
                 "SVG viewbox aspect ratio does not match width/height: viewBox = {vb:?}, width = {width}, height = {height}"
             );

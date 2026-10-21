@@ -3,11 +3,13 @@ use std::f32::consts::PI;
 use roots::Roots;
 use serde::Deserialize;
 
+use crate::util::EPS;
+
 /// 三阶贝塞尔曲线插值
 pub fn cubic_bezier(x: f32, p1: f32, p2: f32, p3: f32, p4: f32) -> f32 {
-    if x < 1e-4 {
+    if x < EPS {
         return 0.0;
-    } else if x > 1.0 - 1e-4 {
+    } else if x > 1.0 - EPS {
         return 1.0;
     }
     let t = roots::find_roots_cubic(

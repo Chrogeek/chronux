@@ -19,7 +19,7 @@ use crate::{
         placeholder_text::PlaceholderText,
     },
     util::{
-        TRANSPARENT, TextAnchor, TextDrawPass, error::ChronuxResult, paint::ColorPaint,
+        EPS, TRANSPARENT, TextAnchor, TextDrawPass, error::ChronuxResult, paint::ColorPaint,
         trim_control_chars,
     },
 };
@@ -269,10 +269,10 @@ impl Tspan {
             TspanText::Placeholder(placeholder) => placeholder.format(counters),
         };
 
-        if tr - tl < 1e-4 {
+        if tr - tl < EPS {
             // Avoid drawing if the text length is too small
             // Do nothing here
-        } else if tl < 1e-4 && tr > self.length - 1e-4 {
+        } else if tl < EPS && tr > self.length - EPS {
             let (x, y) = (self.x, self.y);
             match &self.text {
                 TspanText::Placeholder(placeholder) => {

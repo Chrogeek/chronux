@@ -125,7 +125,7 @@
 此方法平衡了简单性和鲁棒性，严格满足您的要求。如果您有具体数据或实现问题，我可以进一步调整算法细节。
  */
 
-use crate::util::{ChronuxError, ChronuxResult};
+use crate::util::{ChronuxError, ChronuxResult, EPS};
 
 #[derive(Debug, Clone)]
 pub struct PchipInterpolator {
@@ -171,7 +171,7 @@ impl PchipInterpolator {
         let p_start = p[0];
         let p_end = p[n - 1];
 
-        let is_zero_length = (p_end - p_start).abs() < 1e-4;
+        let is_zero_length = (p_end - p_start).abs() < EPS;
 
         let t = t.iter().map(|v| v - t_start).collect::<Vec<_>>();
         let p = p
@@ -196,7 +196,7 @@ impl PchipInterpolator {
             .map(|w| {
                 if is_zero_length
                 || (w[0].signum() * w[1].signum() <= 0.0) // if the slopes have different signs, set m to 0
-                || (w[0].abs() < 1e-4 || w[1].abs() < 1e-4)
+                || (w[0].abs() < EPS || w[1].abs() < EPS)
                 // if either slope is zero, set m to 0
                 {
                     0.0

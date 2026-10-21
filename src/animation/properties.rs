@@ -12,7 +12,7 @@ use crate::{
     config::event::Event,
     svg::{defs::SvgDef, element::Shape},
     util::{
-        self, TextAnchor,
+        self, EPS, TextAnchor,
         dict::RenderDict,
         error::{ChronuxError, ChronuxResult},
         paint::ColorPaint,
@@ -97,7 +97,7 @@ impl Properties {
     pub fn is_visible(&self) -> bool {
         if !self.visible {
             false
-        } else if self.opacity < 1e-4 {
+        } else if self.opacity < EPS {
             false
         } else if self.trim.0 >= self.trim.1 {
             false
@@ -105,7 +105,7 @@ impl Properties {
             false
         } else if self.sweep.0 >= self.sweep.1 {
             false
-        } else if self.pie_in < 1e-4 {
+        } else if self.pie_in < EPS {
             false
         } else {
             true
@@ -591,7 +591,7 @@ impl Properties {
         // dash必须放在trim前面，否则trim动画会变成一堆线段通过#seq连接起来的效果
         // 视觉上间断感很强，十分违和
 
-        if self.dash_array.len() > 0 && self.stroke_width > 1e-4 {
+        if self.dash_array.len() > 0 && self.stroke_width > EPS {
             let dash_effect = skia_safe::dash_path_effect::new(&self.dash_array, self.dash_offset);
             effects.push(dash_effect);
         }

@@ -25,6 +25,8 @@ pub static COLOR_DICT: OnceCell<HashMap<String, Color4f>> = OnceCell::new();
 
 pub const TRANSPARENT: Color4f = Color4f::new(0.0, 0.0, 0.0, 0.0);
 
+pub const EPS: f32 = 1e-4;
+
 #[derive(Copy, Clone, Debug)]
 pub enum TextDrawPass {
     Shadow,

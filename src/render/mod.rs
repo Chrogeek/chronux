@@ -12,7 +12,7 @@ use crate::{
     config::counter::Counters,
     svg::{defs::SvgDef, element::Shape},
     util::{
-        TextDrawPass,
+        EPS, TextDrawPass,
         error::{ChronuxError, ChronuxResult},
         sort_paints,
     },
@@ -27,7 +27,7 @@ pub fn draw(
     defs: &HashMap<String, SvgDef>,
     element_transform: Matrix,
 ) -> ChronuxResult<()> {
-    if !properties.visible || properties.opacity < 1e-4 {
+    if !properties.visible || properties.opacity < EPS {
         return Ok(());
     }
 
@@ -78,7 +78,7 @@ pub fn draw(
     }
 
     // 将画布绕 bboxcenter 点旋转 properties.rotate 角度(deg)
-    if properties.rotate.abs() > 1e-4
+    if properties.rotate.abs() > EPS
         && let Some((cx, cy)) = bboxcenter
     {
         let cx = cx + properties.translate_x;
@@ -239,7 +239,7 @@ pub fn draw(
                 y + height * 0.5 + h * 0.5,
             );
             shadow.inspect(|sh| {
-                if rx > 1e-4 || ry > 1e-4 {
+                if rx > EPS || ry > EPS {
                     canvas.draw_round_rect(rect, rx, ry, &sh);
                 } else {
                     canvas.draw_rect(rect, &sh);
@@ -249,7 +249,7 @@ pub fn draw(
                 let bl = bl * properties.opacity;
                 let blur_bounds = rect;
                 blur((bl, bl), TileMode::Clamp, None, blur_bounds).inspect(|filter| {
-                    if rx > 1e-4 || ry > 1e-4 {
+                    if rx > EPS || ry > EPS {
                         canvas.clip_rrect(
                             &RRect::new_rect_xy(rect, rx, ry),
                             ClipOp::Intersect,
@@ -266,7 +266,7 @@ pub fn draw(
                 });
             });
             for paint in paints {
-                if rx > 1e-4 || ry > 1e-4 {
+                if rx > EPS || ry > EPS {
                     canvas.draw_round_rect(rect, rx, ry, &paint);
                 } else {
                     canvas.draw_rect(rect, &paint);
@@ -322,7 +322,7 @@ pub fn draw(
             height,
             skia_img,
         } => {
-            if properties.opacity > 1e-4 {
+            if properties.opacity > EPS {
                 let (w, h) = (width * properties.scale_x, height * properties.scale_y);
                 let dst_rect = Rect::new(
                     x + properties.translate_x + width * 0.5 - w * 0.5,
@@ -375,7 +375,7 @@ pub fn get_bounding_box(properties: &Properties) -> Option<(f32, f32, f32, f32)>
     }
     if properties.trim.1 <= 0.0
         || properties.trim.0 >= 1.0
-        || properties.trim.1 - properties.trim.0 < 1e-4
+        || properties.trim.1 - properties.trim.0 < EPS
     {
         return None; // 裁切区段不可见，无边界框
     }

@@ -23,7 +23,7 @@ use crate::{
     },
     svg::element::{Object, Shape},
     util::{
-        COLOR_DICT,
+        COLOR_DICT, EPS,
         dict::RenderDict,
         error::{ChronuxError, ChronuxResult},
         gamma_correction,
@@ -439,7 +439,7 @@ impl Config {
 
                     let position = match k.point {
                         Some(ViewportPoint::Coordinate { x: kx, y: ky }) => {
-                            if d_length < 1e-4 {
+                            if d_length < EPS {
                                 0.0
                             } else {
                                 let (pt, len, _) = track_on_path(d, kx, ky);
@@ -486,7 +486,7 @@ impl Config {
                 .map(|(_, _, time)| *time)
                 .collect::<Vec<_>>();
 
-            let pos_pchip = if d_length > 1e-4 {
+            let pos_pchip = if d_length > EPS {
                 Interpolator::new_pchip(time_seq.clone(), pos_seq).inspect_err(|_e| {
                     log::error!(
                         "Failed to create position PchipInterpolator for viewport track on {}",
