@@ -11,6 +11,8 @@ pub struct Args {
     pub output: String,
     #[arg(short = 'w', long, value_enum, default_value_t = OutputWriter::PngSequence)]
     pub encoder: OutputWriter,
+    #[arg(short = 't', long)]
+    pub time: Option<f32>,
 }
 
 #[derive(Debug, Clone, ValueEnum, PartialEq)]
@@ -23,4 +25,6 @@ pub enum OutputWriter {
     Timeline,
     #[clap(name = "objects")]
     Objects,
+    #[clap(name = "query")]
+    Query,
 }

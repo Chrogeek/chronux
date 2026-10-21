@@ -267,6 +267,21 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         return Ok(());
     }
 
+    if args.encoder == OutputWriter::Query {
+        let t = args.time.ok_or(ChronuxError::ArgError(
+            "Query mode (--encoder query) requires a time (--time) argument".to_string(),
+        ))?;
+        // 只输出可见对象列表
+        let mut file = File::create(&output)?;
+        for (id, tl) in timeline.iter() {
+            let props = tl.interpolate(t, &dict);
+            if props.is_visible() {
+                writeln!(file, "{}", id)?;
+            }
+        }
+        return Ok(());
+    }
+
     // 设置每个对象时间线的起始属性，如有出现(appear)动画则将起始状态置为默认值（未开始）
     for o in objs.iter() {
         if let Some(tl) = timeline.get_mut(&o.id) {
@@ -347,7 +362,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         OutputWriter::PngSequence => {
             Writer::new_png_sequence(&output, width as usize, height as usize, max_frames)?
         }
-        OutputWriter::Timeline | OutputWriter::Objects => {
+        OutputWriter::Timeline | OutputWriter::Objects | OutputWriter::Query => {
             unreachable!("Timeline / Objects writer should not be used here")
         }
     };
