@@ -107,6 +107,8 @@ impl Properties {
             false
         } else if self.pie_in < EPS {
             false
+        } else if self.scale_x.abs() < EPS || self.scale_y.abs() < EPS {
+            false
         } else {
             true
         }
