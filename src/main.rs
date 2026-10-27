@@ -199,16 +199,8 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         .iter()
         .fold(0.0, |acc: f32, (_, e)| acc.max(e.start + e.duration));
 
-    let animation_start = if conf.output.time_start.is_nan() {
-        0.0
-    } else {
-        conf.output.time_start.max(0.0)
-    };
-    let animation_end = if conf.output.time_end.is_nan() {
-        time_end
-    } else {
-        conf.output.time_end.min(time_end)
-    };
+    let animation_start = args.time_start.unwrap_or(0.0);
+    let animation_end = args.time_end.unwrap_or(time_end);
 
     let obj_map = objs
         .iter()
@@ -231,7 +223,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                 file,
                 "{},{},{},{}",
                 id,
-                timecode_rt(start, conf.output.fps),
+                timecode_rt(start, args.fps),
                 duration,
                 length
                     .map(|l| l.to_string())
@@ -339,11 +331,11 @@ fn run(args: Args) -> Result<(), ChronuxError> {
     }
 
     // 渲染动画
-    let frame_start = (animation_start * conf.output.fps as f32) as usize;
-    let frame_end = (animation_end * conf.output.fps as f32) as usize;
+    let frame_start = (animation_start * args.fps as f32) as usize;
+    let frame_end = (animation_end * args.fps as f32) as usize;
     log::info!("Frames to render: {frame_start} - {frame_end}");
 
-    let max_frames = (time_end * conf.output.fps as f32) as usize;
+    let max_frames = (time_end * args.fps as f32) as usize;
 
     // 计算水印
     let wm_frames = conf
@@ -353,15 +345,15 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         .map(|wm| gen_samples(frame_end - frame_start, wm.samples, wm.len))
         .unwrap_or(HashSet::new());
 
-    let width = conf.output.width;
-    let height = conf.output.height;
+    let width = args.size.0;
+    let height = args.size.1;
 
     let writer = match args.encoder {
         OutputWriter::Ffmpeg => Writer::new_ffmpeg(
             &output,
             width as usize,
             height as usize,
-            conf.output.fps as usize,
+            args.fps as usize,
             &conf
                 .input
                 .bgm
@@ -389,7 +381,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             let bounds = (frame_start..frame_end)
                 .progress_with_style(pstyle.clone())
                 .map(|f| {
-                    let t = f as f32 / conf.output.fps as f32;
+                    let t = f as f32 / args.fps as f32;
                     // 计算所有需要显示在小地图中的对象的边界框
                     let mut bounding_box: Option<(f32, f32, f32, f32)> = None;
                     for o in objs.iter() {
@@ -429,7 +421,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
                     match (new_bounds[i - 1], bounds[i]) {
                         (None, _) | (_, None) => new_bounds.push(bounds[i]),
                         (Some((bl1, bt1, br1, bb1)), Some((bl2, bt2, br2, bb2))) => {
-                            let max_delta = minimap.expand_speed / conf.output.fps as f32;
+                            let max_delta = minimap.expand_speed / args.fps as f32;
                             new_bounds.push(Some((
                                 limit_frame_bound(bl1, bl2, max_delta),
                                 limit_frame_bound(bt1, bt2, max_delta),
@@ -453,7 +445,7 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         let render_start = Instant::now();
 
         // 当前时间点（秒数）
-        let t = f as f32 / conf.output.fps as f32;
+        let t = f as f32 / args.fps as f32;
 
         // 计算计数器
         let mut counters = conf.get_counters(t);
