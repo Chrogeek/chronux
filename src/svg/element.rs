@@ -209,7 +209,14 @@ impl Object {
                 let placeholder = node
                     .attribute("chronux-placeholder")
                     .and_then(PlaceholderText::parse);
-                let children = Tspan::from_subtree(node, mat, x, y, style.clone(), &placeholder)?;
+                let unshaped = node
+                    .attribute("chronux-text-unshaped")
+                    .map(|s| s.parse::<u32>().ok())
+                    .flatten()
+                    .map(|u| u != 0)
+                    .unwrap_or(false);
+                let children =
+                    Tspan::from_subtree(node, mat, x, y, style.clone(), &placeholder, unshaped)?;
                 Shape::Text { x, y, children }
             }
             "image" => {

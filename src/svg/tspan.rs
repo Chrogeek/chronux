@@ -37,6 +37,7 @@ pub struct Tspan {
 #[derive(Debug, Clone)]
 pub enum TspanText {
     Text(String),
+    UnshapedText(String),
     Placeholder(PlaceholderText),
 }
 
@@ -51,6 +52,8 @@ pub struct PreshapedText {
 pub struct PreshapedGlyph {
     pub path: Path,
     pub pos: Point,
+    pub font: Font,
+    pub glyph_id: u16,
 }
 
 impl Tspan {
@@ -61,6 +64,7 @@ impl Tspan {
         y: f32,
         base_style: Properties,
         placeholder: &Option<PlaceholderText>,
+        unshaped: bool,
     ) -> ChronuxResult<Vec<Tspan>> {
         fn dfs_node(
             node: &Node,
@@ -70,6 +74,7 @@ impl Tspan {
             base_style: Properties,
             result: &mut Vec<Tspan>,
             placeholder: &Option<PlaceholderText>,
+            unshaped: bool,
             parent_features: &[Feature],
         ) -> ChronuxResult<()> {
             let style_str = attribute_str(node, "style").unwrap_or("".to_string());
@@ -112,7 +117,13 @@ impl Tspan {
                             length: width,
                             text: match placeholder {
                                 Some(formatter) => TspanText::Placeholder(formatter.clone()),
-                                None => TspanText::Text(text.to_string()),
+                                None => {
+                                    if unshaped {
+                                        TspanText::UnshapedText(text.to_string())
+                                    } else {
+                                        TspanText::Text(text.to_string())
+                                    }
+                                }
                             },
                             preshaped,
                         };
@@ -135,6 +146,7 @@ impl Tspan {
                         base_style.clone(),
                         result,
                         placeholder,
+                        unshaped,
                         &features,
                     )?;
                 }
@@ -158,6 +170,7 @@ impl Tspan {
             base_style,
             &mut result,
             placeholder,
+            unshaped,
             &vec![],
         )?;
 
@@ -266,6 +279,7 @@ impl Tspan {
 
         let text = match &self.text {
             TspanText::Text(text) => text.clone(),
+            TspanText::UnshapedText(text) => text.clone(),
             TspanText::Placeholder(placeholder) => placeholder.format(counters),
         };
 
@@ -275,6 +289,15 @@ impl Tspan {
         } else if tl < EPS && tr > self.length - EPS {
             let (x, y) = (self.x, self.y);
             match &self.text {
+                TspanText::UnshapedText(_) => {
+                    canvas.draw_text_align(
+                        &text,
+                        (x + tx, y + ty),
+                        &font,
+                        &paint,
+                        self.style.text_anchor.to_align(self.style.dir),
+                    );
+                }
                 TspanText::Placeholder(placeholder) => {
                     let text = placeholder.format(counters);
                     if self.style.small_fraction != 1.0
@@ -318,19 +341,37 @@ impl Tspan {
                         ascent,
                         bounds: _,
                         glyphs,
+                        ..
                     } = &self.preshaped;
-                    for PreshapedGlyph { path, pos, .. } in glyphs {
+                    #[expect(unused)]
+                    for PreshapedGlyph {
+                        path,
+                        pos,
+                        font,
+                        glyph_id,
+                    } in glyphs
+                    {
                         let mut translated_path = path.clone();
                         translated_path.transform(&Matrix::translate(
                             Point::new(x + tx, y + ty) + *pos + Point::new(-offset, *ascent),
                         ));
                         canvas.draw_path(&translated_path, &paint);
+                        // let origin =
+                        // Point::new(x + tx, y + ty) + *pos + Point::new(-offset, *ascent);
+                        // let position = [Point::new(0.0, 0.0)];
+                        // canvas.draw_glyphs_at(
+                        //     &[*glyph_id],
+                        //     position.as_slice(),
+                        //     origin,
+                        //     &font,
+                        //     &paint,
+                        // );
                     }
                 }
             }
         } else {
             match &self.text {
-                TspanText::Placeholder(_) => {
+                TspanText::UnshapedText(_) | TspanText::Placeholder(_) => {
                     let mut dlen = 0.0;
                     for g in text.graphemes(true) {
                         let c = self.style.measure_string(g)?;
@@ -460,7 +501,7 @@ impl Tspan {
                     let paths = run_glyphs.iter().map(|g| {
                         let mut p = Path::new().unwrap();
                         tff.getPath(*g, &mut p);
-                        Path::wrap(p)
+                        (g, Path::wrap(p))
                     });
 
                     #[allow(invalid_value)]
@@ -474,7 +515,7 @@ impl Tspan {
                         .map(|p| Point::new(p.fX, p.fY))
                         .collect::<Vec<_>>();
 
-                    for (p, pa) in pos.iter().zip(paths.clone()) {
+                    for (p, (_, pa)) in pos.iter().zip(paths.clone()) {
                         bounds.join(Rect::new(
                             p.x,
                             p.y,
@@ -483,11 +524,14 @@ impl Tspan {
                         ));
                     }
 
-                    glyphs.extend(
-                        paths
-                            .zip(pos.into_iter())
-                            .map(|(path, pos)| PreshapedGlyph { pos, path }),
-                    );
+                    glyphs.extend(paths.zip(pos.into_iter()).map(|((glyph_id, path), pos)| {
+                        PreshapedGlyph {
+                            pos,
+                            path,
+                            font: font.clone(),
+                            glyph_id: *glyph_id,
+                        }
+                    }));
                 } else {
                     break;
                 }
