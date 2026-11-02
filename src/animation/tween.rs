@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use serde::Deserialize;
 use skia_safe::Color4f;
 
@@ -75,5 +77,46 @@ impl<'de> Deserialize<'de> for Tween {
         }
 
         Ok(tween)
+    }
+}
+
+impl Display for Tween {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut output_lists = Vec::new();
+        if let Some(o) = self.opacity {
+            output_lists.push(format!("opacity = {}", o));
+        }
+        if let Some(fs) = self.font_size {
+            output_lists.push(format!("font-size = {}", fs));
+        }
+        if let Some(fw) = self.font_weight {
+            output_lists.push(format!("font-weight = {}", fw));
+        }
+        if let Some(fc) = self.fill_color {
+            output_lists.push(format!("fill-color = {:?}", fc));
+        }
+        if let Some(sc) = self.stroke_color {
+            output_lists.push(format!("stroke-color = {:?}", sc));
+        }
+        if let Some(sw) = self.stroke_width {
+            output_lists.push(format!("stroke-width = {}", sw));
+        }
+        if let Some(tx) = self.translate_x {
+            output_lists.push(format!("translate-x = {}", tx));
+        }
+        if let Some(ty) = self.translate_y {
+            output_lists.push(format!("translate-y = {}", ty));
+        }
+        if let Some(r) = self.rotate {
+            output_lists.push(format!("rotate = {}", r));
+        }
+        if let Some(s) = &self.shape {
+            output_lists.push(format!("shape = {}", s));
+        }
+        if output_lists.len() == 0 {
+            write!(f, "Tween(empty)")
+        } else {
+            write!(f, "Tween({})", output_lists.join(", "))
+        }
     }
 }

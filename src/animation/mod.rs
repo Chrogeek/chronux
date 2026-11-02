@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Display};
 
 use serde::Deserialize;
 use skia_safe::{Path, PathMeasure};
@@ -65,6 +65,36 @@ pub enum Animation {
     PieIn,
     #[serde(rename = "pie-out")]
     PieOut,
+}
+
+impl Display for Animation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Animation::None => write!(f, "none"),
+            Animation::TrimPath { reverse } => {
+                write!(f, "trim-path{}", if *reverse { "(rev)" } else { "" })
+            }
+            Animation::TrimPathOut { reverse } => {
+                write!(f, "trim-path-out{}", if *reverse { "(rev)" } else { "" })
+            }
+            Animation::Typewriter { reverse } => {
+                write!(f, "typewriter{}", if *reverse { "(rev)" } else { "" })
+            }
+            Animation::TypewriterOut { reverse } => {
+                write!(f, "typewriter-out{}", if *reverse { "(rev)" } else { "" })
+            }
+            Animation::Sweep => write!(f, "sweep"),
+            Animation::SweepOut => write!(f, "sweep-out"),
+            Animation::Tween(tween) => write!(f, "{}", tween),
+            Animation::FadeIn => write!(f, "fade-in"),
+            Animation::FadeOut => write!(f, "fade-out"),
+            Animation::Move { dx, dy } => write!(f, "move(dx = {}, dy = {})", dx, dy),
+            Animation::StretchIn => write!(f, "stretch-in"),
+            Animation::StretchOut => write!(f, "stretch-out"),
+            Animation::PieIn => write!(f, "pie-in"),
+            Animation::PieOut => write!(f, "pie-out"),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Clone)]

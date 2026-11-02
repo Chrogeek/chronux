@@ -213,17 +213,26 @@ fn run(args: Args) -> Result<(), ChronuxError> {
         let mut events = conf
             .events
             .into_iter()
-            .map(|(id, e)| (e.start, e.duration, e.object.length(&dict), id.clone()))
+            .map(|(id, e)| {
+                (
+                    e.start,
+                    e.duration,
+                    e.animation,
+                    e.object.length(&dict),
+                    id.clone(),
+                )
+            })
             .collect::<Vec<_>>();
         events.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
         let mut file = File::create(&output)?;
         writeln!(file, "id,start,duration,length,")?;
-        for (start, duration, length, id) in events {
+        for (start, duration, animation, length, id) in events {
             writeln!(
                 file,
-                "{},{},{},{}",
+                "{},{},{},{},{}",
                 id,
                 timecode_rt(start, args.fps),
+                animation,
                 duration,
                 length
                     .map(|l| l.to_string())
