@@ -224,20 +224,18 @@ fn run(args: Args) -> Result<(), ChronuxError> {
             })
             .collect::<Vec<_>>();
         events.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
-        let mut file = File::create(&output)?;
-        writeln!(file, "id,start,duration,length,")?;
+        let mut wtr = csv::Writer::from_path(output)?;
+        wtr.write_record(&["id", "start", "duration", "length", "animation"])?;
         for (start, duration, animation, length, id) in events {
-            writeln!(
-                file,
-                "{},{},{},{},{}",
+            wtr.write_record(&[
                 id,
                 timecode_rt(start, args.fps),
-                animation,
-                duration,
+                duration.to_string(),
                 length
                     .map(|l| l.to_string())
                     .unwrap_or_else(|| String::new()),
-            )?;
+                animation.to_string(),
+            ])?;
         }
         return Ok(());
     }

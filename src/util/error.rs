@@ -21,6 +21,7 @@ pub enum ChronuxError {
     BrokenDependency(String),
     FfmpegError(String),
     ImageDecodeError(String),
+    CsvError(csv::Error),
 }
 
 pub type ChronuxResult<T> = Result<T, ChronuxError>;
@@ -52,6 +53,12 @@ impl From<roxmltree::Error> for ChronuxError {
 impl From<std::num::ParseFloatError> for ChronuxError {
     fn from(value: std::num::ParseFloatError) -> Self {
         ChronuxError::ParseFloatError(value)
+    }
+}
+
+impl From<csv::Error> for ChronuxError {
+    fn from(value: csv::Error) -> Self {
+        ChronuxError::CsvError(value)
     }
 }
 
@@ -88,6 +95,7 @@ impl Display for ChronuxError {
             ChronuxError::BrokenDependency(id) => write!(f, "Broken dependency: {id}"),
             ChronuxError::FfmpegError(msg) => write!(f, "FFmpeg Error: {msg}"),
             ChronuxError::ImageDecodeError(msg) => write!(f, "Image Decode Error: {msg}"),
+            ChronuxError::CsvError(e) => write!(f, "CSV Error: {e}"),
         }
     }
 }
