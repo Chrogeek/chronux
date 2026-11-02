@@ -72,6 +72,14 @@ pub fn parse_css_color(color: &str, opacity: f32) -> ChronuxResult<Color4f> {
     Ok(gamma_correction(Color4f::new(r, g, b, a)))
 }
 
+pub fn to_hex_color(clr: Color4f) -> String {
+    let r = (clr.r * 255.0).round() as u8;
+    let g = (clr.g * 255.0).round() as u8;
+    let b = (clr.b * 255.0).round() as u8;
+    let a = (clr.a * 255.0).round() as u8;
+    format!("#{:02x}{:02x}{:02x}{:02x}", r, g, b, a)
+}
+
 pub fn gamma_correction(c: Color4f) -> Color4f {
     const GAMMA: f32 = 1.0 / 2.2;
     let r = c.r.powf(GAMMA);

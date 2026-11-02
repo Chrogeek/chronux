@@ -3,7 +3,7 @@ use std::fmt::Display;
 use serde::Deserialize;
 use skia_safe::Color4f;
 
-use crate::util::{parse_css_color, toml_value_as_number};
+use crate::util::{parse_css_color, to_hex_color, toml_value_as_number};
 
 #[derive(Debug, Clone)]
 pub struct Tween {
@@ -93,10 +93,10 @@ impl Display for Tween {
             output_lists.push(format!("font-weight = {}", fw));
         }
         if let Some(fc) = self.fill_color {
-            output_lists.push(format!("fill-color = {:?}", fc));
+            output_lists.push(format!("fill-color = {}", to_hex_color(fc)));
         }
         if let Some(sc) = self.stroke_color {
-            output_lists.push(format!("stroke-color = {:?}", sc));
+            output_lists.push(format!("stroke-color = {}", to_hex_color(sc)));
         }
         if let Some(sw) = self.stroke_width {
             output_lists.push(format!("stroke-width = {}", sw));
